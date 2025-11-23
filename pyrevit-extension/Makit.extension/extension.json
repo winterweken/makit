@@ -1,0 +1,10 @@
+{
+  "name": "Makit",
+  "type": "extension",
+  "rocket_mode_compatible": false,
+  "description": "Makit extension for Revit - provides HTTP API for external tool integration",
+  "author": "winterweken",
+  "author-url": "https://github.com/winterweken/makit",
+  "url": "https://github.com/winterweken/makit",
+  "dependencies": []
+}

@@ -1,8 +1,11 @@
 package revit
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 
+	"github.com/winteweken/makit/internal/pyrevit"
 	"github.com/winteweken/makit/internal/registry"
 )
 
@@ -21,16 +24,100 @@ func registerGeometryTasks(tool *registry.Tool) {
 
 	category.AddTask("extract-walls", "Extract wall elements from a Revit model", func(ctx *registry.TaskContext) error {
 		fmt.Println("Extracting walls from Revit model...")
+
+		client := pyrevit.NewClient("")
+
+		// Check connection
+		if err := client.HealthCheck(); err != nil {
+			return fmt.Errorf("pyRevit server not available: %w\nMake sure pyRevit extension is running in Revit", err)
+		}
+
+		// Extract walls
+		options := pyrevit.WallExtractionOptions{
+			IncludeCurved:  true,
+			IncludeStacked: true,
+		}
+
+		result, err := client.ExtractWalls(options)
+		if err != nil {
+			return fmt.Errorf("failed to extract walls: %w", err)
+		}
+
+		fmt.Printf("Extracted %d walls\n", result.Count)
+
+		// Save to file if output specified
+		if output, ok := ctx.Options["output"].(string); ok {
+			data, _ := json.MarshalIndent(result, "", "  ")
+			if err := os.WriteFile(output, data, 0644); err != nil {
+				return fmt.Errorf("failed to write output: %w", err)
+			}
+			fmt.Printf("Saved to %s\n", output)
+		}
+
 		return nil
-	}).AddOption("output", "Output file path", "string", false, "walls.json")
+	}).AddOption("output", "Output file path", "string", false, "walls.json").
+		AddOption("level", "Filter by level name", "string", false, "")
 
 	category.AddTask("extract-floors", "Extract floor elements from a Revit model", func(ctx *registry.TaskContext) error {
 		fmt.Println("Extracting floors from Revit model...")
+
+		client := pyrevit.NewClient("")
+
+		if err := client.HealthCheck(); err != nil {
+			return fmt.Errorf("pyRevit server not available: %w", err)
+		}
+
+		options := pyrevit.FloorExtractionOptions{}
+
+		result, err := client.ExtractFloors(options)
+		if err != nil {
+			return fmt.Errorf("failed to extract floors: %w", err)
+		}
+
+		fmt.Printf("Extracted %d floors\n", result.Count)
+
+		if output, ok := ctx.Options["output"].(string); ok {
+			data, _ := json.MarshalIndent(result, "", "  ")
+			if err := os.WriteFile(output, data, 0644); err != nil {
+				return fmt.Errorf("failed to write output: %w", err)
+			}
+			fmt.Printf("Saved to %s\n", output)
+		}
+
 		return nil
 	}).AddOption("output", "Output file path", "string", false, "floors.json")
 
 	category.AddTask("extract-rooms", "Extract room elements from a Revit model", func(ctx *registry.TaskContext) error {
 		fmt.Println("Extracting rooms from Revit model...")
+
+		client := pyrevit.NewClient("")
+
+		if err := client.HealthCheck(); err != nil {
+			return fmt.Errorf("pyRevit server not available: %w", err)
+		}
+
+		options := pyrevit.RoomExtractionOptions{
+			IncludeUnplaced: false,
+		}
+
+		result, err := client.ExtractRooms(options)
+		if err != nil {
+			return fmt.Errorf("failed to extract rooms: %w", err)
+		}
+
+		fmt.Printf("Extracted %d rooms\n", result.Count)
+		for _, room := range result.Rooms {
+			fmt.Printf("  - %s (%s): %.2f SF\n", room.Name, room.Number, room.Area)
+		}
+
+		if output, ok := ctx.Options["output"].(string); ok {
+			data, _ := json.MarshalIndent(result, "", "  ")
+			if err := os.WriteFile(output, data, 0644); err != nil {
+				return fmt.Errorf("failed to write output: %w", err)
+			}
+			fmt.Printf("Saved to %s\n", output)
+		}
+
 		return nil
 	}).AddOption("output", "Output file path", "string", false, "rooms.json")
 }
