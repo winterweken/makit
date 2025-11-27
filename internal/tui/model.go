@@ -57,6 +57,7 @@ type model struct {
 	// Task results
 	lastTaskOutput    string
 	showResults       bool
+	resultsScroll     int // Scroll offset for results view
 	vizDirections     []string
 	vizTotalWalls     int
 	vizWindowCount    int
@@ -179,14 +180,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case key.Matches(msg, m.keys.Up):
-			if m.cursor > 0 {
-				m.cursor--
+			// If showing results, scroll instead of moving cursor
+			if m.showResults {
+				if m.resultsScroll > 0 {
+					m.resultsScroll--
+				}
+			} else {
+				if m.cursor > 0 {
+					m.cursor--
+				}
 			}
 
 		case key.Matches(msg, m.keys.Down):
-			maxCursor := m.getMaxCursor()
-			if m.cursor < maxCursor-1 {
-				m.cursor++
+			// If showing results, scroll instead of moving cursor
+			if m.showResults {
+				m.resultsScroll++
+			} else {
+				maxCursor := m.getMaxCursor()
+				if maxCursor > 0 {
+					m.cursor++
+					// Clamp cursor to valid range
+					if m.cursor >= maxCursor {
+						m.cursor = maxCursor - 1
+					}
+				}
 			}
 
 		case key.Matches(msg, m.keys.Enter):
@@ -204,6 +221,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.Results):
 			if m.lastTaskOutput != "" {
 				m.showResults = !m.showResults
+				// Reset scroll when toggling results
+				if m.showResults {
+					m.resultsScroll = 0
+				}
 			}
 
 		case key.Matches(msg, m.keys.Left), key.Matches(msg, m.keys.PrevDir):
@@ -334,6 +355,7 @@ func (m model) handleExecute() model {
 	m.lastTaskOutput = output
 	m.showResults = true
 	m.showPreview = true
+	m.resultsScroll = 0 // Reset scroll for new results
 	return m
 }
 
@@ -406,6 +428,7 @@ func (m model) updateOptionsView(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.lastTaskOutput = output
 			m.showResults = true
 			m.showPreview = true
+			m.resultsScroll = 0 // Reset scroll for new results
 
 			// Reset and go back
 			m.mode = viewTasks
@@ -815,19 +838,25 @@ func (m model) View() string {
 	leftWidth := m.width / 2
 	rightWidth := m.width - leftWidth
 
+	// Use TokyoNight themed panel styles with thick borders
+	// No fixed height - let content determine size naturally to prevent shifting
 	leftStyle := lipgloss.NewStyle().
 		Width(leftWidth - 2).
-		Height(m.height - 4).
-		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("62")).
-		Padding(1)
+		MaxHeight(m.height - 4).
+		BorderStyle(lipgloss.ThickBorder()).
+		BorderForeground(lipgloss.Color(border)).
+		Background(lipgloss.Color(bgColor)).
+		Foreground(lipgloss.Color(fgColor)).
+		Padding(1, 2)
 
 	rightStyle := lipgloss.NewStyle().
 		Width(rightWidth - 2).
-		Height(m.height - 4).
-		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("62")).
-		Padding(1)
+		MaxHeight(m.height - 4).
+		BorderStyle(lipgloss.ThickBorder()).
+		BorderForeground(lipgloss.Color(border)).
+		Background(lipgloss.Color(bgColor)).
+		Foreground(lipgloss.Color(fgColor)).
+		Padding(1, 2)
 
 	// Render panels
 	left := leftStyle.Render(leftPanel)
@@ -836,11 +865,9 @@ func (m model) View() string {
 	// Join horizontally
 	content := lipgloss.JoinHorizontal(lipgloss.Top, left, right)
 
-	// Add help footer
+	// Add help footer with TokyoNight colors
 	help := m.renderHelp()
-	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Width(m.width)
+	helpStyle := HelpStyle.Copy().Width(m.width)
 
 	return lipgloss.JoinVertical(lipgloss.Left, content, helpStyle.Render(help))
 }
@@ -848,72 +875,55 @@ func (m model) View() string {
 func (m model) renderLeftPanel() string {
 	var sb strings.Builder
 
-	titleStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("205"))
-
-	breadcrumbStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241"))
-
-	selectedStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("51"))
-
 	switch m.mode {
 	case viewTools:
-		sb.WriteString(titleStyle.Render("Select Tool") + "\n")
-		sb.WriteString(breadcrumbStyle.Render("Step 1 of 3") + "\n\n")
+		sb.WriteString(TitleStyle.Render("Select Tool") + "\n")
+		sb.WriteString(BreadcrumbStyle.Render("Step 1 of 3") + "\n\n")
 
 		tools := m.registry.ListTools()
 		for i, tool := range tools {
-			prefix := fmt.Sprintf(" %d. ", i+1)
+			cursor := " "
 			if i == m.cursor {
-				sb.WriteString(selectedStyle.Render(prefix + tool.Name) + "\n")
-				sb.WriteString(selectedStyle.Render("    " + tool.Description) + "\n\n")
-			} else {
-				sb.WriteString(prefix + tool.Name + "\n")
-				sb.WriteString(fmt.Sprintf("    %s\n\n", tool.Description))
+				cursor = ">"
 			}
+			sb.WriteString(fmt.Sprintf("%s %d. %s\n", cursor, i+1, tool.Name))
+			sb.WriteString(fmt.Sprintf("     %s\n\n", tool.Description))
 		}
 
 	case viewCategories:
-		sb.WriteString(breadcrumbStyle.Render(m.selectedTool.Name + " >") + " ")
-		sb.WriteString(titleStyle.Render("Select Category") + "\n")
-		sb.WriteString(breadcrumbStyle.Render("Step 2 of 3") + "\n\n")
+		sb.WriteString(BreadcrumbStyle.Render(m.selectedTool.Name+" >") + " ")
+		sb.WriteString(TitleStyle.Render("Select Category") + "\n")
+		sb.WriteString(BreadcrumbStyle.Render("Step 2 of 3") + "\n\n")
 
 		categories := make([]*registry.Category, 0, len(m.selectedTool.Categories))
 		for _, cat := range m.selectedTool.Categories {
 			categories = append(categories, cat)
 		}
 		for i, cat := range categories {
-			prefix := fmt.Sprintf(" %d. ", i+1)
+			cursor := " "
 			if i == m.cursor {
-				sb.WriteString(selectedStyle.Render(prefix + cat.Name) + "\n")
-				sb.WriteString(selectedStyle.Render("    " + cat.Description) + "\n\n")
-			} else {
-				sb.WriteString(prefix + cat.Name + "\n")
-				sb.WriteString(fmt.Sprintf("    %s\n\n", cat.Description))
+				cursor = ">"
 			}
+			sb.WriteString(fmt.Sprintf("%s %d. %s\n", cursor, i+1, cat.Name))
+			sb.WriteString(fmt.Sprintf("     %s\n\n", cat.Description))
 		}
 
 	case viewTasks:
-		sb.WriteString(breadcrumbStyle.Render(m.selectedTool.Name + " > " + m.selectedCategory.Name + " >") + " ")
-		sb.WriteString(titleStyle.Render("Select Task") + "\n")
-		sb.WriteString(breadcrumbStyle.Render("Step 3 of 3") + "\n\n")
+		sb.WriteString(BreadcrumbStyle.Render(m.selectedTool.Name+" > "+m.selectedCategory.Name+" >") + " ")
+		sb.WriteString(TitleStyle.Render("Select Task") + "\n")
+		sb.WriteString(BreadcrumbStyle.Render("Step 3 of 3") + "\n\n")
 
 		tasks := make([]*registry.Task, 0, len(m.selectedCategory.Tasks))
 		for _, task := range m.selectedCategory.Tasks {
 			tasks = append(tasks, task)
 		}
 		for i, task := range tasks {
-			prefix := fmt.Sprintf(" %d. ", i+1)
+			cursor := " "
 			if i == m.cursor {
-				sb.WriteString(selectedStyle.Render(prefix + task.Name) + "\n")
-				sb.WriteString(selectedStyle.Render("    " + task.Description) + "\n\n")
-			} else {
-				sb.WriteString(prefix + task.Name + "\n")
-				sb.WriteString(fmt.Sprintf("    %s\n\n", task.Description))
+				cursor = ">"
 			}
+			sb.WriteString(fmt.Sprintf("%s %d. %s\n", cursor, i+1, task.Name))
+			sb.WriteString(fmt.Sprintf("     %s\n\n", task.Description))
 		}
 	}
 
@@ -921,21 +931,40 @@ func (m model) renderLeftPanel() string {
 }
 
 func (m model) renderRightPanel() string {
-	titleStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("205"))
-
 	// Show results text when toggled on
 	if m.showResults && m.lastTaskOutput != "" {
 		var sb strings.Builder
 
-		sb.WriteString(titleStyle.Render("Analysis Results") + "\n\n")
+		sb.WriteString(PreviewTitleStyle.Render("Analysis Results (↑/↓ to scroll)") + "\n\n")
 
-		// Wrap output in a styled box
-		outputStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("252"))
+		// Split output into lines and apply scroll offset
+		lines := strings.Split(m.lastTaskOutput, "\n")
+		if m.resultsScroll >= len(lines) {
+			m.resultsScroll = len(lines) - 1
+		}
+		if m.resultsScroll < 0 {
+			m.resultsScroll = 0
+		}
 
-		sb.WriteString(outputStyle.Render(m.lastTaskOutput))
+		// Calculate visible lines based on panel height
+		maxVisibleLines := m.height - 10 // Account for borders, padding, title
+		if maxVisibleLines < 1 {
+			maxVisibleLines = 10
+		}
+
+		endLine := m.resultsScroll + maxVisibleLines
+		if endLine > len(lines) {
+			endLine = len(lines)
+		}
+
+		visibleLines := lines[m.resultsScroll:endLine]
+		sb.WriteString(NormalStyle.Render(strings.Join(visibleLines, "\n")))
+
+		// Show scroll indicator
+		if len(lines) > maxVisibleLines {
+			sb.WriteString(fmt.Sprintf("\n\n%s", HelpStyle.Render(
+				fmt.Sprintf("Line %d-%d of %d", m.resultsScroll+1, endLine, len(lines)))))
+		}
 
 		return sb.String()
 	}
@@ -996,7 +1025,7 @@ func (m model) renderRightPanel() string {
 
 		// Direction header with navigation
 		dirHeader := fmt.Sprintf("◀ %s (%d/%d) ▶", currentDir, m.selectedDirection+1, len(m.vizDirections))
-		sb.WriteString(titleStyle.Render(dirHeader) + "\n\n")
+		sb.WriteString(PreviewTitleStyle.Render(dirHeader) + "\n\n")
 
 		// Render canvas
 		canvasOutput := c.Render()
@@ -1007,15 +1036,14 @@ func (m model) renderRightPanel() string {
 		// Stats and legend
 		sb.WriteString("\n\n")
 
-		// Wall stats (no special styling)
-		sb.WriteString(fmt.Sprintf("□ Walls: %d  (%.1f%% coverage)\n", dirStats.Walls, 100.0-dirStats.WWR))
+		// Wall stats (using normal style)
+		sb.WriteString(NormalStyle.Render(fmt.Sprintf("□ Walls: %d  (%.1f%% coverage)\n", dirStats.Walls, 100.0-dirStats.WWR)))
 
 		// Window stats (cyan colored to match filled appearance)
-		windowStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("51")) // Cyan
-		sb.WriteString(windowStyle.Render(fmt.Sprintf("■ Windows: %d  (%.1f%% WWR)", dirStats.Windows, dirStats.WWR)))
+		sb.WriteString(WindowStyle.Render(fmt.Sprintf("■ Windows: %d  (%.1f%% WWR)", dirStats.Windows, dirStats.WWR)))
 
 		sb.WriteString("\n\n")
-		sb.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render("←/→ or [/]: change direction  •  r: text results"))
+		sb.WriteString(HelpStyle.Render("←/→ or [/]: change direction  •  r: text results"))
 
 		return sb.String()
 	}
@@ -1029,23 +1057,21 @@ func (m model) renderRightPanel() string {
 		geometry.DrawLines(c, m.previewLines, previewWidth, previewHeight)
 
 		var sb strings.Builder
-		sb.WriteString(titleStyle.Render("Wall Elevation View") + "\n\n")
+		sb.WriteString(PreviewTitleStyle.Render("Wall Elevation View") + "\n\n")
 		sb.WriteString(c.Render())
 
 		// Show metadata
-		sb.WriteString(fmt.Sprintf("\n\n%d walls visualized", m.vizTotalWalls))
+		sb.WriteString(StatsStyle.Render(fmt.Sprintf("\n\n%d walls visualized", m.vizTotalWalls)))
 		if len(m.vizDirections) > 0 {
-			sb.WriteString(fmt.Sprintf("\nDirections: %s", strings.Join(m.vizDirections, ", ")))
+			sb.WriteString(DescriptionStyle.Render(fmt.Sprintf("\nDirections: %s", strings.Join(m.vizDirections, ", "))))
 		}
-		sb.WriteString("\n\nPress 'r' to see analysis results")
+		sb.WriteString(HelpStyle.Render("\n\nPress 'r' to see analysis results"))
 
 		return sb.String()
 	}
 
 	// Default message
-	return lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Render("Select a task and press 'x' to execute\n\nResults and visualizations will appear here")
+	return DescriptionStyle.Render("Select a task and press 'x' to execute\n\nResults and visualizations will appear here")
 }
 
 func (m model) renderHelp() string {
@@ -1064,31 +1090,17 @@ func (m model) renderHelp() string {
 func (m model) renderOptionsView() string {
 	var sb strings.Builder
 
-	titleStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("205")).
-		Padding(1, 2)
-
-	inputStyle := lipgloss.NewStyle().
-		Padding(0, 2)
-
-	labelStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Width(20)
-
-	sb.WriteString(titleStyle.Render(fmt.Sprintf("Configure: %s", m.selectedTask.Name)))
+	sb.WriteString(TitleStyle.Copy().Padding(1, 2).Render(fmt.Sprintf("Configure: %s", m.selectedTask.Name)))
 	sb.WriteString("\n\n")
 
 	for i, input := range m.optionInputs {
-		label := labelStyle.Render(m.optionKeys[i] + ":")
-		sb.WriteString(inputStyle.Render(label + " " + input.View()))
+		label := LabelStyle.Copy().Width(20).Render(m.optionKeys[i] + ":")
+		sb.WriteString(NormalStyle.Copy().Padding(0, 2).Render(label + " " + input.View()))
 		sb.WriteString("\n\n")
 	}
 
 	sb.WriteString("\n")
-	sb.WriteString(lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Render(m.renderHelp()))
+	sb.WriteString(HelpStyle.Render(m.renderHelp()))
 
 	return sb.String()
 }
