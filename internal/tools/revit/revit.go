@@ -125,6 +125,111 @@ func registerGeometryTasks(tool *registry.Tool) {
 func registerAnalysisTasks(tool *registry.Tool) {
 	category := tool.AddCategory("analysis", "Analyze Revit models and elements")
 
+	// Wall Orientation Analysis - Hybrid Approach (Revit-specific, fast)
+	category.AddTask("wall-orientations", "Analyze wall orientations and calculate WWR by direction", func(ctx *registry.TaskContext) error {
+		fmt.Println("Analyzing wall orientations...")
+
+		client := pyrevit.NewClient("")
+
+		if err := client.HealthCheck(); err != nil {
+			return fmt.Errorf("pyRevit server not available: %w\nMake sure pyRevit extension is running in Revit", err)
+		}
+
+		// Build options from context
+		options := pyrevit.WallOrientationOptions{
+			IncludeWindows: true,
+			AreaUnit:       "sqm",
+		}
+
+		if workset, ok := ctx.Options["workset"].(string); ok && workset != "" {
+			options.Workset = workset
+		}
+
+		if wallType, ok := ctx.Options["wall-type"].(string); ok && wallType != "" {
+			options.WallType = wallType
+		}
+
+		if areaUnit, ok := ctx.Options["unit"].(string); ok && areaUnit != "" {
+			options.AreaUnit = areaUnit
+		}
+
+		// Execute hybrid analysis
+		result, err := client.AnalyzeWallOrientations(options)
+		if err != nil {
+			return fmt.Errorf("failed to analyze wall orientations: %w", err)
+		}
+
+		// Print report
+		fmt.Println(result.Report)
+
+		// Save detailed results if output specified
+		if output, ok := ctx.Options["output"].(string); ok && output != "" {
+			data, _ := json.MarshalIndent(result, "", "  ")
+			if err := os.WriteFile(output, data, 0644); err != nil {
+				return fmt.Errorf("failed to write output: %w", err)
+			}
+			fmt.Printf("\nDetailed results saved to %s\n", output)
+		}
+
+		return nil
+	}).AddOption("workset", "Filter by workset name", "string", false, "").
+		AddOption("wall-type", "Filter by wall type (e.g., Exterior)", "string", false, "").
+		AddOption("unit", "Area unit (sqm, sqf)", "string", false, "sqm").
+		AddOption("output", "Save detailed JSON results to file", "string", false, "")
+
+	// Extract Building Model - Generic Format
+	category.AddTask("extract-model", "Extract building model to generic format for cross-platform analysis", func(ctx *registry.TaskContext) error {
+		fmt.Println("Extracting building model to generic format...")
+
+		client := pyrevit.NewClient("")
+
+		if err := client.HealthCheck(); err != nil {
+			return fmt.Errorf("pyRevit server not available: %w", err)
+		}
+
+		options := pyrevit.BuildingModelExtractionOptions{
+			IncludeWindows: true,
+			AreaUnit:       "sqm",
+		}
+
+		if workset, ok := ctx.Options["workset"].(string); ok && workset != "" {
+			options.Workset = workset
+		}
+
+		if wallType, ok := ctx.Options["wall-type"].(string); ok && wallType != "" {
+			options.WallType = wallType
+		}
+
+		buildingModel, err := client.ExtractBuildingModel(options)
+		if err != nil {
+			return fmt.Errorf("failed to extract building model: %w", err)
+		}
+
+		// Get wall and window counts
+		walls, _ := buildingModel["walls"].([]interface{})
+		windows, _ := buildingModel["windows"].([]interface{})
+
+		fmt.Printf("Extracted %d walls and %d windows\n", len(walls), len(windows))
+
+		// Save to file
+		output := "building-model.json"
+		if out, ok := ctx.Options["output"].(string); ok && out != "" {
+			output = out
+		}
+
+		data, _ := json.MarshalIndent(buildingModel, "", "  ")
+		if err := os.WriteFile(output, data, 0644); err != nil {
+			return fmt.Errorf("failed to write output: %w", err)
+		}
+
+		fmt.Printf("Building model saved to %s\n", output)
+		fmt.Println("\nThis generic format can be analyzed by other tools or re-analyzed offline")
+
+		return nil
+	}).AddOption("workset", "Filter by workset name", "string", false, "").
+		AddOption("wall-type", "Filter by wall type", "string", false, "").
+		AddOption("output", "Output file path", "string", false, "building-model.json")
+
 	category.AddTask("calculate-areas", "Calculate areas of rooms and spaces", func(ctx *registry.TaskContext) error {
 		fmt.Println("Calculating areas...")
 		return nil

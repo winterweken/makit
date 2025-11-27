@@ -139,3 +139,40 @@ func (c *Client) GetProjectInfo() (*ProjectInfo, error) {
 	}
 	return &result, nil
 }
+
+// AnalyzeWallOrientations analyzes wall orientations and calculates WWR
+// This is a hybrid approach that extracts and analyzes in one step
+func (c *Client) AnalyzeWallOrientations(options WallOrientationOptions) (*WallOrientationResponse, error) {
+	var result WallOrientationResponse
+	err := c.Post("/api/analysis/wall-orientations", options, &result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+// ExtractBuildingModel extracts a complete building model in generic format
+// This allows for caching and reuse across multiple analysis operations
+func (c *Client) ExtractBuildingModel(options BuildingModelExtractionOptions) (map[string]interface{}, error) {
+	var result map[string]interface{}
+	err := c.Post("/api/extraction/building-model", options, &result)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// AnalyzeGenericModel analyzes a pre-extracted building model
+// This is the pure generic approach - model can come from any source
+func (c *Client) AnalyzeGenericModel(buildingModel map[string]interface{}) (*WallOrientationResponse, error) {
+	payload := map[string]interface{}{
+		"buildingModel": buildingModel,
+	}
+
+	var result WallOrientationResponse
+	err := c.Post("/api/analysis/generic", payload, &result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}

@@ -83,6 +83,35 @@ class MakitRequestHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 self._send_error_json(str(e))
 
+        elif self.path == '/api/analysis/wall-orientations':
+            try:
+                from revit_extractors import analyze_walls_direct_from_revit
+                result = analyze_walls_direct_from_revit(options)
+                self._send_json(result)
+            except Exception as e:
+                self._send_error_json(str(e))
+
+        elif self.path == '/api/extraction/building-model':
+            try:
+                from revit_extractors import extract_building_model_from_revit
+                building_model = extract_building_model_from_revit(options)
+                self._send_json(building_model.to_dict())
+            except Exception as e:
+                self._send_error_json(str(e))
+
+        elif self.path == '/api/analysis/generic':
+            try:
+                from analysis_engine import analyze_wall_orientations, generate_orientation_report
+                # Expects pre-extracted building model in options
+                stats = analyze_wall_orientations(options.get('buildingModel', {}))
+                report = generate_orientation_report(stats)
+                self._send_json({
+                    'stats': stats,
+                    'report': report
+                })
+            except Exception as e:
+                self._send_error_json(str(e))
+
         else:
             self._send_error_json('Not found', 404)
 

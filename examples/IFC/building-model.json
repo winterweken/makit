@@ -1,0 +1,99 @@
+{
+  "walls": [
+    {
+      "id": "1AQAupaRP1txwK1AGiN61V",
+      "name": "house - outer wall - house right front",
+      "orientation": {
+        "x": 2.525757381022231e-14,
+        "y": -1.0,
+        "z": 3.2836943041225645e-15
+      },
+      "area": 6.3,
+      "height": 0.0,
+      "length": 1799.9999999999711,
+      "width": 0.0,
+      "type": "solidwall",
+      "workset": "",
+      "isCurtainWall": false,
+      "level": "00 groundfloor",
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall",
+        "description": "A solid outer wall, forming the right front side of the house."
+      }
+    },
+    {
+      "id": "3wdauVJT5Fx9drrREiDqA$",
+      "name": "house - outer wall - house right back",
+      "orientation": {
+        "x": -1.1657341758564144e-15,
+        "y": -1.0,
+        "z": 0.0
+      },
+      "area": 8.9,
+      "height": 0.0,
+      "length": 4200.000000000067,
+      "width": 0.0,
+      "type": "solidwall",
+      "workset": "",
+      "isCurtainWall": false,
+      "level": "00 groundfloor",
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall",
+        "description": "A solid outer wall, forming the right back side of the house."
+      }
+    },
+    {
+      "id": "0OfZwWc8j9QP5uX8xPTxDH",
+      "name": "house - outer wall - house left",
+      "orientation": {
+        "x": 1.3322676295501878e-15,
+        "y": 1.0,
+        "z": 0.0
+      },
+      "area": 21.2,
+      "height": 0.0,
+      "length": 6000.000000000036,
+      "width": 0.0,
+      "type": "solidwall",
+      "workset": "",
+      "isCurtainWall": false,
+      "level": "00 groundfloor",
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall",
+        "description": "A solid outer wall, forming the left side of the house."
+      }
+    },
+    {
+      "id": "1uS5vfZPn9R8PlAaVd73on",
+      "name": "plumbing wall",
+      "orientation": {
+        "x": -1.2663699797266077e-15,
+        "y": -1.0,
+        "z": 0.0
+      },
+      "area": 6.9,
+      "height": 0.0,
+      "length": 3800.000000000086,
+      "width": 0.0,
+      "type": "plumbingwall",
+      "workset": "",
+      "isCurtainWall": false,
+      "level": "00 groundfloor",
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall",
+        "description": "A wall designed to house and protect plumbing systems, keeping the pipes snug and secure."
+      }
+    }
+  ],
+  "windows": [],
+  "projectNorth": 1.5707963267948966,
+  "units": "m",
+  "metadata": {
+    "projectName": "ifc silly sample scene - project",
+    "description": "Demystifying IFC with a playful scene using diverse building elements and compositions."
+  }
+}

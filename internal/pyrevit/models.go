@@ -102,3 +102,55 @@ type AnalysisResponse struct {
 	Results map[string]interface{} `json:"results"`
 	Message string                 `json:"message"`
 }
+
+// WallOrientationOptions configures wall orientation analysis
+type WallOrientationOptions struct {
+	Workset      string `json:"workset,omitempty"`
+	WallType     string `json:"wallType,omitempty"`
+	AreaUnit     string `json:"areaUnit,omitempty"`
+	IncludeWindows bool `json:"includeWindows"`
+}
+
+// DirectionStats contains statistics for a specific compass direction
+type DirectionStats struct {
+	WallCount   int      `json:"wallCount"`
+	WallArea    float64  `json:"wallArea"`
+	WindowCount int      `json:"windowCount"`
+	WindowArea  float64  `json:"windowArea"`
+	WWR         float64  `json:"wwr"`
+	WallIDs     []string `json:"wallIds"`
+	WindowIDs   []string `json:"windowIds"`
+}
+
+// TotalStats contains overall statistics
+type TotalStats struct {
+	WallCount   int     `json:"wallCount"`
+	WallArea    float64 `json:"wallArea"`
+	WindowCount int     `json:"windowCount"`
+	WindowArea  float64 `json:"windowArea"`
+	WWR         float64 `json:"wwr"`
+}
+
+// WallOrientationStats contains complete orientation analysis results
+type WallOrientationStats struct {
+	ByDirection       map[string]DirectionStats `json:"byDirection"`
+	Totals            TotalStats                `json:"totals"`
+	ProjectNorth      float64                   `json:"projectNorth"`
+	Units             string                    `json:"units"`
+	WallOrientations  map[string]string         `json:"wallOrientations"`
+}
+
+// WallOrientationResponse is the response from wall orientation analysis
+type WallOrientationResponse struct {
+	Stats         WallOrientationStats   `json:"stats"`
+	Report        string                 `json:"report"`
+	BuildingModel map[string]interface{} `json:"buildingModel,omitempty"`
+}
+
+// BuildingModelExtractionOptions configures building model extraction
+type BuildingModelExtractionOptions struct {
+	Workset        string `json:"workset,omitempty"`
+	WallType       string `json:"wallType,omitempty"`
+	AreaUnit       string `json:"areaUnit,omitempty"`
+	IncludeWindows bool   `json:"includeWindows"`
+}
