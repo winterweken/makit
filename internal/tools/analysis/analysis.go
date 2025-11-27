@@ -2,6 +2,9 @@ package analysis
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 
 	"github.com/winteweken/makit/internal/registry"
 )
@@ -13,6 +16,7 @@ func RegisterTasks() {
 
 	registerGeometricTasks(tool)
 	registerPerformanceTasks(tool)
+	registerIFCTasks(tool)
 }
 
 func registerGeometricTasks(tool *registry.Tool) {
@@ -51,4 +55,77 @@ func registerPerformanceTasks(tool *registry.Tool) {
 		fmt.Println("Analyzing thermal comfort...")
 		return nil
 	})
+}
+
+func registerIFCTasks(tool *registry.Tool) {
+	category := tool.AddCategory("ifc", "IFC file analysis")
+
+	category.AddTask("wall-orientation-wwr", "Analyze wall orientations and WWR from IFC files", func(ctx *registry.TaskContext) error {
+		// Get the IFC file path from options or use default example
+		ifcFile := "examples/IFC/Building-Architecture.ifc"
+		if path, ok := ctx.Options["ifc-file"].(string); ok && path != "" {
+			ifcFile = path
+		}
+
+		// Check if file exists
+		if _, err := os.Stat(ifcFile); os.IsNotExist(err) {
+			return fmt.Errorf("IFC file not found: %s", ifcFile)
+		}
+
+		// Find the analyze_ifc.py script
+		possiblePaths := []string{
+			"pyrevit-extension/Makit.extension/lib/analyze_ifc.py",
+			"../pyrevit-extension/Makit.extension/lib/analyze_ifc.py",
+		}
+
+		var scriptPath string
+		for _, path := range possiblePaths {
+			absPath, err := filepath.Abs(path)
+			if err != nil {
+				continue
+			}
+			if _, err := os.Stat(absPath); err == nil {
+				scriptPath = absPath
+				break
+			}
+		}
+
+		if scriptPath == "" {
+			return fmt.Errorf("analyze_ifc.py script not found")
+		}
+
+		// Convert IFC file to absolute path
+		absIFCFile, err := filepath.Abs(ifcFile)
+		if err != nil {
+			return fmt.Errorf("failed to get absolute path for IFC file: %w", err)
+		}
+
+		// Get options
+		areaUnit := "sqm"
+		if unit, ok := ctx.Options["unit"].(string); ok && unit != "" {
+			areaUnit = unit
+		}
+
+		// Build command arguments
+		cmdArgs := []string{scriptPath, absIFCFile, "--unit", areaUnit}
+
+		if output, ok := ctx.Options["output"].(string); ok && output != "" {
+			cmdArgs = append(cmdArgs, "--output", output)
+		}
+
+		// Run the Python script
+		pythonCmd := exec.Command("python3", cmdArgs...)
+		pythonCmd.Stdout = os.Stdout
+		pythonCmd.Stderr = os.Stderr
+
+		fmt.Printf("Analyzing IFC file: %s\n", ifcFile)
+		if err := pythonCmd.Run(); err != nil {
+			return fmt.Errorf("analysis failed: %w", err)
+		}
+
+		return nil
+	}).
+		AddOption("ifc-file", "Path to IFC file", "string", false, "examples/IFC/Building-Architecture.ifc").
+		AddOption("unit", "Area unit (sqm or sqf)", "string", false, "sqm").
+		AddOption("output", "Save results to JSON file", "string", false, "")
 }

@@ -44,6 +44,7 @@ def main():
     try:
         from ifc_extractors import extract_building_model_from_ifc, analyze_ifc_walls
         from analysis_engine import analyze_wall_orientations, generate_orientation_report
+        from visualization_utils import generate_elevation_visualization
     except ImportError as e:
         print("Error: Required modules not found: {}".format(str(e)))
         print("\nMake sure you're running from the lib directory or have the modules in your path")
@@ -99,16 +100,25 @@ def main():
     stats = analyze_wall_orientations(building_model)
     report = generate_orientation_report(stats)
 
+    # Generate visualizations
+    visualizations = generate_elevation_visualization(building_model, stats)
+
     # Print report
     print()
     print(report)
+
+    # Always output visualization JSON to a temp file for TUI
+    viz_output = '/tmp/makit_viz.json'
+    with open(viz_output, 'w') as f:
+        json.dump(visualizations, f, indent=2)
 
     # Save detailed results if requested
     if args.output:
         result = {
             'stats': stats,
             'report': report,
-            'buildingModel': building_model.to_dict()
+            'buildingModel': building_model.to_dict(),
+            'visualizations': visualizations
         }
 
         with open(args.output, 'w') as f:
