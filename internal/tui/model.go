@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -517,20 +518,16 @@ func (m *model) executeTaskWithCapture(options map[string]interface{}) string {
 }
 
 func (m *model) loadVisualizationData() {
-	vizFile := "/tmp/makit_viz.json"
+	vizFile := filepath.Join(os.TempDir(), "makit_viz.json")
 	data, err := os.ReadFile(vizFile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "DEBUG: Failed to read viz file: %v\n", err)
 		return // Visualization not available
 	}
 
 	var vizData map[string]interface{}
 	if err := json.Unmarshal(data, &vizData); err != nil {
-		fmt.Fprintf(os.Stderr, "DEBUG: Failed to parse viz JSON: %v\n", err)
 		return
 	}
-
-	fmt.Fprintf(os.Stderr, "DEBUG: Loaded viz data with %d directions\n", len(vizData))
 
 	// Check if data has faces format (check first direction)
 	hasFaces := false
@@ -545,12 +542,9 @@ func (m *model) loadVisualizationData() {
 
 	// If data has faces, use the faces loading path
 	if hasFaces {
-		fmt.Fprintf(os.Stderr, "DEBUG: Using faces format loading\n")
 		m.loadIsometricFaces(vizData)
 		return
 	}
-
-	fmt.Fprintf(os.Stderr, "DEBUG: Using lines format loading\n")
 
 	// Collect all lines from all directions
 	type directionData struct {
@@ -596,8 +590,6 @@ func (m *model) loadVisualizationData() {
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "DEBUG: Converting %d directions from lines to faces\n", len(directions))
-
 	// Store directions separately for navigation (like faces mode)
 	m.directionData = make(map[string]DirectionStats)
 	m.vizDirections = []string{}
@@ -612,7 +604,6 @@ func (m *model) loadVisualizationData() {
 
 		// Store direction data with lines converted to faces for consistent rendering
 		faces := m.convertLinesToFaces(dir.lines)
-		fmt.Fprintf(os.Stderr, "DEBUG: Direction %s: %d lines -> %d faces\n", dir.name, len(dir.lines), len(faces))
 
 		m.directionData[dir.name] = DirectionStats{
 			Walls:   wallCount,
@@ -622,7 +613,6 @@ func (m *model) loadVisualizationData() {
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "DEBUG: Final directionData has %d directions\n", len(m.directionData))
 	m.selectedDirection = 0
 	m.previewLines = []geometry.Line{} // Clear, we'll use faces rendering
 }
@@ -800,98 +790,6 @@ func normalizeFaces(faces []Face, targetWidth, targetHeight float64) []Face {
 	return normalized
 }
 
-func findYBounds(lines []geometry.Line) (float64, float64) {
-	if len(lines) == 0 {
-		return 0, 0
-	}
-
-	minY := lines[0].Start.Y
-	maxY := lines[0].Start.Y
-
-	for _, line := range lines {
-		if line.Start.Y < minY {
-			minY = line.Start.Y
-		}
-		if line.Start.Y > maxY {
-			maxY = line.Start.Y
-		}
-		if line.End.Y < minY {
-			minY = line.End.Y
-		}
-		if line.End.Y > maxY {
-			maxY = line.End.Y
-		}
-	}
-
-	return minY, maxY
-}
-
-func normalizeGeometry(lines []geometry.Line, targetWidth, targetHeight float64) []geometry.Line {
-	if len(lines) == 0 {
-		return lines
-	}
-
-	// Find bounds
-	minX, maxX := lines[0].Start.X, lines[0].Start.X
-	minY, maxY := lines[0].Start.Y, lines[0].Start.Y
-
-	for _, line := range lines {
-		if line.Start.X < minX {
-			minX = line.Start.X
-		}
-		if line.Start.X > maxX {
-			maxX = line.Start.X
-		}
-		if line.End.X < minX {
-			minX = line.End.X
-		}
-		if line.End.X > maxX {
-			maxX = line.End.X
-		}
-
-		if line.Start.Y < minY {
-			minY = line.Start.Y
-		}
-		if line.Start.Y > maxY {
-			maxY = line.Start.Y
-		}
-		if line.End.Y < minY {
-			minY = line.End.Y
-		}
-		if line.End.Y > maxY {
-			maxY = line.End.Y
-		}
-	}
-
-	width := maxX - minX
-	height := maxY - minY
-
-	// Calculate scale to fit target dimensions
-	scaleX := targetWidth / width
-	scaleY := targetHeight / height
-	scale := scaleX
-	if scaleY < scaleX {
-		scale = scaleY
-	}
-
-	// Normalize and scale
-	normalized := make([]geometry.Line, len(lines))
-	for i, line := range lines {
-		normalized[i] = geometry.Line{
-			Start: geometry.Point{
-				X: (line.Start.X - minX) * scale,
-				Y: (line.Start.Y - minY) * scale,
-			},
-			End: geometry.Point{
-				X: (line.End.X - minX) * scale,
-				Y: (line.End.Y - minY) * scale,
-			},
-		}
-	}
-
-	return normalized
-}
-
 func (m model) View() string {
 	if m.width == 0 {
 		return "Loading..."
@@ -1004,11 +902,14 @@ func (m model) renderRightPanel() string {
 
 		// Split output into lines and apply scroll offset
 		lines := strings.Split(m.lastTaskOutput, "\n")
-		if m.resultsScroll >= len(lines) {
-			m.resultsScroll = len(lines) - 1
+
+		// Clamp scroll position using local variable (View should not modify model)
+		scrollPos := m.resultsScroll
+		if scrollPos >= len(lines) {
+			scrollPos = len(lines) - 1
 		}
-		if m.resultsScroll < 0 {
-			m.resultsScroll = 0
+		if scrollPos < 0 {
+			scrollPos = 0
 		}
 
 		// Calculate visible lines based on panel height
@@ -1017,18 +918,18 @@ func (m model) renderRightPanel() string {
 			maxVisibleLines = 10
 		}
 
-		endLine := m.resultsScroll + maxVisibleLines
+		endLine := scrollPos + maxVisibleLines
 		if endLine > len(lines) {
 			endLine = len(lines)
 		}
 
-		visibleLines := lines[m.resultsScroll:endLine]
+		visibleLines := lines[scrollPos:endLine]
 		sb.WriteString(NormalStyle.Render(strings.Join(visibleLines, "\n")))
 
 		// Show scroll indicator
 		if len(lines) > maxVisibleLines {
 			sb.WriteString(fmt.Sprintf("\n\n%s", HelpStyle.Render(
-				fmt.Sprintf("Line %d-%d of %d", m.resultsScroll+1, endLine, len(lines)))))
+				fmt.Sprintf("Line %d-%d of %d", scrollPos+1, endLine, len(lines)))))
 		}
 
 		return sb.String()
@@ -1282,44 +1183,44 @@ func generateSampleGeometry(taskName string) []geometry.Line {
 	case "extract-walls":
 		// Simple room outline
 		lines = append(lines,
-			geometry.Line{geometry.Point{0, 0}, geometry.Point{20, 0}},
-			geometry.Line{geometry.Point{20, 0}, geometry.Point{20, 15}},
-			geometry.Line{geometry.Point{20, 15}, geometry.Point{0, 15}},
-			geometry.Line{geometry.Point{0, 15}, geometry.Point{0, 0}},
+			geometry.Line{Start: geometry.Point{X: 0, Y: 0}, End: geometry.Point{X: 20, Y: 0}},
+			geometry.Line{Start: geometry.Point{X: 20, Y: 0}, End: geometry.Point{X: 20, Y: 15}},
+			geometry.Line{Start: geometry.Point{X: 20, Y: 15}, End: geometry.Point{X: 0, Y: 15}},
+			geometry.Line{Start: geometry.Point{X: 0, Y: 15}, End: geometry.Point{X: 0, Y: 0}},
 			// Interior wall
-			geometry.Line{geometry.Point{10, 0}, geometry.Point{10, 15}},
+			geometry.Line{Start: geometry.Point{X: 10, Y: 0}, End: geometry.Point{X: 10, Y: 15}},
 		)
 
 	case "extract-floors":
 		// Floor slab outline
 		lines = append(lines,
-			geometry.Line{geometry.Point{0, 0}, geometry.Point{25, 0}},
-			geometry.Line{geometry.Point{25, 0}, geometry.Point{25, 20}},
-			geometry.Line{geometry.Point{25, 20}, geometry.Point{0, 20}},
-			geometry.Line{geometry.Point{0, 20}, geometry.Point{0, 0}},
+			geometry.Line{Start: geometry.Point{X: 0, Y: 0}, End: geometry.Point{X: 25, Y: 0}},
+			geometry.Line{Start: geometry.Point{X: 25, Y: 0}, End: geometry.Point{X: 25, Y: 20}},
+			geometry.Line{Start: geometry.Point{X: 25, Y: 20}, End: geometry.Point{X: 0, Y: 20}},
+			geometry.Line{Start: geometry.Point{X: 0, Y: 20}, End: geometry.Point{X: 0, Y: 0}},
 		)
 
 	case "extract-rooms":
 		// Multiple rooms
 		lines = append(lines,
 			// Room 1
-			geometry.Line{geometry.Point{0, 0}, geometry.Point{10, 0}},
-			geometry.Line{geometry.Point{10, 0}, geometry.Point{10, 10}},
-			geometry.Line{geometry.Point{10, 10}, geometry.Point{0, 10}},
-			geometry.Line{geometry.Point{0, 10}, geometry.Point{0, 0}},
+			geometry.Line{Start: geometry.Point{X: 0, Y: 0}, End: geometry.Point{X: 10, Y: 0}},
+			geometry.Line{Start: geometry.Point{X: 10, Y: 0}, End: geometry.Point{X: 10, Y: 10}},
+			geometry.Line{Start: geometry.Point{X: 10, Y: 10}, End: geometry.Point{X: 0, Y: 10}},
+			geometry.Line{Start: geometry.Point{X: 0, Y: 10}, End: geometry.Point{X: 0, Y: 0}},
 			// Room 2
-			geometry.Line{geometry.Point{10, 0}, geometry.Point{20, 0}},
-			geometry.Line{geometry.Point{20, 0}, geometry.Point{20, 10}},
-			geometry.Line{geometry.Point{20, 10}, geometry.Point{10, 10}},
+			geometry.Line{Start: geometry.Point{X: 10, Y: 0}, End: geometry.Point{X: 20, Y: 0}},
+			geometry.Line{Start: geometry.Point{X: 20, Y: 0}, End: geometry.Point{X: 20, Y: 10}},
+			geometry.Line{Start: geometry.Point{X: 20, Y: 10}, End: geometry.Point{X: 10, Y: 10}},
 		)
 
 	default:
 		// Default shape
 		lines = append(lines,
-			geometry.Line{geometry.Point{5, 5}, geometry.Point{15, 5}},
-			geometry.Line{geometry.Point{15, 5}, geometry.Point{15, 12}},
-			geometry.Line{geometry.Point{15, 12}, geometry.Point{5, 12}},
-			geometry.Line{geometry.Point{5, 12}, geometry.Point{5, 5}},
+			geometry.Line{Start: geometry.Point{X: 5, Y: 5}, End: geometry.Point{X: 15, Y: 5}},
+			geometry.Line{Start: geometry.Point{X: 15, Y: 5}, End: geometry.Point{X: 15, Y: 12}},
+			geometry.Line{Start: geometry.Point{X: 15, Y: 12}, End: geometry.Point{X: 5, Y: 12}},
+			geometry.Line{Start: geometry.Point{X: 5, Y: 12}, End: geometry.Point{X: 5, Y: 5}},
 		)
 	}
 

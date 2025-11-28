@@ -47,7 +47,10 @@ func registerGeometryTasks(tool *registry.Tool) {
 
 		// Save to file if output specified
 		if output, ok := ctx.Options["output"].(string); ok {
-			data, _ := json.MarshalIndent(result, "", "  ")
+			data, err := json.MarshalIndent(result, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal result: %w", err)
+			}
 			if err := os.WriteFile(output, data, 0644); err != nil {
 				return fmt.Errorf("failed to write output: %w", err)
 			}
@@ -77,7 +80,10 @@ func registerGeometryTasks(tool *registry.Tool) {
 		fmt.Printf("Extracted %d floors\n", result.Count)
 
 		if output, ok := ctx.Options["output"].(string); ok {
-			data, _ := json.MarshalIndent(result, "", "  ")
+			data, err := json.MarshalIndent(result, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal result: %w", err)
+			}
 			if err := os.WriteFile(output, data, 0644); err != nil {
 				return fmt.Errorf("failed to write output: %w", err)
 			}
@@ -111,7 +117,10 @@ func registerGeometryTasks(tool *registry.Tool) {
 		}
 
 		if output, ok := ctx.Options["output"].(string); ok {
-			data, _ := json.MarshalIndent(result, "", "  ")
+			data, err := json.MarshalIndent(result, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal result: %w", err)
+			}
 			if err := os.WriteFile(output, data, 0644); err != nil {
 				return fmt.Errorf("failed to write output: %w", err)
 			}
@@ -164,7 +173,10 @@ func registerAnalysisTasks(tool *registry.Tool) {
 
 		// Save detailed results if output specified
 		if output, ok := ctx.Options["output"].(string); ok && output != "" {
-			data, _ := json.MarshalIndent(result, "", "  ")
+			data, err := json.MarshalIndent(result, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal result: %w", err)
+			}
 			if err := os.WriteFile(output, data, 0644); err != nil {
 				return fmt.Errorf("failed to write output: %w", err)
 			}
@@ -217,7 +229,10 @@ func registerAnalysisTasks(tool *registry.Tool) {
 			output = out
 		}
 
-		data, _ := json.MarshalIndent(buildingModel, "", "  ")
+		data, err := json.MarshalIndent(buildingModel, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal building model: %w", err)
+		}
 		if err := os.WriteFile(output, data, 0644); err != nil {
 			return fmt.Errorf("failed to write output: %w", err)
 		}

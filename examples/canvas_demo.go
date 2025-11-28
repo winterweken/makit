@@ -14,18 +14,18 @@ func main() {
 	// Draw a simple floor plan
 	walls := []geometry.Line{
 		// Outer walls
-		{geometry.Point{0, 0}, geometry.Point{30, 0}},
-		{geometry.Point{30, 0}, geometry.Point{30, 25}},
-		{geometry.Point{30, 25}, geometry.Point{0, 25}},
-		{geometry.Point{0, 25}, geometry.Point{0, 0}},
+		{Start: geometry.Point{X: 0, Y: 0}, End: geometry.Point{X: 30, Y: 0}},
+		{Start: geometry.Point{X: 30, Y: 0}, End: geometry.Point{X: 30, Y: 25}},
+		{Start: geometry.Point{X: 30, Y: 25}, End: geometry.Point{X: 0, Y: 25}},
+		{Start: geometry.Point{X: 0, Y: 25}, End: geometry.Point{X: 0, Y: 0}},
 
 		// Interior walls
-		{geometry.Point{15, 0}, geometry.Point{15, 25}},
-		{geometry.Point{0, 12}, geometry.Point{15, 12}},
+		{Start: geometry.Point{X: 15, Y: 0}, End: geometry.Point{X: 15, Y: 25}},
+		{Start: geometry.Point{X: 0, Y: 12}, End: geometry.Point{X: 15, Y: 12}},
 
 		// Door openings (represented as gaps in walls would be more complex)
-		{geometry.Point{5, 0}, geometry.Point{8, 3}},   // Door swing
-		{geometry.Point{18, 12}, geometry.Point{21, 15}}, // Another door
+		{Start: geometry.Point{X: 5, Y: 0}, End: geometry.Point{X: 8, Y: 3}},     // Door swing
+		{Start: geometry.Point{X: 18, Y: 12}, End: geometry.Point{X: 21, Y: 15}}, // Another door
 	}
 
 	// Draw the geometry
