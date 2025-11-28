@@ -79,7 +79,7 @@ def generate_isometric_view(building_model, direction_stats):
 
 def create_detailed_elevation(walls, direction, all_windows):
     """
-    Create a detailed elevation view for a specific direction
+    Create a detailed elevation view for a specific direction with improved scaling
 
     Args:
         walls: List of walls facing this direction
@@ -94,7 +94,7 @@ def create_detailed_elevation(walls, direction, all_windows):
 
     # Layout walls horizontally in elevation view
     x_offset = 0
-    scale = 10.0
+    scale = 15.0  # Increased scale for better visibility
 
     total_wall_area = 0
     total_window_area = 0
@@ -105,6 +105,7 @@ def create_detailed_elevation(walls, direction, all_windows):
         if not wall.length or wall.length == 0:
             continue
 
+        # Use actual wall dimensions with proper scaling
         length = wall.length * scale
         height = (wall.height if wall.height > 0 else 3.0) * scale
 
@@ -123,6 +124,7 @@ def create_detailed_elevation(walls, direction, all_windows):
         wall_data_list.append({
             'corners': corners,
             'windows': wall_windows,
+            'wall': wall,
             'type': 'wall_face'
         })
 
@@ -130,41 +132,64 @@ def create_detailed_elevation(walls, direction, all_windows):
         total_wall_area += wall.area
         wall_count += 1
 
-        # Add window faces on this wall
+        # Add window faces on this wall with improved proportions
         if wall_windows:
-            num_windows = len(wall_windows)
-            window_width = length * 0.25  # Window takes 25% of wall width
-            window_height = height * 0.4   # Window takes 40% of wall height
-            spacing = length / (num_windows + 1)
-
             for i, window in enumerate(wall_windows):
-                win_x = x_offset + spacing * (i + 1) - window_width / 2
-                win_y = height * 0.3  # Start at 30% of wall height
+                # Use actual window dimensions if available
+                if window.width > 0 and window.height > 0:
+                    win_width = window.width * scale
+                    win_height = window.height * scale
+                else:
+                    # Fallback to proportional sizing
+                    win_width = length * 0.2
+                    win_height = height * 0.35
+
+                # Position windows more realistically
+                # Distribute evenly with proper spacing
+                num_windows = len(wall_windows)
+                spacing = length / (num_windows + 1)
+                win_x = x_offset + spacing * (i + 1) - win_width / 2
+
+                # Position at typical sill height (around 0.9m or 30% of wall height)
+                sill_height_ratio = 0.25 if height > 0 else 0.3
+                win_y = height * sill_height_ratio
+
+                # Ensure window fits within wall bounds
+                win_x = max(x_offset + 2, min(win_x, x_offset + length - win_width - 2))
 
                 window_corners = [
                     (win_x, win_y),
-                    (win_x + window_width, win_y),
-                    (win_x + window_width, win_y + window_height),
-                    (win_x, win_y + window_height)
+                    (win_x + win_width, win_y),
+                    (win_x + win_width, win_y + win_height),
+                    (win_x, win_y + win_height)
                 ]
 
                 wall_data_list.append({
                     'corners': window_corners,
+                    'window': window,
                     'type': 'window_face'
                 })
 
                 total_window_area += window.area
                 window_count += 1
 
-        # Move to next wall position
-        x_offset += length + (2 * scale)  # Small gap
+        # Move to next wall position with proportional gap
+        gap = 3 * scale
+        x_offset += length + gap
 
     # Create faces from wall data (no isometric projection, just 2D elevation)
     for wall_data in wall_data_list:
-        faces.append({
+        face = {
             'points': wall_data['corners'],
             'type': wall_data['type']
-        })
+        }
+
+        # Add metadata for better rendering
+        if wall_data['type'] == 'wall_face' and 'wall' in wall_data:
+            face['is_curtain'] = wall_data['wall'].is_curtain_wall
+            face['wall_type'] = wall_data['wall'].wall_type
+
+        faces.append(face)
 
     # Calculate WWR
     wwr = 0.0

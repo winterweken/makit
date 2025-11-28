@@ -2,6 +2,7 @@ package registry
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 )
 
@@ -48,7 +49,7 @@ func (r *Registry) GetTool(name string) (*Tool, error) {
 	return tool, nil
 }
 
-// ListTools returns all registered tools
+// ListTools returns all registered tools sorted by name
 func (r *Registry) ListTools() []*Tool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -57,6 +58,12 @@ func (r *Registry) ListTools() []*Tool {
 	for _, tool := range r.Tools {
 		tools = append(tools, tool)
 	}
+
+	// Sort tools alphabetically by name
+	sort.Slice(tools, func(i, j int) bool {
+		return tools[i].Name < tools[j].Name
+	})
+
 	return tools
 }
 

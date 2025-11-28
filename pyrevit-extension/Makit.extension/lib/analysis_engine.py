@@ -188,35 +188,98 @@ def analyze_wall_orientations(building_model):
 
 def generate_orientation_report(stats):
     """
-    Generate a human-readable text report from analysis stats
+    Generate a human-readable text report from analysis stats with colors and visual elements
 
     Args:
         stats: Analysis results from analyze_wall_orientations()
 
     Returns:
-        Formatted text report string
+        Formatted text report string with ANSI colors
     """
+    # ANSI color codes
+    RESET = '\033[0m'
+    BOLD = '\033[1m'
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    BLUE = '\033[94m'
+    MAGENTA = '\033[95m'
+    RED = '\033[91m'
+
+    def get_wwr_color(wwr):
+        """Return color based on WWR percentage"""
+        if wwr < 20:
+            return BLUE
+        elif wwr < 30:
+            return GREEN
+        elif wwr < 40:
+            return YELLOW
+        else:
+            return RED
+
+    def wwr_bar(wwr, width=20):
+        """Create a visual bar chart for WWR percentage"""
+        filled = int((wwr / 100.0) * width)
+        bar = '█' * filled + '░' * (width - filled)
+        color = get_wwr_color(wwr)
+        return "{}{}{}".format(color, bar, RESET)
+
     lines = []
-    lines.append("=" * 50)
-    lines.append("WALL ORIENTATION & WWR ANALYSIS")
-    lines.append("=" * 50)
+
+    # Header
+    lines.append("")
+    lines.append("{}{}{}".format(BOLD + CYAN, "═" * 70, RESET))
+    lines.append("{}{}  WALL ORIENTATION & WWR ANALYSIS{}".format(BOLD + CYAN, " " * 14, RESET))
+    lines.append("{}{}{}".format(BOLD + CYAN, "═" * 70, RESET))
     lines.append("")
 
-    # Overall stats
-    lines.append("OVERALL SUMMARY")
-    lines.append("-" * 50)
-    lines.append("Total Walls: {}".format(stats['totals']['wallCount']))
-    lines.append("Total Wall Area: {:.1f} sq {}".format(
-        stats['totals']['wallArea'], stats['units']))
-    lines.append("Total Windows: {}".format(stats['totals']['windowCount']))
-    lines.append("Total Window Area: {:.1f} sq {}".format(
-        stats['totals']['windowArea'], stats['units']))
-    lines.append("Overall WWR: {:.1f}%".format(stats['totals']['wwr']))
+    # Overall Summary Box
+    lines.append("{}┌─ OVERALL SUMMARY {}┐{}".format(BOLD + GREEN, "─" * 46, RESET))
+    lines.append("{}│{}{}".format(GREEN, RESET, " " * 68))
+    lines.append("{}│{} {}Total Walls:{}       {:>4}      {}Total Wall Area:{} {:>10.1f} sq {}".format(
+        GREEN, RESET, BOLD, RESET,
+        stats['totals']['wallCount'],
+        BOLD, RESET,
+        stats['totals']['wallArea'],
+        stats['units']))
+    lines.append("{}│{} {}Total Windows:{}     {:>4}      {}Total Window Area:{} {:>8.1f} sq {}".format(
+        GREEN, RESET, BOLD, RESET,
+        stats['totals']['windowCount'],
+        BOLD, RESET,
+        stats['totals']['windowArea'],
+        stats['units']))
+    lines.append("{}│{}{}".format(GREEN, RESET, " " * 68))
+
+    overall_wwr = stats['totals']['wwr']
+    wwr_color = get_wwr_color(overall_wwr)
+    lines.append("{}│{} {}Overall WWR:{} {}{}%{} {}".format(
+        GREEN, RESET, BOLD, RESET,
+        wwr_color + BOLD, overall_wwr, RESET,
+        wwr_bar(overall_wwr, 35)))
+    lines.append("{}│{}{}".format(GREEN, RESET, " " * 68))
+    lines.append("{}└{}┘{}".format(GREEN, "─" * 68, RESET))
     lines.append("")
 
-    # By direction
-    lines.append("BY DIRECTION")
-    lines.append("-" * 50)
+    # Direction breakdown table
+    lines.append("{}┌─ BY DIRECTION {}┐{}".format(BOLD + MAGENTA, "─" * 49, RESET))
+    lines.append("{}│{}{}".format(MAGENTA, RESET, " " * 68))
+
+    # Table header
+    lines.append("{}│{} {}Direction    Walls  Wall Area    Windows  Win Area      WWR{}".format(
+        MAGENTA, RESET, BOLD, RESET))
+    lines.append("{}│{} {}".format(MAGENTA, RESET, "─" * 68))
+
+    # Direction emoji mapping
+    dir_emoji = {
+        'North': '↑',
+        'Northeast': '↗',
+        'East': '→',
+        'Southeast': '↘',
+        'South': '↓',
+        'Southwest': '↙',
+        'West': '←',
+        'Northwest': '↖'
+    }
 
     for direction in DIRECTIONS:
         dir_stats = stats['byDirection'][direction]
@@ -225,18 +288,31 @@ def generate_orientation_report(stats):
         if dir_stats['wallCount'] == 0:
             continue
 
-        lines.append("")
-        lines.append("{} FACING:".format(direction.upper()))
-        lines.append("  Walls: {}".format(dir_stats['wallCount']))
-        lines.append("  Wall Area: {:.1f} sq {}".format(
-            dir_stats['wallArea'], stats['units']))
-        lines.append("  Windows: {}".format(dir_stats['windowCount']))
-        lines.append("  Window Area: {:.1f} sq {}".format(
-            dir_stats['windowArea'], stats['units']))
-        lines.append("  WWR: {:.1f}%".format(dir_stats['wwr']))
+        emoji = dir_emoji.get(direction, ' ')
+        wwr_color = get_wwr_color(dir_stats['wwr'])
 
+        lines.append("{}│{} {}{:<11}{}  {:>4}  {:>9.1f}  {:>8}  {:>8.1f}  {}{:>6.1f}%{} {}".format(
+            MAGENTA, RESET,
+            BLUE, emoji + ' ' + direction, RESET,
+            dir_stats['wallCount'],
+            dir_stats['wallArea'],
+            dir_stats['windowCount'],
+            dir_stats['windowArea'],
+            wwr_color + BOLD, dir_stats['wwr'], RESET,
+            wwr_bar(dir_stats['wwr'], 12)))
+
+    lines.append("{}│{}{}".format(MAGENTA, RESET, " " * 68))
+    lines.append("{}└{}┘{}".format(MAGENTA, "─" * 68, RESET))
     lines.append("")
-    lines.append("=" * 50)
+
+    # Legend
+    lines.append("{}WWR Color Guide:{} {}< 20%{}  {}20-30%{}  {}30-40%{}  {}> 40%{}".format(
+        BOLD, RESET,
+        BLUE, RESET,
+        GREEN, RESET,
+        YELLOW, RESET,
+        RED, RESET))
+    lines.append("")
 
     return "\n".join(lines)
 

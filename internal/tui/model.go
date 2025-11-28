@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -162,6 +163,42 @@ func (m model) Init() tea.Cmd {
 	return nil
 }
 
+// getSortedCategories returns categories sorted by name
+func (m model) getSortedCategories() []*registry.Category {
+	if m.selectedTool == nil {
+		return nil
+	}
+
+	categories := make([]*registry.Category, 0, len(m.selectedTool.Categories))
+	for _, cat := range m.selectedTool.Categories {
+		categories = append(categories, cat)
+	}
+
+	sort.Slice(categories, func(i, j int) bool {
+		return categories[i].Name < categories[j].Name
+	})
+
+	return categories
+}
+
+// getSortedTasks returns tasks sorted by name
+func (m model) getSortedTasks() []*registry.Task {
+	if m.selectedCategory == nil {
+		return nil
+	}
+
+	tasks := make([]*registry.Task, 0, len(m.selectedCategory.Tasks))
+	for _, task := range m.selectedCategory.Tasks {
+		tasks = append(tasks, task)
+	}
+
+	sort.Slice(tasks, func(i, j int) bool {
+		return tasks[i].Name < tasks[j].Name
+	})
+
+	return tasks
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Handle options input mode separately
 	if m.mode == viewOptions {
@@ -275,31 +312,21 @@ func (m model) handleEnter() model {
 		}
 
 	case viewCategories:
-		if m.selectedTool != nil {
-			categories := make([]*registry.Category, 0, len(m.selectedTool.Categories))
-			for _, cat := range m.selectedTool.Categories {
-				categories = append(categories, cat)
-			}
-			if m.cursor < len(categories) {
-				m.selectedCategory = categories[m.cursor]
-				m.mode = viewTasks
-				m.cursor = 0
-			}
+		categories := m.getSortedCategories()
+		if m.cursor < len(categories) {
+			m.selectedCategory = categories[m.cursor]
+			m.mode = viewTasks
+			m.cursor = 0
 		}
 
 	case viewTasks:
 		// Task selected - could execute or show details
-		if m.selectedCategory != nil {
-			tasks := make([]*registry.Task, 0, len(m.selectedCategory.Tasks))
-			for _, task := range m.selectedCategory.Tasks {
-				tasks = append(tasks, task)
-			}
-			if m.cursor < len(tasks) {
-				m.selectedTask = tasks[m.cursor]
-				// Generate sample geometry for preview
-				m.previewLines = generateSampleGeometry(m.selectedTask.Name)
-				m.showPreview = true
-			}
+		tasks := m.getSortedTasks()
+		if m.cursor < len(tasks) {
+			m.selectedTask = tasks[m.cursor]
+			// Generate sample geometry for preview
+			m.previewLines = generateSampleGeometry(m.selectedTask.Name)
+			m.showPreview = true
 		}
 	}
 
@@ -493,16 +520,37 @@ func (m *model) loadVisualizationData() {
 	vizFile := "/tmp/makit_viz.json"
 	data, err := os.ReadFile(vizFile)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "DEBUG: Failed to read viz file: %v\n", err)
 		return // Visualization not available
 	}
 
 	var vizData map[string]interface{}
 	if err := json.Unmarshal(data, &vizData); err != nil {
+		fmt.Fprintf(os.Stderr, "DEBUG: Failed to parse viz JSON: %v\n", err)
 		return
 	}
 
-	// Convert visualization data to geometry lines
-	allLines := []geometry.Line{}
+	fmt.Fprintf(os.Stderr, "DEBUG: Loaded viz data with %d directions\n", len(vizData))
+
+	// Check if data has faces format (check first direction)
+	hasFaces := false
+	for _, dirData := range vizData {
+		if dirMap, ok := dirData.(map[string]interface{}); ok {
+			if _, ok := dirMap["faces"]; ok {
+				hasFaces = true
+				break
+			}
+		}
+	}
+
+	// If data has faces, use the faces loading path
+	if hasFaces {
+		fmt.Fprintf(os.Stderr, "DEBUG: Using faces format loading\n")
+		m.loadIsometricFaces(vizData)
+		return
+	}
+
+	fmt.Fprintf(os.Stderr, "DEBUG: Using lines format loading\n")
 
 	// Collect all lines from all directions
 	type directionData struct {
@@ -548,47 +596,70 @@ func (m *model) loadVisualizationData() {
 		}
 	}
 
-	// Check if this is isometric view with faces
-	if len(directions) > 0 && directions[0].name == "Isometric" {
-		m.loadIsometricFaces(vizData)
-		return
-	}
+	fmt.Fprintf(os.Stderr, "DEBUG: Converting %d directions from lines to faces\n", len(directions))
 
-	// Layout all directions vertically with spacing (elevation view)
-	yOffset := 0.0
+	// Store directions separately for navigation (like faces mode)
+	m.directionData = make(map[string]DirectionStats)
 	m.vizDirections = []string{}
-	wallCount := 0
 
 	for _, dir := range directions {
-		// Find bounds for this direction
-		minY, maxY := findYBounds(dir.lines)
-		height := maxY - minY
+		// Store lines for this direction as a pseudo-face representation
+		// Convert lines to a single "elevation" that can be navigated
+		m.vizDirections = append(m.vizDirections, dir.name)
 
-		// Offset lines and add to all lines
-		for _, line := range dir.lines {
-			allLines = append(allLines, geometry.Line{
-				Start: geometry.Point{X: line.Start.X, Y: line.Start.Y - minY + yOffset},
-				End:   geometry.Point{X: line.End.X, Y: line.End.Y - minY + yOffset},
-			})
+		// Count walls (each wall has 4 lines forming a rectangle)
+		wallCount := len(dir.lines) / 4
+
+		// Store direction data with lines converted to faces for consistent rendering
+		faces := m.convertLinesToFaces(dir.lines)
+		fmt.Fprintf(os.Stderr, "DEBUG: Direction %s: %d lines -> %d faces\n", dir.name, len(dir.lines), len(faces))
+
+		m.directionData[dir.name] = DirectionStats{
+			Walls:   wallCount,
+			Windows: 0,  // Will be calculated if window data available
+			WWR:     0.0,
+			Faces:   faces,
+		}
+	}
+
+	fmt.Fprintf(os.Stderr, "DEBUG: Final directionData has %d directions\n", len(m.directionData))
+	m.selectedDirection = 0
+	m.previewLines = []geometry.Line{} // Clear, we'll use faces rendering
+}
+
+func (m *model) convertLinesToFaces(lines []geometry.Line) []Face {
+	// Convert lines (4 per rectangle) to Face objects
+	// Lines format: bottom, right, top, left for each rectangle
+	faces := []Face{}
+
+	for i := 0; i+3 < len(lines); i += 4 {
+		// Get 4 lines forming a rectangle
+		// Extract unique points from the 4 lines
+		points := []geometry.Point{
+			lines[i].Start,     // bottom-left
+			lines[i].End,       // bottom-right
+			lines[i+2].Start,   // top-right
+			lines[i+3].Start,   // top-left
 		}
 
-		// Track direction info
-		m.vizDirections = append(m.vizDirections, dir.name)
-		// Each wall has 4 lines (rectangle)
-		wallCount += len(dir.lines) / 4
+		// Determine if this is a window or wall based on line type
+		faceType := "wall_face"
+		if i < len(lines) && len(lines) > 0 {
+			// Simple heuristic: smaller rectangles are likely windows
+			width := lines[i].End.X - lines[i].Start.X
+			height := lines[i+1].End.Y - lines[i+1].Start.Y
+			if width < 1000 || height < 200 {  // Adjust thresholds as needed
+				faceType = "window_face"
+			}
+		}
 
-		// Add spacing between directions
-		yOffset += height + 100
+		faces = append(faces, Face{
+			Points: points,
+			Type:   faceType,
+		})
 	}
 
-	m.vizTotalWalls = wallCount
-
-	// Normalize to fit screen
-	if len(allLines) > 0 {
-		allLines = normalizeGeometry(allLines, 100, 100) // Target size
-	}
-
-	m.previewLines = allLines
+	return faces
 }
 
 func (m *model) loadIsometricFaces(vizData map[string]interface{}) {
@@ -895,10 +966,7 @@ func (m model) renderLeftPanel() string {
 		sb.WriteString(TitleStyle.Render("Select Category") + "\n")
 		sb.WriteString(BreadcrumbStyle.Render("Step 2 of 3") + "\n\n")
 
-		categories := make([]*registry.Category, 0, len(m.selectedTool.Categories))
-		for _, cat := range m.selectedTool.Categories {
-			categories = append(categories, cat)
-		}
+		categories := m.getSortedCategories()
 		for i, cat := range categories {
 			cursor := " "
 			if i == m.cursor {
@@ -913,10 +981,7 @@ func (m model) renderLeftPanel() string {
 		sb.WriteString(TitleStyle.Render("Select Task") + "\n")
 		sb.WriteString(BreadcrumbStyle.Render("Step 3 of 3") + "\n\n")
 
-		tasks := make([]*registry.Task, 0, len(m.selectedCategory.Tasks))
-		for _, task := range m.selectedCategory.Tasks {
-			tasks = append(tasks, task)
-		}
+		tasks := m.getSortedTasks()
 		for i, task := range tasks {
 			cursor := " "
 			if i == m.cursor {
@@ -980,6 +1045,55 @@ func (m model) renderRightPanel() string {
 
 		c := canvas.NewCanvas(previewWidth, previewHeight)
 
+		if len(dirStats.Faces) == 0 {
+			// No faces to render
+			var sb strings.Builder
+			sb.WriteString(PreviewTitleStyle.Render(currentDir) + "\n\n")
+			sb.WriteString(DescriptionStyle.Render("No geometry data available"))
+			return sb.String()
+		}
+
+		// Find overall bounds of all faces
+		allMinX, allMaxX := dirStats.Faces[0].Points[0].X, dirStats.Faces[0].Points[0].X
+		allMinY, allMaxY := dirStats.Faces[0].Points[0].Y, dirStats.Faces[0].Points[0].Y
+		for _, face := range dirStats.Faces {
+			for _, p := range face.Points {
+				if p.X < allMinX {
+					allMinX = p.X
+				}
+				if p.X > allMaxX {
+					allMaxX = p.X
+				}
+				if p.Y < allMinY {
+					allMinY = p.Y
+				}
+				if p.Y > allMaxY {
+					allMaxY = p.Y
+				}
+			}
+		}
+
+		// Calculate scale to fit canvas (with padding)
+		dataWidth := allMaxX - allMinX
+		dataHeight := allMaxY - allMinY
+
+		// Canvas dimensions in braille pixels (2 wide x 4 tall per character)
+		canvasPixelWidth := float64(previewWidth * 2)
+		canvasPixelHeight := float64(previewHeight * 4)
+
+		// Add padding (10% on each side)
+		padding := 0.9
+		scaleX := (canvasPixelWidth * padding) / dataWidth
+		scaleY := (canvasPixelHeight * padding) / dataHeight
+		scale := scaleX
+		if scaleY < scaleX {
+			scale = scaleY
+		}
+
+		// Center offset
+		offsetX := (canvasPixelWidth - dataWidth*scale) / 2
+		offsetY := (canvasPixelHeight - dataHeight*scale) / 2
+
 		// Render faces for this direction
 		for _, face := range dirStats.Faces {
 			if len(face.Points) < 3 {
@@ -1004,11 +1118,19 @@ func (m model) renderRightPanel() string {
 				}
 			}
 
-			// Scale to canvas pixel coordinates
-			x := int(minX * 2)
-			y := int(minY * 4)
-			w := int((maxX - minX) * 2)
-			h := int((maxY - minY) * 4)
+			// Scale and offset to canvas pixel coordinates
+			x := int((minX-allMinX)*scale + offsetX)
+			y := int((minY-allMinY)*scale + offsetY)
+			w := int((maxX - minX) * scale)
+			h := int((maxY - minY) * scale)
+
+			// Ensure minimum size for visibility
+			if w < 2 {
+				w = 2
+			}
+			if h < 2 {
+				h = 2
+			}
 
 			// Render based on type
 			if face.Type == "window_face" {
@@ -1043,6 +1165,11 @@ func (m model) renderRightPanel() string {
 		sb.WriteString(WindowStyle.Render(fmt.Sprintf("■ Windows: %d  (%.1f%% WWR)", dirStats.Windows, dirStats.WWR)))
 
 		sb.WriteString("\n\n")
+
+		// Add compass/key plan
+		sb.WriteString(m.renderCompass(currentDir))
+
+		sb.WriteString("\n")
 		sb.WriteString(HelpStyle.Render("←/→ or [/]: change direction  •  r: text results"))
 
 		return sb.String()
@@ -1072,6 +1199,48 @@ func (m model) renderRightPanel() string {
 
 	// Default message
 	return DescriptionStyle.Render("Select a task and press 'x' to execute\n\nResults and visualizations will appear here")
+}
+
+func (m model) renderCompass(currentDirection string) string {
+	// Create a key plan with building outline and direction indicators
+	var sb strings.Builder
+
+	highlightStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff")).Bold(true) // Bright cyan
+	normalStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#565f89"))               // Dimmed
+	buildingStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#9ece6a"))             // Green
+	viewingStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#ff9e64"))              // Orange
+
+	// Helper to render direction with highlight if current
+	renderDir := func(dir string, label string) string {
+		if dir == currentDirection {
+			return highlightStyle.Render(label)
+		}
+		return normalStyle.Render(label)
+	}
+
+	// Helper to render viewing indicator
+	viewIndicator := func(dir string) string {
+		if dir == currentDirection {
+			return viewingStyle.Render("◄")
+		}
+		return " "
+	}
+
+	// Build key plan with building and compass
+	sb.WriteString(DescriptionStyle.Render("Key Plan:") + "\n\n")
+	sb.WriteString("       " + renderDir("North", "N") + "\n")
+	sb.WriteString("         " + viewIndicator("North") + "\n")
+	sb.WriteString("   " + renderDir("Northwest", "NW") + "   " + renderDir("Northeast", "NE") + "\n")
+	sb.WriteString(" " + viewIndicator("Northwest") + "  " + buildingStyle.Render("┌─────┐") + "  " + viewIndicator("Northeast") + "\n")
+	sb.WriteString(renderDir("West", "W") + " " + viewIndicator("West") + " " + buildingStyle.Render("│") + "     " + buildingStyle.Render("│") + " " + viewIndicator("East") + " " + renderDir("East", "E") + "\n")
+	sb.WriteString(" " + viewIndicator("Southwest") + "  " + buildingStyle.Render("└─────┘") + "  " + viewIndicator("Southeast") + "\n")
+	sb.WriteString("   " + renderDir("Southwest", "SW") + "   " + renderDir("Southeast", "SE") + "\n")
+	sb.WriteString("         " + viewIndicator("South") + "\n")
+	sb.WriteString("       " + renderDir("South", "S") + "\n")
+
+	sb.WriteString("\n" + viewingStyle.Render("◄") + " = " + DescriptionStyle.Render("viewing direction"))
+
+	return sb.String()
 }
 
 func (m model) renderHelp() string {

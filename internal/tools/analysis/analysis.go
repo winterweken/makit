@@ -62,7 +62,7 @@ func registerIFCTasks(tool *registry.Tool) {
 
 	category.AddTask("wall-orientation-wwr", "Analyze wall orientations and WWR from IFC files", func(ctx *registry.TaskContext) error {
 		// Get the IFC file path from options or use default example
-		ifcFile := "examples/IFC/Building-Architecture.ifc"
+		ifcFile := "examples/IFC/IFCSchependomlaan.ifc"
 		if path, ok := ctx.Options["ifc-file"].(string); ok && path != "" {
 			ifcFile = path
 		}
@@ -125,7 +125,7 @@ func registerIFCTasks(tool *registry.Tool) {
 
 		return nil
 	}).
-		AddOption("ifc-file", "Path to IFC file", "string", false, "examples/IFC/Building-Architecture.ifc").
+		AddOption("ifc-file", "Path to IFC file", "string", false, "examples/IFC/IFCSchependomlaan.ifc").
 		AddOption("unit", "Area unit (sqm or sqf)", "string", false, "sqm").
 		AddOption("output", "Save results to JSON file", "string", false, "")
 }
