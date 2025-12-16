@@ -5,28 +5,28 @@ import "github.com/charmbracelet/lipgloss"
 // TokyoNight Storm color palette
 const (
 	// Base colors
-	bgColor      = "#24283b" // Dark blue-gray background
-	fgColor      = "#c0caf5" // Light blue-gray foreground
-	bgHighlight  = "#292e42" // Slightly lighter background
-	border       = "#414868" // Border color
-	comment      = "#565f89" // Dimmed text
+	bgColor     = "#24283b" // Dark blue-gray background
+	fgColor     = "#c0caf5" // Light blue-gray foreground
+	bgHighlight = "#292e42" // Slightly lighter background
+	border      = "#414868" // Border color
+	comment     = "#565f89" // Dimmed text
 
 	// Accent colors
-	red          = "#f7768e" // Salmon/coral pink
-	green        = "#9ece6a" // Lime green
-	yellow       = "#e0af68" // Yellow/tan
-	blue         = "#7aa2f7" // Light blue
-	magenta      = "#bb9af7" // Purple/lavender
-	cyan         = "#7dcfff" // Cyan
-	orange       = "#ff9e64" // Orange
+	red     = "#f7768e" // Salmon/coral pink
+	green   = "#9ece6a" // Lime green
+	yellow  = "#e0af68" // Yellow/tan
+	blue    = "#7aa2f7" // Light blue
+	magenta = "#bb9af7" // Purple/lavender
+	cyan    = "#7dcfff" // Cyan
+	orange  = "#ff9e64" // Orange
 
 	// UI specific
-	selection    = "#364a82" // Selection background
-	highlight    = cyan       // Highlighted items
-	title        = magenta    // Titles
-	success      = green      // Success messages
-	warning      = yellow     // Warnings
-	error        = red        // Errors
+	selection = "#364a82" // Selection background
+	highlight = cyan      // Highlighted items
+	title     = magenta   // Titles
+	success   = green     // Success messages
+	warning   = yellow    // Warnings
+	error     = red       // Errors
 )
 
 // TokyoNight Storm themed styles
@@ -60,8 +60,8 @@ var (
 
 	// Description style - matches normal style dimensions, no italic to avoid shifts
 	DescriptionStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(comment)).
-			Background(lipgloss.Color(bgColor))
+				Foreground(lipgloss.Color(comment)).
+				Background(lipgloss.Color(bgColor))
 
 	// Panel border style - heavy rounded border
 	PanelStyle = lipgloss.NewStyle().
@@ -77,9 +77,9 @@ var (
 
 	// Preview panel title
 	PreviewTitleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color(blue)).
-			Background(lipgloss.Color(bgColor))
+				Bold(true).
+				Foreground(lipgloss.Color(blue)).
+				Background(lipgloss.Color(bgColor))
 
 	// Stats/metadata style
 	StatsStyle = lipgloss.NewStyle().
@@ -88,7 +88,7 @@ var (
 
 	// Window style (filled with colored blocks)
 	WindowStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(cyan))
+			Foreground(lipgloss.Color(orange))
 
 	// Wall style
 	WallStyle = lipgloss.NewStyle().

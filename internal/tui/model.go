@@ -257,6 +257,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.showPreview = !m.showPreview
 
 		case key.Matches(msg, m.keys.Results):
+			// Toggle results and try to reload visualization data
+			m.loadVisualizationData()
+
 			if m.lastTaskOutput != "" {
 				m.showResults = !m.showResults
 				// Reset scroll when toggling results
@@ -509,8 +512,8 @@ func (m *model) executeTaskWithCapture(options map[string]interface{}) string {
 		output += fmt.Sprintf("\n\nError: %v", err)
 	}
 
-	// Try to load visualization data if this was an IFC analysis
-	if m.selectedTask.Name == "wall-orientation-wwr" {
+	// Try to load visualization data if this was an IFC analysis or Blender sync
+	if m.selectedTask.Name == "wall-orientation-wwr" || m.selectedTask.Name == "start-server" {
 		m.loadVisualizationData()
 	}
 

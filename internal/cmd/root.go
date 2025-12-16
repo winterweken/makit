@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/winteweken/makit/internal/tools/analysis"
+	"github.com/winteweken/makit/internal/tools/blender"
 	"github.com/winteweken/makit/internal/tools/revit"
 	"github.com/winteweken/makit/internal/tools/rhino"
 )
@@ -39,6 +40,7 @@ func registerTools() {
 	// Register all available tools
 	revit.RegisterTasks()
 	rhino.RegisterTasks()
+	blender.RegisterTasks()
 	analysis.RegisterTasks()
 }
 
