@@ -9,58 +9,40 @@ import (
 	"github.com/winteweken/makit/internal/registry"
 )
 
-// RegisterTasks registers all analysis-related tasks
+// RegisterTasks registers all analysis-related tasks as Actions
 func RegisterTasks() {
+
 	reg := registry.GetRegistry()
-	tool := reg.RegisterTool("analysis", "Analysis and simulation tools")
 
-	registerGeometricTasks(tool)
-	registerPerformanceTasks(tool)
-	registerIFCTasks(tool)
-}
-
-func registerGeometricTasks(tool *registry.Tool) {
-	category := tool.AddCategory("geometric", "Geometric analysis and calculations")
-
-	category.AddTask("volume-analysis", "Calculate volumes of geometric elements", func(ctx *registry.TaskContext) error {
-		fmt.Println("Performing volume analysis...")
+	// Geometric Actions
+	reg.RegisterAction("volume-analysis", "Calculate volumes of geometric elements", "geometric", func(ctx *registry.TaskContext) error {
+		fmt.Println("Performing volume analysis on active geometry...")
 		return nil
 	}).AddOption("unit", "Volume unit (cf, cm)", "string", false, "cf")
 
-	category.AddTask("surface-area", "Calculate surface areas", func(ctx *registry.TaskContext) error {
-		fmt.Println("Calculating surface areas...")
+	reg.RegisterAction("surface-area", "Calculate surface areas", "geometric", func(ctx *registry.TaskContext) error {
+		fmt.Println("Calculating surface areas on active geometry...")
 		return nil
 	}).AddOption("unit", "Area unit (sqft, sqm)", "string", false, "sqft")
 
-	category.AddTask("spatial-relationships", "Analyze spatial relationships between elements", func(ctx *registry.TaskContext) error {
-		fmt.Println("Analyzing spatial relationships...")
-		return nil
-	})
-}
-
-func registerPerformanceTasks(tool *registry.Tool) {
-	category := tool.AddCategory("performance", "Performance analysis and simulation")
-
-	category.AddTask("energy-analysis", "Run energy performance analysis", func(ctx *registry.TaskContext) error {
-		fmt.Println("Running energy analysis...")
+	// Performance Actions
+	reg.RegisterAction("energy-analysis", "Run energy performance analysis", "performance", func(ctx *registry.TaskContext) error {
+		fmt.Println("Running energy analysis on active geometry...")
 		return nil
 	}).AddOption("weather-file", "Path to weather data file", "string", true, nil)
 
-	category.AddTask("daylighting", "Analyze daylighting performance", func(ctx *registry.TaskContext) error {
-		fmt.Println("Analyzing daylighting...")
+	reg.RegisterAction("daylighting", "Analyze daylighting performance", "performance", func(ctx *registry.TaskContext) error {
+		fmt.Println("Analyzing daylighting on active geometry...")
 		return nil
 	}).AddOption("grid-size", "Analysis grid size", "float", false, 1.0)
 
-	category.AddTask("thermal-comfort", "Analyze thermal comfort", func(ctx *registry.TaskContext) error {
-		fmt.Println("Analyzing thermal comfort...")
-		return nil
-	})
+	// Register IFC Analysis as an Action (though it might handle its own source for now)
+	registerIFCTasks(reg)
 }
 
-func registerIFCTasks(tool *registry.Tool) {
-	category := tool.AddCategory("ifc", "IFC file analysis")
-
-	category.AddTask("wall-orientation-wwr", "Analyze wall orientations and WWR from IFC files", func(ctx *registry.TaskContext) error {
+func registerIFCTasks(reg *registry.Registry) {
+	// Keeping this one separate for now as it's complex
+	reg.RegisterAction("wall-orientation-wwr", "Analyze wall orientations and WWR from IFC", "ifc", func(ctx *registry.TaskContext) error {
 		// Get the IFC file path from options or use default example
 		ifcFile := "examples/IFC/IFCSchependomlaan.ifc"
 		if path, ok := ctx.Options["ifc-file"].(string); ok && path != "" {

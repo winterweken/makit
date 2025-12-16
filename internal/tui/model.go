@@ -24,45 +24,60 @@ type Face struct {
 	Type   string // "wall_face" or "window_face"
 }
 
-type viewMode int
+type TreeItemType int
 
 const (
-	viewTools viewMode = iota
-	viewCategories
-	viewTasks
-	viewOptions
+	TypeSection TreeItemType = iota // "Sources", "Actions" headers
+	TypeSource
+	TypeCategory // For grouping Actions
+	TypeAction
 )
+
+type TreeItem struct {
+	Type     TreeItemType
+	Name     string
+	Level    int
+	Expanded bool
+	Source   *registry.Source // If TypeSource
+	Action   *registry.Action // If TypeAction
+	ID       string           // Unique ID for expansion tracking
+}
 
 type model struct {
 	registry *registry.Registry
-	mode     viewMode
 	cursor   int
 	width    int
 	height   int
 
+	// Tree View State
+	treeItems []TreeItem
+	expanded  map[string]bool
+
 	// Navigation state
-	selectedTool     *registry.Tool
-	selectedCategory *registry.Category
-	selectedTask     *registry.Task
+	selectedSource *registry.Source
+	activeSource   *registry.Source // The currently connected/active source context
+	selectedAction *registry.Action
+	// We keep selectedTask for backwards compatibility with methods that haven't been refactored or removed yet
+	// But ideally we move away from it.
+	// For options input, we need to know what we are configuring.
+	activeContext interface{} // Can be *Source or *Action
 
 	// Options input
 	optionInputs []textinput.Model
 	optionKeys   []string
 	optionCursor int
 	taskOptions  map[string]interface{}
+	viewOptions  bool // True if we are in options input mode
 
 	// Geometry preview
 	previewLines []geometry.Line
-	previewFaces []Face
-	showPreview  bool
+	showPreview  bool // Toggles right panel visibility of preview
 
 	// Task results
 	lastTaskOutput    string
 	showResults       bool
 	resultsScroll     int // Scroll offset for results view
 	vizDirections     []string
-	vizTotalWalls     int
-	vizWindowCount    int
 	selectedDirection int // Which direction to show in viz
 	directionData     map[string]DirectionStats
 
@@ -148,61 +163,116 @@ func defaultKeyMap() keyMap {
 }
 
 func NewModel() model {
-	return model{
+	m := model{
 		registry:     registry.GetRegistry(),
-		mode:         viewTools,
 		cursor:       0,
 		keys:         defaultKeyMap(),
 		showPreview:  false,
 		showResults:  false,
 		taskOptions:  make(map[string]interface{}),
 		optionInputs: []textinput.Model{},
+		expanded:     make(map[string]bool),
+		treeItems:    []TreeItem{},
 	}
+	m.rebuildTree()
+	return m
 }
 
 func (m model) Init() tea.Cmd {
 	return nil
 }
 
-// getSortedCategories returns categories sorted by name
-func (m model) getSortedCategories() []*registry.Category {
-	if m.selectedTool == nil {
-		return nil
-	}
+// Logic for rebuildTree CDE:
+// 1. Root: "Sources" (Expanded by default?)
+// 2. Children: List all Sources
+// 3. Root: "Actions" (Expanded by default?)
+// 4. Children: Categories of Actions
+// 5. Children: Actions
 
-	categories := make([]*registry.Category, 0, len(m.selectedTool.Categories))
-	for _, cat := range m.selectedTool.Categories {
-		categories = append(categories, cat)
-	}
+func (m *model) rebuildTree() {
+	m.treeItems = []TreeItem{}
 
-	sort.Slice(categories, func(i, j int) bool {
-		return categories[i].Name < categories[j].Name
+	// Sources Section
+	m.treeItems = append(m.treeItems, TreeItem{
+		Type:     TypeSection,
+		Name:     "Sources",
+		Level:    0,
+		Expanded: m.expanded["section:sources"],
+		ID:       "section:sources",
 	})
 
-	return categories
-}
-
-// getSortedTasks returns tasks sorted by name
-func (m model) getSortedTasks() []*registry.Task {
-	if m.selectedCategory == nil {
-		return nil
+	if m.expanded["section:sources"] {
+		sources := m.registry.ListSources()
+		for _, source := range sources {
+			m.treeItems = append(m.treeItems, TreeItem{
+				Type:     TypeSource,
+				Name:     source.Name,
+				Level:    1,
+				Expanded: false, // Sources are leaves in this view (unless we show options in tree?)
+				Source:   source,
+				ID:       "source:" + source.Name,
+			})
+		}
 	}
 
-	tasks := make([]*registry.Task, 0, len(m.selectedCategory.Tasks))
-	for _, task := range m.selectedCategory.Tasks {
-		tasks = append(tasks, task)
-	}
-
-	sort.Slice(tasks, func(i, j int) bool {
-		return tasks[i].Name < tasks[j].Name
+	// Actions Section
+	m.treeItems = append(m.treeItems, TreeItem{
+		Type:     TypeSection,
+		Name:     "Actions",
+		Level:    0,
+		Expanded: m.expanded["section:actions"],
+		ID:       "section:actions",
 	})
 
-	return tasks
+	if m.expanded["section:actions"] {
+		actions := m.registry.ListActions()
+
+		// Group actions by Category
+		categories := make(map[string][]*registry.Action)
+		for _, action := range actions {
+			cat := action.Category
+			if cat == "" {
+				cat = "General"
+			}
+			categories[cat] = append(categories[cat], action)
+		}
+
+		// Sort categories
+		var sortedCats []string
+		for cat := range categories {
+			sortedCats = append(sortedCats, cat)
+		}
+		sort.Strings(sortedCats)
+
+		for _, cat := range sortedCats {
+			catID := "cat:" + cat
+			m.treeItems = append(m.treeItems, TreeItem{
+				Type:     TypeCategory,
+				Name:     cat,
+				Level:    1,
+				Expanded: m.expanded[catID],
+				ID:       catID,
+			})
+
+			if m.expanded[catID] {
+				for _, action := range categories[cat] {
+					m.treeItems = append(m.treeItems, TreeItem{
+						Type:     TypeAction,
+						Name:     action.Name,
+						Level:    2,
+						Expanded: false,
+						Action:   action,
+						ID:       "action:" + action.Name,
+					})
+				}
+			}
+		}
+	}
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Handle options input mode separately
-	if m.mode == viewOptions {
+	if m.viewOptions {
 		return m.updateOptionsView(msg)
 	}
 
@@ -218,7 +288,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case key.Matches(msg, m.keys.Up):
-			// If showing results, scroll instead of moving cursor
 			if m.showResults {
 				if m.resultsScroll > 0 {
 					m.resultsScroll--
@@ -226,29 +295,56 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				if m.cursor > 0 {
 					m.cursor--
+					// Auto-select based on cursor
+					m.updateSelectionFromCursor()
 				}
 			}
 
 		case key.Matches(msg, m.keys.Down):
-			// If showing results, scroll instead of moving cursor
 			if m.showResults {
 				m.resultsScroll++
 			} else {
-				maxCursor := m.getMaxCursor()
-				if maxCursor > 0 {
+				if m.cursor < len(m.treeItems)-1 {
 					m.cursor++
-					// Clamp cursor to valid range
-					if m.cursor >= maxCursor {
-						m.cursor = maxCursor - 1
-					}
+					// Auto-select based on cursor
+					m.updateSelectionFromCursor()
 				}
 			}
 
-		case key.Matches(msg, m.keys.Enter):
-			return m.handleEnter(), nil
+		case key.Matches(msg, m.keys.Enter), key.Matches(msg, m.keys.Right):
+			item := m.treeItems[m.cursor]
+			if item.Type == TypeSource || item.Type == TypeAction {
+				if key.Matches(msg, m.keys.Right) {
+					// Toggle preview/results focus?
+				} else {
+					// Enter implies selection or preview
+					m.showPreview = true
+					m.previewLines = generateSampleGeometry(item.Name)
+				}
+			} else {
+				// Expand section/category
+				if !item.Expanded {
+					m.expanded[item.ID] = true
+					m.rebuildTree()
+				}
+			}
 
-		case key.Matches(msg, m.keys.Back):
-			return m.handleBack(), nil
+		case key.Matches(msg, m.keys.Back), key.Matches(msg, m.keys.Left):
+			item := m.treeItems[m.cursor]
+			if item.Expanded {
+				// Collapse
+				m.expanded[item.ID] = false
+				m.rebuildTree()
+			} else {
+				// Go up to parent
+				for i := m.cursor - 1; i >= 0; i-- {
+					if m.treeItems[i].Level < item.Level {
+						m.cursor = i
+						m.updateSelectionFromCursor()
+						break
+					}
+				}
+			}
 
 		case key.Matches(msg, m.keys.Execute):
 			return m.handleExecute(), nil
@@ -262,12 +358,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			if m.lastTaskOutput != "" {
 				m.showResults = !m.showResults
-				// Reset scroll when toggling results
 				if m.showResults {
 					m.resultsScroll = 0
 				}
 			}
 
+		// ... key handling for viz direction ...
 		case key.Matches(msg, m.keys.Left), key.Matches(msg, m.keys.PrevDir):
 			if len(m.vizDirections) > 0 {
 				m.selectedDirection--
@@ -289,99 +385,51 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m model) getMaxCursor() int {
-	switch m.mode {
-	case viewTools:
-		return len(m.registry.Tools)
-	case viewCategories:
-		if m.selectedTool != nil {
-			return len(m.selectedTool.Categories)
-		}
-	case viewTasks:
-		if m.selectedCategory != nil {
-			return len(m.selectedCategory.Tasks)
-		}
-	}
-	return 0
-}
+func (m *model) updateSelectionFromCursor() {
+	item := m.treeItems[m.cursor]
 
-func (m model) handleEnter() model {
-	switch m.mode {
-	case viewTools:
-		tools := m.registry.ListTools()
-		if m.cursor < len(tools) {
-			m.selectedTool = tools[m.cursor]
-			m.mode = viewCategories
-			m.cursor = 0
-		}
+	// Reset cursor-based selection
+	m.selectedSource = nil
+	m.selectedAction = nil
+	// activeContext follows the cursor to show options for *what is currently selected/hovered*
+	m.activeContext = nil
 
-	case viewCategories:
-		categories := m.getSortedCategories()
-		if m.cursor < len(categories) {
-			m.selectedCategory = categories[m.cursor]
-			m.mode = viewTasks
-			m.cursor = 0
-		}
-
-	case viewTasks:
-		// Task selected - could execute or show details
-		tasks := m.getSortedTasks()
-		if m.cursor < len(tasks) {
-			m.selectedTask = tasks[m.cursor]
-			// Generate sample geometry for preview
-			m.previewLines = generateSampleGeometry(m.selectedTask.Name)
-			m.showPreview = true
-		}
+	if item.Type == TypeSource {
+		m.selectedSource = item.Source
+		m.activeContext = item.Source
+	} else if item.Type == TypeAction {
+		m.selectedAction = item.Action
+		m.activeContext = item.Action
 	}
 
-	return m
-}
-
-func (m model) handleBack() model {
-	switch m.mode {
-	case viewCategories:
-		m.mode = viewTools
-		m.selectedTool = nil
-		m.cursor = 0
-		m.showPreview = false
-
-	case viewTasks:
-		m.mode = viewCategories
-		m.selectedCategory = nil
-		m.selectedTask = nil
-		m.cursor = 0
-		m.showPreview = false
-
-	case viewOptions:
-		m.mode = viewTasks
-		m.optionCursor = 0
-		m.taskOptions = make(map[string]interface{})
+	if item.Type == TypeAction || item.Type == TypeSource {
+		m.showPreview = true
+		m.previewLines = generateSampleGeometry(item.Name)
 	}
-
-	// Clear results when navigating back
-	if m.mode == viewTools || m.mode == viewCategories {
-		m.showResults = false
-		m.lastTaskOutput = ""
-	}
-
-	return m
 }
 
 func (m model) handleExecute() model {
-	if m.selectedTask == nil {
+	var options []registry.TaskOption
+
+	if m.selectedSource != nil {
+		options = m.selectedSource.Options
+	} else if m.selectedAction != nil {
+		options = m.selectedAction.Options
+	} else {
 		return m
 	}
 
 	// Check if task has options
-	if len(m.selectedTask.Options) > 0 {
+	if len(options) > 0 {
 		// Switch to options view
-		m.mode = viewOptions
+		m.viewOptions = true
 		m.optionCursor = 0
 		m.setupOptionInputs()
 		return m
 	}
 
 	// No options, execute directly
+
 	output := m.executeTaskWithCapture(make(map[string]interface{}))
 	m.lastTaskOutput = output
 	m.showResults = true
@@ -394,7 +442,14 @@ func (m *model) setupOptionInputs() {
 	m.optionInputs = []textinput.Model{}
 	m.optionKeys = []string{}
 
-	for _, opt := range m.selectedTask.Options {
+	var options []registry.TaskOption
+	if m.selectedSource != nil {
+		options = m.selectedSource.Options
+	} else if m.selectedAction != nil {
+		options = m.selectedAction.Options
+	}
+
+	for _, opt := range options {
 		ti := textinput.New()
 		ti.Placeholder = opt.Description
 		ti.CharLimit = 256
@@ -422,7 +477,7 @@ func (m model) updateOptionsView(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case "esc":
-			m.mode = viewTasks
+			m.viewOptions = false
 			m.optionCursor = 0
 			return m, nil
 
@@ -462,7 +517,7 @@ func (m model) updateOptionsView(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.resultsScroll = 0 // Reset scroll for new results
 
 			// Reset and go back
-			m.mode = viewTasks
+			m.viewOptions = false
 			m.optionCursor = 0
 			m.taskOptions = make(map[string]interface{})
 			return m, nil
@@ -495,12 +550,37 @@ func (m *model) executeTaskWithCapture(options map[string]interface{}) string {
 	ctx := &registry.TaskContext{
 		Options: options,
 	}
-	err := m.registry.ExecuteTask(
-		m.selectedTool.Name,
-		m.selectedCategory.Name,
-		m.selectedTask.Name,
-		ctx,
-	)
+
+	var err error
+	var name string
+
+	if m.selectedSource != nil {
+		// Connecting/Selecting a source
+		name = m.selectedSource.Name
+
+		fmt.Printf("Connecting to source: %s...\n", name)
+		err = m.selectedSource.Handler(ctx)
+
+		if err == nil {
+			m.activeSource = m.selectedSource
+			fmt.Printf("Successfully connected to %s.\n", name)
+		}
+	} else if m.selectedAction != nil {
+		name = m.selectedAction.Name
+
+		// If we have an active source, pass it in options for now until TaskContext supports it natively
+		if m.activeSource != nil {
+			if ctx.Options == nil {
+				ctx.Options = make(map[string]interface{})
+			}
+			ctx.Options["_source"] = m.activeSource.Name
+			fmt.Printf("Executing action '%s' on source '%s'...\n", name, m.activeSource.Name)
+		} else {
+			fmt.Printf("Executing action '%s' (No source connected)...\n", name)
+		}
+
+		err = m.selectedAction.Handler(ctx)
+	}
 
 	// Restore stdout/stderr
 	w.Close()
@@ -512,10 +592,13 @@ func (m *model) executeTaskWithCapture(options map[string]interface{}) string {
 		output += fmt.Sprintf("\n\nError: %v", err)
 	}
 
-	// Try to load visualization data if this was an IFC analysis or Blender sync
-	if m.selectedTask.Name == "wall-orientation-wwr" || m.selectedTask.Name == "start-server" {
+	// Try to load visualization data if applicable
+	// For sources like "blender", we assume it might trigger viz update
+	if name == "start-server" || name == "wall-orientation-wwr" {
 		m.loadVisualizationData()
 	}
+	// Generally try to reload viz data after any execution?
+	// m.loadVisualizationData()
 
 	return output
 }
@@ -826,7 +909,7 @@ func (m model) View() string {
 	}
 
 	// Options view is full-width
-	if m.mode == viewOptions {
+	if m.viewOptions {
 		return m.renderOptionsView()
 	}
 
@@ -834,23 +917,22 @@ func (m model) View() string {
 	rightPanel := m.renderRightPanel()
 
 	// Split view: left panel for navigation, right for preview
-	leftWidth := m.width / 2
+	leftWidth := m.width / 3 // Sidebar is 1/3
 	rightWidth := m.width - leftWidth
 
 	// Use TokyoNight themed panel styles with thick borders
-	// No fixed height - let content determine size naturally to prevent shifting
 	leftStyle := lipgloss.NewStyle().
 		Width(leftWidth-2).
-		MaxHeight(m.height-4).
+		Height(m.height-4).
 		BorderStyle(lipgloss.ThickBorder()).
 		BorderForeground(lipgloss.Color(border)).
 		Background(lipgloss.Color(bgColor)).
 		Foreground(lipgloss.Color(fgColor)).
-		Padding(1, 2)
+		Padding(1, 1) // reduced padding for tree
 
 	rightStyle := lipgloss.NewStyle().
 		Width(rightWidth-2).
-		MaxHeight(m.height-4).
+		Height(m.height-4).
 		BorderStyle(lipgloss.ThickBorder()).
 		BorderForeground(lipgloss.Color(border)).
 		Background(lipgloss.Color(bgColor)).
@@ -866,7 +948,7 @@ func (m model) View() string {
 
 	// Add help footer with TokyoNight colors
 	help := m.renderHelp()
-	helpStyle := HelpStyle.Copy().Width(m.width)
+	helpStyle := HelpStyle.Width(m.width)
 
 	return lipgloss.JoinVertical(lipgloss.Left, content, helpStyle.Render(help))
 }
@@ -874,51 +956,103 @@ func (m model) View() string {
 func (m model) renderLeftPanel() string {
 	var sb strings.Builder
 
-	switch m.mode {
-	case viewTools:
-		sb.WriteString(TitleStyle.Render("Select Tool") + "\n")
-		sb.WriteString(BreadcrumbStyle.Render("Step 1 of 3") + "\n\n")
+	sb.WriteString(TitleStyle.Render("Explorer") + "\n\n")
 
-		tools := m.registry.ListTools()
-		for i, tool := range tools {
-			cursor := " "
-			if i == m.cursor {
-				cursor = ">"
-			}
-			sb.WriteString(fmt.Sprintf("%s %d. %s\n", cursor, i+1, tool.Name))
-			sb.WriteString(fmt.Sprintf("     %s\n\n", tool.Description))
-		}
+	// Calculate visible window for scrolling logic if we had it
+	// For now, render all and let lipgloss handle clipping or basic slice
 
-	case viewCategories:
-		sb.WriteString(BreadcrumbStyle.Render(m.selectedTool.Name+" >") + " ")
-		sb.WriteString(TitleStyle.Render("Select Category") + "\n")
-		sb.WriteString(BreadcrumbStyle.Render("Step 2 of 3") + "\n\n")
+	// Create window around cursor for scrolling
+	visibleItems := m.height - 8 // Rough estimate of rows available
+	if visibleItems < 1 {
+		visibleItems = 1
+	}
 
-		categories := m.getSortedCategories()
-		for i, cat := range categories {
-			cursor := " "
-			if i == m.cursor {
-				cursor = ">"
-			}
-			sb.WriteString(fmt.Sprintf("%s %d. %s\n", cursor, i+1, cat.Name))
-			sb.WriteString(fmt.Sprintf("     %s\n\n", cat.Description))
-		}
+	start := 0
+	end := len(m.treeItems)
 
-	case viewTasks:
-		sb.WriteString(BreadcrumbStyle.Render(m.selectedTool.Name+" > "+m.selectedCategory.Name+" >") + " ")
-		sb.WriteString(TitleStyle.Render("Select Task") + "\n")
-		sb.WriteString(BreadcrumbStyle.Render("Step 3 of 3") + "\n\n")
-
-		tasks := m.getSortedTasks()
-		for i, task := range tasks {
-			cursor := " "
-			if i == m.cursor {
-				cursor = ">"
-			}
-			sb.WriteString(fmt.Sprintf("%s %d. %s\n", cursor, i+1, task.Name))
-			sb.WriteString(fmt.Sprintf("     %s\n\n", task.Description))
+	// Simple scroll logic
+	if len(m.treeItems) > visibleItems {
+		if m.cursor < visibleItems/2 {
+			start = 0
+			end = visibleItems
+		} else if m.cursor >= len(m.treeItems)-visibleItems/2 {
+			start = len(m.treeItems) - visibleItems
+			end = len(m.treeItems)
+		} else {
+			start = m.cursor - visibleItems/2
+			end = m.cursor + visibleItems/2
 		}
 	}
+
+	if start < 0 {
+		start = 0
+	}
+	if end > len(m.treeItems) {
+		end = len(m.treeItems)
+	}
+
+	for i := start; i < end; i++ {
+		item := m.treeItems[i]
+
+		// Indentation
+		indent := strings.Repeat("  ", item.Level)
+
+		// Icon
+		icon := ""
+		if item.Type == TypeSource || item.Type == TypeAction {
+			// Leaves
+			if item.Type == TypeSource {
+				icon = "⚡" // Bolt for source?
+			} else {
+				icon = "𝑓 " // function f for action
+			}
+		} else {
+			// Containers
+			if item.Expanded {
+				icon = "▼ "
+			} else {
+				icon = "▶ "
+			}
+		}
+
+		// Selection style
+		cursor := " "
+		lineStyle := NormalStyle
+		if i == m.cursor {
+			cursor = ">"
+			lineStyle = SelectedStyle.Bold(true)
+		}
+
+		line := fmt.Sprintf("%s%s%s %s", cursor, indent, icon, item.Name)
+		sb.WriteString(lineStyle.Render(line) + "\n")
+	}
+
+	return sb.String()
+}
+
+func (m model) renderOptionsView() string {
+	var sb strings.Builder
+
+	name := "Item"
+	if m.selectedSource != nil {
+		name = m.selectedSource.Name
+	} else if m.selectedAction != nil {
+		name = m.selectedAction.Name
+	}
+
+	sb.WriteString(TitleStyle.Padding(1, 2).Render(fmt.Sprintf("Configure: %s", name)))
+	sb.WriteString("\n\n")
+
+	for i, input := range m.optionInputs {
+		if i < len(m.optionKeys) {
+			label := LabelStyle.Width(20).Render(m.optionKeys[i] + ":")
+			sb.WriteString(NormalStyle.Padding(0, 2).Render(label + " " + input.View()))
+			sb.WriteString("\n\n")
+		}
+	}
+
+	sb.WriteString("\n")
+	sb.WriteString(HelpStyle.Render(m.renderHelp()))
 
 	return sb.String()
 }
@@ -966,208 +1100,84 @@ func (m model) renderRightPanel() string {
 	}
 
 	// Show direction-specific elevation with faces
-	if len(m.directionData) > 0 && len(m.vizDirections) > 0 {
+	// ... (geometry preview same as before)
+	// To minimize complexity in replacement, we reuse the previous geometry rendering logic if m.showPreview is set
+
+	if m.showPreview && len(m.previewLines) > 0 {
 		previewWidth := m.width/2 - 6
 		previewHeight := m.height - 8
-
-		// Get current direction
-		currentDir := m.vizDirections[m.selectedDirection]
-		dirStats := m.directionData[currentDir]
-
-		if len(dirStats.Faces) == 0 {
-			// No faces to render
-			var sb strings.Builder
-			sb.WriteString(PreviewTitleStyle.Render(currentDir) + "\n\n")
-			sb.WriteString(DescriptionStyle.Render("No geometry data available"))
-			return sb.String()
+		if previewWidth < 10 {
+			previewWidth = 10
 		}
-
-		// Find overall bounds of all faces
-		allMinX, allMaxX := dirStats.Faces[0].Points[0].X, dirStats.Faces[0].Points[0].X
-		allMinY, allMaxY := dirStats.Faces[0].Points[0].Y, dirStats.Faces[0].Points[0].Y
-		for _, face := range dirStats.Faces {
-			for _, p := range face.Points {
-				if p.X < allMinX {
-					allMinX = p.X
-				}
-				if p.X > allMaxX {
-					allMaxX = p.X
-				}
-				if p.Y < allMinY {
-					allMinY = p.Y
-				}
-				if p.Y > allMaxY {
-					allMaxY = p.Y
-				}
-			}
+		if previewHeight < 10 {
+			previewHeight = 10
 		}
-
-		// Calculate scale to fit canvas (with padding)
-		dataWidth := allMaxX - allMinX
-		dataHeight := allMaxY - allMinY
-
-		// Canvas dimensions in braille pixels (2 wide x 4 tall per character)
-		canvasPixelWidth := float64(previewWidth * 2)
-		canvasPixelHeight := float64(previewHeight * 4)
-
-		// Add padding (10% on each side)
-		padding := 0.9
-		scaleX := (canvasPixelWidth * padding) / dataWidth
-		scaleY := (canvasPixelHeight * padding) / dataHeight
-		scale := scaleX
-		if scaleY < scaleX {
-			scale = scaleY
-		}
-
-		// Center offset
-		offsetX := (canvasPixelWidth - dataWidth*scale) / 2
-		offsetY := (canvasPixelHeight - dataHeight*scale) / 2
-
-		// Create separate canvases for layering
-		wallCanvas := canvas.NewCanvas(previewWidth, previewHeight)
-		windowCanvas := canvas.NewCanvas(previewWidth, previewHeight)
-
-		// Render faces for this direction
-		for _, face := range dirStats.Faces {
-			if len(face.Points) < 3 {
-				continue
-			}
-
-			// Find bounding box
-			minX, maxX := face.Points[0].X, face.Points[0].X
-			minY, maxY := face.Points[0].Y, face.Points[0].Y
-			for _, p := range face.Points {
-				if p.X < minX {
-					minX = p.X
-				}
-				if p.X > maxX {
-					maxX = p.X
-				}
-				if p.Y < minY {
-					minY = p.Y
-				}
-				if p.Y > maxY {
-					maxY = p.Y
-				}
-			}
-
-			// Scale and offset to canvas pixel coordinates
-			x := int((minX-allMinX)*scale + offsetX)
-			y := int((minY-allMinY)*scale + offsetY)
-			w := int((maxX - minX) * scale)
-			h := int((maxY - minY) * scale)
-
-			// Ensure minimum size for visibility
-			if w < 2 {
-				w = 2
-			}
-			if h < 2 {
-				h = 2
-			}
-
-			// Render based on type to separate canvases
-			if face.Type == "window_face" {
-				// Windows: filled rectangles on window layer
-				windowCanvas.FillRect(x, y, w, h)
-			} else if face.Type == "wall_face" {
-				// Walls: outlined rectangles on wall layer
-				wallCanvas.DrawRect(x, y, w, h)
-			}
-		}
-
-		// Layer Merging: Combine canvases with colors
-		wallStr := wallCanvas.Render()
-		winStr := windowCanvas.Render()
-
-		wallRows := strings.Split(wallStr, "\n")
-		winRows := strings.Split(winStr, "\n")
-
-		var mergedSb strings.Builder
-
-		// Iterate rows (skip empty last split if any)
-		for y := 0; y < len(wallRows) && y < len(winRows); y++ {
-			if len(wallRows[y]) == 0 {
-				continue
-			}
-
-			wallRow := []rune(wallRows[y])
-			winRow := []rune(winRows[y])
-
-			for x := 0; x < len(wallRow) && x < len(winRow); x++ {
-				wChar := winRow[x]
-				wallChar := wallRow[x]
-
-				// 0x2800 is empty braille pattern (⠀)
-				if wChar != 0x2800 {
-					// Window pattern takes precedence and gets color
-					mergedSb.WriteString(WindowStyle.Render(string(wChar)))
-				} else if wallChar != 0x2800 {
-					// Wall pattern gets standard color
-					mergedSb.WriteString(WallStyle.Render(string(wallChar)))
-				} else {
-					// Empty space
-					mergedSb.WriteRune(wallChar)
-				}
-			}
-			mergedSb.WriteRune('\n')
-		}
-
-		canvasOutput := mergedSb.String()
-
-		// Render with styled output
-		var sb strings.Builder
-
-		// Direction header with navigation
-		dirHeader := fmt.Sprintf("◀ %s (%d/%d) ▶", currentDir, m.selectedDirection+1, len(m.vizDirections))
-		sb.WriteString(PreviewTitleStyle.Render(dirHeader) + "\n\n")
-
-		// Style the canvas with legend colors
-		sb.WriteString(canvasOutput)
-
-		// Stats and legend
-		sb.WriteString("\n\n")
-
-		// Wall stats (using normal style)
-		sb.WriteString(NormalStyle.Render(fmt.Sprintf("□ Walls: %d  (%.1f%% coverage)\n", dirStats.Walls, 100.0-dirStats.WWR)))
-
-		// Window stats (cyan colored to match filled appearance)
-		sb.WriteString(WindowStyle.Render(fmt.Sprintf("■ Windows: %d  (%.1f%% WWR)", dirStats.Windows, dirStats.WWR)))
-
-		sb.WriteString("\n\n")
-
-		// Add compass/key plan
-		sb.WriteString(m.renderCompass(currentDir))
-
-		sb.WriteString("\n")
-		sb.WriteString(HelpStyle.Render("←/→ or [/]: change direction  •  r: text results"))
-
-		return sb.String()
-	}
-
-	// Show geometry visualization if available (elevation view)
-	if len(m.previewLines) > 0 {
-		previewWidth := m.width/2 - 6
-		previewHeight := m.height - 8
 
 		c := canvas.NewCanvas(previewWidth, previewHeight)
 		geometry.DrawLines(c, m.previewLines, previewWidth, previewHeight)
 
 		var sb strings.Builder
-		sb.WriteString(PreviewTitleStyle.Render("Wall Elevation View") + "\n\n")
+		name := "Preview"
+		if m.selectedSource != nil {
+			name = m.selectedSource.Name
+		}
+		if m.selectedAction != nil {
+			name = m.selectedAction.Name
+		}
+
+		sb.WriteString(PreviewTitleStyle.Render(name) + "\n\n")
 		sb.WriteString(c.Render())
 
-		// Show metadata
-		sb.WriteString(StatsStyle.Render(fmt.Sprintf("\n\n%d walls visualized", m.vizTotalWalls)))
-		if len(m.vizDirections) > 0 {
-			sb.WriteString(DescriptionStyle.Render(fmt.Sprintf("\nDirections: %s", strings.Join(m.vizDirections, ", "))))
+		desc := ""
+		if m.selectedSource != nil {
+			desc = m.selectedSource.Description
 		}
-		sb.WriteString(HelpStyle.Render("\n\nPress 'r' to see analysis results"))
+		if m.selectedAction != nil {
+			desc = m.selectedAction.Description
+		}
+
+		sb.WriteString("\n\n" + DescriptionStyle.Render(desc))
 
 		return sb.String()
 	}
 
+	if len(m.directionData) > 0 {
+		return m.renderViz()
+	}
+
 	// Default message
-	return DescriptionStyle.Render("Select a task and press 'x' to execute\n\nResults and visualizations will appear here")
+	msg := "Select a Source to connect or an Action to execute.\n\nPress 'x' to execute/connect."
+	if m.activeSource != nil {
+		msg += fmt.Sprintf("\n\nConnected Source: %s", m.activeSource.Name)
+	}
+	return DescriptionStyle.Render(msg)
+}
+
+func (m model) renderViz() string {
+	if len(m.directionData) > 0 && len(m.vizDirections) > 0 {
+		currentDir := m.vizDirections[m.selectedDirection]
+		dirStats := m.directionData[currentDir]
+
+		var sb strings.Builder
+		sb.WriteString(PreviewTitleStyle.Render(fmt.Sprintf("%s (%d faces)", currentDir, len(dirStats.Faces))) + "\n\n")
+
+		// Add compass/key plan
+		sb.WriteString(m.renderCompass(currentDir))
+
+		sb.WriteString("\n\n")
+
+		// Wall stats (using normal style)
+		sb.WriteString(NormalStyle.Render(fmt.Sprintf("□ Walls: %d  (%.1f%% coverage)\n", dirStats.Walls, 100.0-dirStats.WWR)))
+
+		// Window stats
+		sb.WriteString(WindowStyle.Render(fmt.Sprintf("■ Windows: %d  (%.1f%% WWR)", dirStats.Windows, dirStats.WWR)))
+
+		sb.WriteString("\n\n")
+		sb.WriteString(HelpStyle.Render("←/→ or [/]: change direction  •  r: text results"))
+
+		return sb.String()
+	}
+	return ""
 }
 
 func (m model) renderCompass(currentDirection string) string {
@@ -1213,34 +1223,13 @@ func (m model) renderCompass(currentDirection string) string {
 }
 
 func (m model) renderHelp() string {
-	if m.mode == viewOptions {
+	if m.viewOptions {
 		return "  ↑/↓/tab: next field  •  enter: execute  •  esc: back  •  q: quit"
 	}
-	if len(m.directionData) > 0 {
-		return "  ↑/↓ or 1-9: navigate  •  ←/→: change direction  •  enter: select  •  esc: back  •  x: execute  •  r: results  •  q: quit"
+	if m.showResults {
+		return "  ↑/↓: scroll results  •  r: close results  •  q: quit"
 	}
-	if m.lastTaskOutput != "" {
-		return "  ↑/↓ or 1-9: navigate  •  enter: select  •  esc: back  •  r: toggle results  •  x: execute  •  q: quit"
-	}
-	return "  ↑/↓ or 1-9: navigate  •  enter: select  •  esc: back  •  x: execute  •  q: quit"
-}
-
-func (m model) renderOptionsView() string {
-	var sb strings.Builder
-
-	sb.WriteString(TitleStyle.Copy().Padding(1, 2).Render(fmt.Sprintf("Configure: %s", m.selectedTask.Name)))
-	sb.WriteString("\n\n")
-
-	for i, input := range m.optionInputs {
-		label := LabelStyle.Copy().Width(20).Render(m.optionKeys[i] + ":")
-		sb.WriteString(NormalStyle.Copy().Padding(0, 2).Render(label + " " + input.View()))
-		sb.WriteString("\n\n")
-	}
-
-	sb.WriteString("\n")
-	sb.WriteString(HelpStyle.Render(m.renderHelp()))
-
-	return sb.String()
+	return "  ↑/↓: move  •  enter/right: expand/preview  •  left: collapse  •  x: execute  •  r: results  •  q: quit"
 }
 
 // Generate sample geometry for demonstration
@@ -1248,7 +1237,7 @@ func generateSampleGeometry(taskName string) []geometry.Line {
 	lines := []geometry.Line{}
 
 	switch taskName {
-	case "extract-walls":
+	case "revit-extract-walls", "extract-walls":
 		// Simple room outline
 		lines = append(lines,
 			geometry.Line{Start: geometry.Point{X: 0, Y: 0}, End: geometry.Point{X: 20, Y: 0}},
@@ -1259,7 +1248,7 @@ func generateSampleGeometry(taskName string) []geometry.Line {
 			geometry.Line{Start: geometry.Point{X: 10, Y: 0}, End: geometry.Point{X: 10, Y: 15}},
 		)
 
-	case "extract-floors":
+	case "revit-extract-floors", "extract-floors":
 		// Floor slab outline
 		lines = append(lines,
 			geometry.Line{Start: geometry.Point{X: 0, Y: 0}, End: geometry.Point{X: 25, Y: 0}},
@@ -1268,7 +1257,7 @@ func generateSampleGeometry(taskName string) []geometry.Line {
 			geometry.Line{Start: geometry.Point{X: 0, Y: 20}, End: geometry.Point{X: 0, Y: 0}},
 		)
 
-	case "extract-rooms":
+	case "revit-extract-rooms", "extract-rooms":
 		// Multiple rooms
 		lines = append(lines,
 			// Room 1
@@ -1283,7 +1272,7 @@ func generateSampleGeometry(taskName string) []geometry.Line {
 		)
 
 	default:
-		// Default shape
+		// Default shape (Box)
 		lines = append(lines,
 			geometry.Line{Start: geometry.Point{X: 5, Y: 5}, End: geometry.Point{X: 15, Y: 5}},
 			geometry.Line{Start: geometry.Point{X: 15, Y: 5}, End: geometry.Point{X: 15, Y: 12}},

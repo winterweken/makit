@@ -11,17 +11,13 @@ var globalServer *Server
 // RegisterTasks registers all Blender-related tasks
 func RegisterTasks() {
 	reg := registry.GetRegistry()
-	tool := reg.RegisterTool("blender", "Blender 3D live connection")
 
-	registerSyncTasks(tool)
-}
-
-func registerSyncTasks(tool *registry.Tool) {
-	category := tool.AddCategory("connect", "Live connection tasks")
-
-	category.AddTask("start-server", "Start local server to receive geometry from Blender", handleStartServer).
+	// Register as a Source
+	reg.RegisterSource("blender", "Blender 3D live connection", handleStartServer).
 		AddOption("port", "Port to listen on", "int", false, 8085)
 }
+
+// Deprecated: registerSyncTasks is removed as we registered the source directly
 
 func handleStartServer(ctx *registry.TaskContext) error {
 	port := 8085

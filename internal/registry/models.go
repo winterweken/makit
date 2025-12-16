@@ -121,3 +121,46 @@ func (t *Task) Execute(ctx *TaskContext) error {
 	}
 	return t.Handler(ctx)
 }
+
+// Source represents a geometry input driver (e.g. Blender, Revit, IFC)
+type Source struct {
+	Name        string
+	Description string
+	Handler     TaskHandler
+	Options     []TaskOption
+}
+
+// Action represents an operation performed on the geometry (e.g. Analysis, Export)
+type Action struct {
+	Name        string
+	Description string
+	Category    string
+	Handler     TaskHandler
+	Options     []TaskOption
+}
+
+// AddOption adds an option to a Source
+func (s *Source) AddOption(name, description, optType string, required bool, defaultValue interface{}) *Source {
+	option := TaskOption{
+		Name:        name,
+		Description: description,
+		Type:        optType,
+		Required:    required,
+		Default:     defaultValue,
+	}
+	s.Options = append(s.Options, option)
+	return s
+}
+
+// AddOption adds an option to an Action
+func (a *Action) AddOption(name, description, optType string, required bool, defaultValue interface{}) *Action {
+	option := TaskOption{
+		Name:        name,
+		Description: description,
+		Type:        optType,
+		Required:    required,
+		Default:     defaultValue,
+	}
+	a.Options = append(a.Options, option)
+	return a
+}

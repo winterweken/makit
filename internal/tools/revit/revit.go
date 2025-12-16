@@ -10,61 +10,51 @@ import (
 )
 
 // RegisterTasks registers all Revit-related tasks
+// RegisterTasks registers all Revit-related tasks
 func RegisterTasks() {
 	reg := registry.GetRegistry()
-	tool := reg.RegisterTool("revit", "Autodesk Revit integration and automation")
 
-	registerGeometryTasks(tool)
-	registerAnalysisTasks(tool)
-	registerModificationTasks(tool)
-}
+	// Register Revit as a Source
+	// The default handler extracts the whole model
+	reg.RegisterSource("revit", "Autodesk Revit integration", handleExtractModel).
+		AddOption("workset", "Filter by workset name", "string", false, "").
+		AddOption("wall-type", "Filter by wall type", "string", false, "").
+		AddOption("output", "Output file path", "string", false, "building-model.json")
 
-func registerGeometryTasks(tool *registry.Tool) {
-	category := tool.AddCategory("geometry", "Extract and manipulate geometric elements")
-
-	category.AddTask("extract-walls", "Extract wall elements from a Revit model", handleExtractWalls).
+	// Register specific Geometry Tasks as "Specialized Sources"? Or just Actions?
+	// Let's make them Actions that fetch from Revit
+	reg.RegisterAction("revit-extract-walls", "Extract wall elements from Revit", "extraction", handleExtractWalls).
 		AddOption("output", "Output file path", "string", false, "walls.json").
 		AddOption("level", "Filter by level name", "string", false, "")
 
-	category.AddTask("extract-floors", "Extract floor elements from a Revit model", handleExtractFloors).
+	reg.RegisterAction("revit-extract-floors", "Extract floor elements from Revit", "extraction", handleExtractFloors).
 		AddOption("output", "Output file path", "string", false, "floors.json")
 
-	category.AddTask("extract-rooms", "Extract room elements from a Revit model", handleExtractRooms).
+	reg.RegisterAction("revit-extract-rooms", "Extract room elements from Revit", "extraction", handleExtractRooms).
 		AddOption("output", "Output file path", "string", false, "rooms.json")
-}
 
-func registerAnalysisTasks(tool *registry.Tool) {
-	category := tool.AddCategory("analysis", "Analyze Revit models and elements")
-
-	category.AddTask("wall-orientations", "Analyze wall orientations and calculate WWR by direction", handleWallOrientations).
+	// Analysis Actions
+	reg.RegisterAction("revit-wall-orientations", "Analyze wall orientations in Revit", "analysis", handleWallOrientations).
 		AddOption("workset", "Filter by workset name", "string", false, "").
 		AddOption("wall-type", "Filter by wall type (e.g., Exterior)", "string", false, "").
 		AddOption("unit", "Area unit (sqm, sqf)", "string", false, "sqm").
 		AddOption("output", "Save detailed JSON results to file", "string", false, "")
 
-	category.AddTask("extract-model", "Extract building model to generic format for cross-platform analysis", handleExtractModel).
-		AddOption("workset", "Filter by workset name", "string", false, "").
-		AddOption("wall-type", "Filter by wall type", "string", false, "").
-		AddOption("output", "Output file path", "string", false, "building-model.json")
-
-	category.AddTask("calculate-areas", "Calculate areas of rooms and spaces", handleCalculateAreas).
+	reg.RegisterAction("revit-calculate-areas", "Calculate areas of rooms/spaces", "analysis", handleCalculateAreas).
 		AddOption("unit", "Area unit (sqft, sqm)", "string", false, "sqft")
 
-	category.AddTask("find-clashes", "Detect clashes between elements", handleFindClashes).
+	reg.RegisterAction("revit-find-clashes", "Detect clashes in Revit", "analysis", handleFindClashes).
 		AddOption("tolerance", "Clash detection tolerance", "float", false, 0.01)
 
-	category.AddTask("validate-standards", "Validate model against standards", handleValidateStandards).
+	reg.RegisterAction("revit-validate-standards", "Validate Revit model against standards", "analysis", handleValidateStandards).
 		AddOption("ruleset", "Path to validation ruleset", "string", true, nil)
-}
 
-func registerModificationTasks(tool *registry.Tool) {
-	category := tool.AddCategory("modification", "Modify Revit model elements")
-
-	category.AddTask("update-parameters", "Update element parameters", handleUpdateParameters).
+	// Modification Actions
+	reg.RegisterAction("revit-update-parameters", "Update element parameters in Revit", "modification", handleUpdateParameters).
 		AddOption("parameter", "Parameter name", "string", true, nil).
 		AddOption("value", "New parameter value", "string", true, nil)
 
-	category.AddTask("apply-templates", "Apply templates to elements", handleApplyTemplates).
+	reg.RegisterAction("revit-apply-templates", "Apply templates to elements in Revit", "modification", handleApplyTemplates).
 		AddOption("template", "Path to template file", "string", true, nil)
 }
 

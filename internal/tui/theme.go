@@ -21,12 +21,12 @@ const (
 	orange  = "#ff9e64" // Orange
 
 	// UI specific
-	selection = "#364a82" // Selection background
-	highlight = cyan      // Highlighted items
-	title     = magenta   // Titles
-	success   = green     // Success messages
-	warning   = yellow    // Warnings
-	error     = red       // Errors
+	selection    = "#364a82" // Selection background
+	highlight    = cyan      // Highlighted items
+	title        = magenta   // Titles
+	success      = green     // Success messages
+	warningColor = yellow    // Warnings
+	errorColor   = red       // Errors
 )
 
 // TokyoNight Storm themed styles
@@ -110,7 +110,7 @@ var (
 
 	// Error message style
 	ErrorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color(error)).
+			Foreground(lipgloss.Color(errorColor)).
 			Background(lipgloss.Color(bgColor)).
 			Bold(true)
 
