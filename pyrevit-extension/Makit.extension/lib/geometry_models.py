@@ -38,6 +38,8 @@ class GenericWall(object):
         self.id = str(id)
         self.name = name or ""
         self.orientation = None  # GeometricVector
+        self.start_point = None  # GeometricVector
+        self.end_point = None    # GeometricVector
         self.area = 0.0  # in square meters
         self.height = 0.0
         self.length = 0.0
@@ -54,6 +56,8 @@ class GenericWall(object):
             'id': self.id,
             'name': self.name,
             'orientation': self.orientation.to_dict() if self.orientation else None,
+            'startPoint': self.start_point.to_dict() if self.start_point else None,
+            'endPoint': self.end_point.to_dict() if self.end_point else None,
             'area': self.area,
             'height': self.height,
             'length': self.length,
@@ -71,6 +75,10 @@ class GenericWall(object):
         wall = GenericWall(data['id'], data.get('name'))
         if data.get('orientation'):
             wall.orientation = GeometricVector.from_dict(data['orientation'])
+        if data.get('startPoint'):
+            wall.start_point = GeometricVector.from_dict(data['startPoint'])
+        if data.get('endPoint'):
+            wall.end_point = GeometricVector.from_dict(data['endPoint'])
         wall.area = data.get('area', 0.0)
         wall.height = data.get('height', 0.0)
         wall.length = data.get('length', 0.0)
@@ -93,6 +101,7 @@ class GenericWindow(object):
         self.area = 0.0  # in square meters
         self.height = 0.0
         self.width = 0.0
+        self.position = None     # GeometricVector (center)
         self.host_id = None  # ID of host wall
         self.level = ""
         self.properties = {}
@@ -104,6 +113,7 @@ class GenericWindow(object):
             'area': self.area,
             'height': self.height,
             'width': self.width,
+            'position': self.position.to_dict() if self.position else None,
             'hostId': self.host_id,
             'level': self.level,
             'properties': self.properties
@@ -115,6 +125,8 @@ class GenericWindow(object):
         window.area = data.get('area', 0.0)
         window.height = data.get('height', 0.0)
         window.width = data.get('width', 0.0)
+        if data.get('position'):
+            window.position = GeometricVector.from_dict(data['position'])
         window.host_id = data.get('hostId')
         window.level = data.get('level', '')
         window.properties = data.get('properties', {})

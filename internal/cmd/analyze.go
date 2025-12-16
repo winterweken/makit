@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
+	"github.com/winteweken/makit/internal/tools/analysis"
 )
 
 var (
@@ -15,6 +15,7 @@ var (
 	storeyFilter string
 	wallType     string
 	extractOnly  bool
+	scriptPath   string
 )
 
 var analyzeCmd = &cobra.Command{
@@ -38,34 +39,13 @@ Example:
 			return fmt.Errorf("IFC file not found: %s", ifcFile)
 		}
 
-		// Get absolute path to the analyze_ifc.py script
-		execPath, err := os.Executable()
+		scriptPathAbs, err := analysis.ResolveAnalyzeScript(scriptPath)
 		if err != nil {
-			return fmt.Errorf("failed to get executable path: %w", err)
-		}
-		execDir := filepath.Dir(execPath)
-
-		// Try multiple possible locations for the script
-		possiblePaths := []string{
-			filepath.Join(execDir, "pyrevit-extension", "Makit.extension", "lib", "analyze_ifc.py"),
-			filepath.Join(execDir, "..", "pyrevit-extension", "Makit.extension", "lib", "analyze_ifc.py"),
-			"pyrevit-extension/Makit.extension/lib/analyze_ifc.py",
-		}
-
-		var scriptPath string
-		for _, path := range possiblePaths {
-			if _, err := os.Stat(path); err == nil {
-				scriptPath = path
-				break
-			}
-		}
-
-		if scriptPath == "" {
-			return fmt.Errorf("analyze_ifc.py script not found in expected locations")
+			return err
 		}
 
 		// Build command arguments
-		cmdArgs := []string{scriptPath, ifcFile}
+		cmdArgs := []string{scriptPathAbs, ifcFile}
 
 		if outputFile != "" {
 			cmdArgs = append(cmdArgs, "--output", outputFile)
@@ -109,4 +89,5 @@ func init() {
 	analyzeCmd.Flags().StringVar(&storeyFilter, "storey", "", "Filter by building storey name")
 	analyzeCmd.Flags().StringVar(&wallType, "wall-type", "", "Filter by wall type")
 	analyzeCmd.Flags().BoolVar(&extractOnly, "extract-only", false, "Only extract to generic format, skip analysis")
+	analyzeCmd.Flags().StringVar(&scriptPath, "script", "", "Path to analyze_ifc.py script (overrides search path)")
 }

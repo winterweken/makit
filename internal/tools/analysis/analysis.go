@@ -72,26 +72,14 @@ func registerIFCTasks(tool *registry.Tool) {
 			return fmt.Errorf("IFC file not found: %s", ifcFile)
 		}
 
-		// Find the analyze_ifc.py script
-		possiblePaths := []string{
-			"pyrevit-extension/Makit.extension/lib/analyze_ifc.py",
-			"../pyrevit-extension/Makit.extension/lib/analyze_ifc.py",
+		customScript := ""
+		if script, ok := ctx.Options["script"].(string); ok {
+			customScript = script
 		}
 
-		var scriptPath string
-		for _, path := range possiblePaths {
-			absPath, err := filepath.Abs(path)
-			if err != nil {
-				continue
-			}
-			if _, err := os.Stat(absPath); err == nil {
-				scriptPath = absPath
-				break
-			}
-		}
-
-		if scriptPath == "" {
-			return fmt.Errorf("analyze_ifc.py script not found")
+		scriptPath, err := ResolveAnalyzeScript(customScript)
+		if err != nil {
+			return err
 		}
 
 		// Convert IFC file to absolute path
@@ -127,5 +115,6 @@ func registerIFCTasks(tool *registry.Tool) {
 	}).
 		AddOption("ifc-file", "Path to IFC file", "string", false, "examples/IFC/IFCSchependomlaan.ifc").
 		AddOption("unit", "Area unit (sqm or sqf)", "string", false, "sqm").
-		AddOption("output", "Save results to JSON file", "string", false, "")
+		AddOption("output", "Save results to JSON file", "string", false, "").
+		AddOption("script", "Path to analyze_ifc.py script", "string", false, "")
 }

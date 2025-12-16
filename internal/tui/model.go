@@ -46,15 +46,15 @@ type model struct {
 	selectedTask     *registry.Task
 
 	// Options input
-	optionInputs     []textinput.Model
-	optionKeys       []string
-	optionCursor     int
-	taskOptions      map[string]interface{}
+	optionInputs []textinput.Model
+	optionKeys   []string
+	optionCursor int
+	taskOptions  map[string]interface{}
 
 	// Geometry preview
-	previewLines  []geometry.Line
-	previewFaces  []Face
-	showPreview   bool
+	previewLines []geometry.Line
+	previewFaces []Face
+	showPreview  bool
 
 	// Task results
 	lastTaskOutput    string
@@ -71,27 +71,27 @@ type model struct {
 }
 
 type DirectionStats struct {
-	Walls       int
-	Windows     int
-	WallArea    float64
-	WindowArea  float64
-	WWR         float64
-	Faces       []Face
+	Walls      int
+	Windows    int
+	WallArea   float64
+	WindowArea float64
+	WWR        float64
+	Faces      []Face
 }
 
 type keyMap struct {
-	Up          key.Binding
-	Down        key.Binding
-	Left        key.Binding
-	Right       key.Binding
-	Enter       key.Binding
-	Back        key.Binding
-	Execute     key.Binding
-	Quit        key.Binding
-	Preview     key.Binding
-	Results     key.Binding
-	NextDir     key.Binding
-	PrevDir     key.Binding
+	Up      key.Binding
+	Down    key.Binding
+	Left    key.Binding
+	Right   key.Binding
+	Enter   key.Binding
+	Back    key.Binding
+	Execute key.Binding
+	Quit    key.Binding
+	Preview key.Binding
+	Results key.Binding
+	NextDir key.Binding
+	PrevDir key.Binding
 }
 
 func defaultKeyMap() keyMap {
@@ -518,10 +518,17 @@ func (m *model) executeTaskWithCapture(options map[string]interface{}) string {
 }
 
 func (m *model) loadVisualizationData() {
+	// Check standard temp dir first
 	vizFile := filepath.Join(os.TempDir(), "makit_viz.json")
+
 	data, err := os.ReadFile(vizFile)
 	if err != nil {
-		return // Visualization not available
+		// Fallback to /tmp/makit_viz.json (hardcoded in analyze_ifc.py)
+		vizFile = "/tmp/makit_viz.json"
+		data, err = os.ReadFile(vizFile)
+		if err != nil {
+			return // Visualization not available
+		}
 	}
 
 	var vizData map[string]interface{}
@@ -607,7 +614,7 @@ func (m *model) loadVisualizationData() {
 
 		m.directionData[dir.name] = DirectionStats{
 			Walls:   wallCount,
-			Windows: 0,  // Will be calculated if window data available
+			Windows: 0, // Will be calculated if window data available
 			WWR:     0.0,
 			Faces:   faces,
 		}
@@ -626,10 +633,10 @@ func (m *model) convertLinesToFaces(lines []geometry.Line) []Face {
 		// Get 4 lines forming a rectangle
 		// Extract unique points from the 4 lines
 		points := []geometry.Point{
-			lines[i].Start,     // bottom-left
-			lines[i].End,       // bottom-right
-			lines[i+2].Start,   // top-right
-			lines[i+3].Start,   // top-left
+			lines[i].Start,   // bottom-left
+			lines[i].End,     // bottom-right
+			lines[i+2].Start, // top-right
+			lines[i+3].Start, // top-left
 		}
 
 		// Determine if this is a window or wall based on line type
@@ -638,7 +645,7 @@ func (m *model) convertLinesToFaces(lines []geometry.Line) []Face {
 			// Simple heuristic: smaller rectangles are likely windows
 			width := lines[i].End.X - lines[i].Start.X
 			height := lines[i+1].End.Y - lines[i+1].Start.Y
-			if width < 1000 || height < 200 {  // Adjust thresholds as needed
+			if width < 1000 || height < 200 { // Adjust thresholds as needed
 				faceType = "window_face"
 			}
 		}
@@ -730,6 +737,26 @@ func (m *model) loadIsometricFaces(vizData map[string]interface{}) {
 		m.vizDirections = append(m.vizDirections, dirName)
 	}
 
+	// Sort directions to ensure consistent order
+	sort.Strings(m.vizDirections)
+
+	// Move "Overview" to the first position if it exists
+	overviewIndex := -1
+	for i, dir := range m.vizDirections {
+		if dir == "Overview" {
+			overviewIndex = i
+			break
+		}
+	}
+
+	if overviewIndex > 0 {
+		// Move Overview to front
+		// Remove from current position
+		m.vizDirections = append(m.vizDirections[:overviewIndex], m.vizDirections[overviewIndex+1:]...)
+		// Prepend
+		m.vizDirections = append([]string{"Overview"}, m.vizDirections...)
+	}
+
 	m.selectedDirection = 0
 	m.previewLines = []geometry.Line{} // Clear lines
 }
@@ -810,8 +837,8 @@ func (m model) View() string {
 	// Use TokyoNight themed panel styles with thick borders
 	// No fixed height - let content determine size naturally to prevent shifting
 	leftStyle := lipgloss.NewStyle().
-		Width(leftWidth - 2).
-		MaxHeight(m.height - 4).
+		Width(leftWidth-2).
+		MaxHeight(m.height-4).
 		BorderStyle(lipgloss.ThickBorder()).
 		BorderForeground(lipgloss.Color(border)).
 		Background(lipgloss.Color(bgColor)).
@@ -819,8 +846,8 @@ func (m model) View() string {
 		Padding(1, 2)
 
 	rightStyle := lipgloss.NewStyle().
-		Width(rightWidth - 2).
-		MaxHeight(m.height - 4).
+		Width(rightWidth-2).
+		MaxHeight(m.height-4).
 		BorderStyle(lipgloss.ThickBorder()).
 		BorderForeground(lipgloss.Color(border)).
 		Background(lipgloss.Color(bgColor)).
@@ -944,8 +971,6 @@ func (m model) renderRightPanel() string {
 		currentDir := m.vizDirections[m.selectedDirection]
 		dirStats := m.directionData[currentDir]
 
-		c := canvas.NewCanvas(previewWidth, previewHeight)
-
 		if len(dirStats.Faces) == 0 {
 			// No faces to render
 			var sb strings.Builder
@@ -995,6 +1020,10 @@ func (m model) renderRightPanel() string {
 		offsetX := (canvasPixelWidth - dataWidth*scale) / 2
 		offsetY := (canvasPixelHeight - dataHeight*scale) / 2
 
+		// Create separate canvases for layering
+		wallCanvas := canvas.NewCanvas(previewWidth, previewHeight)
+		windowCanvas := canvas.NewCanvas(previewWidth, previewHeight)
+
 		// Render faces for this direction
 		for _, face := range dirStats.Faces {
 			if len(face.Points) < 3 {
@@ -1033,15 +1062,54 @@ func (m model) renderRightPanel() string {
 				h = 2
 			}
 
-			// Render based on type
+			// Render based on type to separate canvases
 			if face.Type == "window_face" {
-				// Windows: filled rectangles
-				c.FillRect(x, y, w, h)
+				// Windows: filled rectangles on window layer
+				windowCanvas.FillRect(x, y, w, h)
 			} else if face.Type == "wall_face" {
-				// Walls: outlined rectangles
-				c.DrawRect(x, y, w, h)
+				// Walls: outlined rectangles on wall layer
+				wallCanvas.DrawRect(x, y, w, h)
 			}
 		}
+
+		// Layer Merging: Combine canvases with colors
+		wallStr := wallCanvas.Render()
+		winStr := windowCanvas.Render()
+
+		wallRows := strings.Split(wallStr, "\n")
+		winRows := strings.Split(winStr, "\n")
+
+		var mergedSb strings.Builder
+
+		// Iterate rows (skip empty last split if any)
+		for y := 0; y < len(wallRows) && y < len(winRows); y++ {
+			if len(wallRows[y]) == 0 {
+				continue
+			}
+
+			wallRow := []rune(wallRows[y])
+			winRow := []rune(winRows[y])
+
+			for x := 0; x < len(wallRow) && x < len(winRow); x++ {
+				wChar := winRow[x]
+				wallChar := wallRow[x]
+
+				// 0x2800 is empty braille pattern (⠀)
+				if wChar != 0x2800 {
+					// Window pattern takes precedence and gets color
+					mergedSb.WriteString(WindowStyle.Render(string(wChar)))
+				} else if wallChar != 0x2800 {
+					// Wall pattern gets standard color
+					mergedSb.WriteString(WallStyle.Render(string(wallChar)))
+				} else {
+					// Empty space
+					mergedSb.WriteRune(wallChar)
+				}
+			}
+			mergedSb.WriteRune('\n')
+		}
+
+		canvasOutput := mergedSb.String()
 
 		// Render with styled output
 		var sb strings.Builder
@@ -1049,9 +1117,6 @@ func (m model) renderRightPanel() string {
 		// Direction header with navigation
 		dirHeader := fmt.Sprintf("◀ %s (%d/%d) ▶", currentDir, m.selectedDirection+1, len(m.vizDirections))
 		sb.WriteString(PreviewTitleStyle.Render(dirHeader) + "\n\n")
-
-		// Render canvas
-		canvasOutput := c.Render()
 
 		// Style the canvas with legend colors
 		sb.WriteString(canvasOutput)
