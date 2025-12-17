@@ -81,6 +81,9 @@ type model struct {
 	selectedDirection int // Which direction to show in viz
 	directionData     map[string]DirectionStats
 
+	// Focus State
+	activePane int // 0 = Explorer (Left), 1 = Content (Right)
+
 	// Keys
 	keys keyMap
 }
@@ -95,18 +98,19 @@ type DirectionStats struct {
 }
 
 type keyMap struct {
-	Up      key.Binding
-	Down    key.Binding
-	Left    key.Binding
-	Right   key.Binding
-	Enter   key.Binding
-	Back    key.Binding
-	Execute key.Binding
-	Quit    key.Binding
-	Preview key.Binding
-	Results key.Binding
-	NextDir key.Binding
-	PrevDir key.Binding
+	Up         key.Binding
+	Down       key.Binding
+	Left       key.Binding
+	Right      key.Binding
+	Enter      key.Binding
+	Back       key.Binding
+	Execute    key.Binding
+	Quit       key.Binding
+	Preview    key.Binding
+	Results    key.Binding
+	NextDir    key.Binding
+	PrevDir    key.Binding
+	SwitchPane key.Binding
 }
 
 func defaultKeyMap() keyMap {
@@ -138,6 +142,10 @@ func defaultKeyMap() keyMap {
 		Execute: key.NewBinding(
 			key.WithKeys("x"),
 			key.WithHelp("x", "execute"),
+		),
+		SwitchPane: key.NewBinding(
+			key.WithKeys("tab"),
+			key.WithHelp("tab", "switch pane"),
 		),
 		Preview: key.NewBinding(
 			key.WithKeys("p"),
@@ -283,100 +291,102 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, m.keys.Quit):
-			return m, tea.Quit
+		// Handle global keys first (Quit, Tab)
 
-		case key.Matches(msg, m.keys.Up):
-			if m.showResults {
-				if m.resultsScroll > 0 {
-					m.resultsScroll--
-				}
-			} else {
+		// Handle global keys first (Quit, Tab)
+		if key.Matches(msg, m.keys.Quit) {
+			return m, tea.Quit
+		}
+		if key.Matches(msg, m.keys.SwitchPane) {
+			m.activePane = (m.activePane + 1) % 2
+			return m, nil
+		}
+
+		// Dispatch based on active pane
+		if m.activePane == 0 {
+			// Explorer Pane (Left)
+			switch {
+			case key.Matches(msg, m.keys.Up):
 				if m.cursor > 0 {
 					m.cursor--
-					// Auto-select based on cursor
 					m.updateSelectionFromCursor()
 				}
-			}
 
-		case key.Matches(msg, m.keys.Down):
-			if m.showResults {
-				m.resultsScroll++
-			} else {
+			case key.Matches(msg, m.keys.Down):
 				if m.cursor < len(m.treeItems)-1 {
 					m.cursor++
-					// Auto-select based on cursor
 					m.updateSelectionFromCursor()
 				}
-			}
 
-		case key.Matches(msg, m.keys.Enter), key.Matches(msg, m.keys.Right):
-			item := m.treeItems[m.cursor]
-			if item.Type == TypeSource || item.Type == TypeAction {
-				if key.Matches(msg, m.keys.Right) {
-					// Toggle preview/results focus?
-				} else {
-					// Enter implies selection or preview
+			case key.Matches(msg, m.keys.Enter), key.Matches(msg, m.keys.Right):
+				item := m.treeItems[m.cursor]
+				if item.Type == TypeSource || item.Type == TypeAction {
 					m.showPreview = true
 					m.previewLines = generateSampleGeometry(item.Name)
-				}
-			} else {
-				// Expand section/category
-				if !item.Expanded {
-					m.expanded[item.ID] = true
-					m.rebuildTree()
-				}
-			}
-
-		case key.Matches(msg, m.keys.Back), key.Matches(msg, m.keys.Left):
-			item := m.treeItems[m.cursor]
-			if item.Expanded {
-				// Collapse
-				m.expanded[item.ID] = false
-				m.rebuildTree()
-			} else {
-				// Go up to parent
-				for i := m.cursor - 1; i >= 0; i-- {
-					if m.treeItems[i].Level < item.Level {
-						m.cursor = i
-						m.updateSelectionFromCursor()
-						break
+				} else {
+					if !item.Expanded {
+						m.expanded[item.ID] = true
+						m.rebuildTree()
 					}
 				}
+
+			case key.Matches(msg, m.keys.Back), key.Matches(msg, m.keys.Left):
+				item := m.treeItems[m.cursor]
+				if item.Expanded {
+					m.expanded[item.ID] = false
+					m.rebuildTree()
+				} else {
+					for i := m.cursor - 1; i >= 0; i-- {
+						if m.treeItems[i].Level < item.Level {
+							m.cursor = i
+							m.updateSelectionFromCursor()
+							break
+						}
+					}
+				}
+
+			case key.Matches(msg, m.keys.Execute):
+				return m.handleExecute(), nil
 			}
 
-		case key.Matches(msg, m.keys.Execute):
-			return m.handleExecute(), nil
-
-		case key.Matches(msg, m.keys.Preview):
-			m.showPreview = !m.showPreview
-
-		case key.Matches(msg, m.keys.Results):
-			// Toggle results and try to reload visualization data
-			m.loadVisualizationData()
-
-			if m.lastTaskOutput != "" {
+		} else {
+			// Content Pane (Right)
+			// Toggle between Results and Viz
+			if key.Matches(msg, m.keys.Results) {
 				m.showResults = !m.showResults
 				if m.showResults {
 					m.resultsScroll = 0
 				}
+				m.loadVisualizationData()
 			}
 
-		// ... key handling for viz direction ...
-		case key.Matches(msg, m.keys.Left), key.Matches(msg, m.keys.PrevDir):
-			if len(m.vizDirections) > 0 {
-				m.selectedDirection--
-				if m.selectedDirection < 0 {
-					m.selectedDirection = len(m.vizDirections) - 1
+			if m.showResults {
+				// Scroll Results
+				switch {
+				case key.Matches(msg, m.keys.Up):
+					if m.resultsScroll > 0 {
+						m.resultsScroll--
+					}
+				case key.Matches(msg, m.keys.Down):
+					m.resultsScroll++
 				}
-			}
-
-		case key.Matches(msg, m.keys.Right), key.Matches(msg, m.keys.NextDir):
-			if len(m.vizDirections) > 0 {
-				m.selectedDirection++
-				if m.selectedDirection >= len(m.vizDirections) {
-					m.selectedDirection = 0
+			} else {
+				// Viz Interaction
+				switch {
+				case key.Matches(msg, m.keys.Left), key.Matches(msg, m.keys.PrevDir):
+					if len(m.vizDirections) > 0 {
+						m.selectedDirection--
+						if m.selectedDirection < 0 {
+							m.selectedDirection = len(m.vizDirections) - 1
+						}
+					}
+				case key.Matches(msg, m.keys.Right), key.Matches(msg, m.keys.NextDir):
+					if len(m.vizDirections) > 0 {
+						m.selectedDirection++
+						if m.selectedDirection >= len(m.vizDirections) {
+							m.selectedDirection = 0
+						}
+					}
 				}
 			}
 		}
@@ -920,12 +930,22 @@ func (m model) View() string {
 	leftWidth := m.width / 3 // Sidebar is 1/3
 	rightWidth := m.width - leftWidth
 
+	// Determine active pane border color
+	leftBorderColor := lipgloss.Color(border)
+	rightBorderColor := lipgloss.Color(border)
+
+	if m.activePane == 0 {
+		leftBorderColor = lipgloss.Color(highlight)
+	} else {
+		rightBorderColor = lipgloss.Color(highlight)
+	}
+
 	// Use TokyoNight themed panel styles with thick borders
 	leftStyle := lipgloss.NewStyle().
 		Width(leftWidth-2).
 		Height(m.height-4).
 		BorderStyle(lipgloss.ThickBorder()).
-		BorderForeground(lipgloss.Color(border)).
+		BorderForeground(leftBorderColor).
 		Background(lipgloss.Color(bgColor)).
 		Foreground(lipgloss.Color(fgColor)).
 		Padding(1, 1) // reduced padding for tree
@@ -934,7 +954,7 @@ func (m model) View() string {
 		Width(rightWidth-2).
 		Height(m.height-4).
 		BorderStyle(lipgloss.ThickBorder()).
-		BorderForeground(lipgloss.Color(border)).
+		BorderForeground(rightBorderColor).
 		Background(lipgloss.Color(bgColor)).
 		Foreground(lipgloss.Color(fgColor)).
 		Padding(1, 2)
@@ -1058,12 +1078,26 @@ func (m model) renderOptionsView() string {
 }
 
 func (m model) renderRightPanel() string {
+	var sb strings.Builder
+
+	// Render Tabs
+	tabResults := " [ Results (r) ] "
+	tabViz := " [ Visuals (p) ] "
+
+	if m.showResults {
+		tabResults = SelectedStyle.Render(tabResults)
+		tabViz = BaseStyle.Render(tabViz)
+	} else {
+		tabResults = BaseStyle.Render(tabResults)
+		tabViz = SelectedStyle.Render(tabViz)
+	}
+
+	sb.WriteString(tabResults + tabViz + "\n\n")
+
 	// Show results text when toggled on
 	if m.showResults && m.lastTaskOutput != "" {
-		var sb strings.Builder
-
 		sb.WriteString(PreviewTitleStyle.Render("Analysis Results (↑/↓ to scroll)") + "\n\n")
-
+		// ... remaining logic
 		// Split output into lines and apply scroll offset
 		lines := strings.Split(m.lastTaskOutput, "\n")
 
