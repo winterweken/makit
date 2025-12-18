@@ -10,7 +10,7 @@ MAKIT_SERVER_URL = "http://localhost:8085/geometry"
 def get_geometry_data():
     """Extract geometry from selected objects"""
     data = {"layout": {"layout_type": "blender_sync"}, "geometry": []}
-    
+`   `````    
     # Use selected objects ONLY
     objects = bpy.context.selected_objects
         
@@ -25,7 +25,7 @@ def get_geometry_data():
         
         # Transform to world coordinates
         matrix = obj.matrix_world
-        
+        ````````````````
         # We'll treat each face as a potential polygon to render
         # For simple visualization in TUI, we want 3D coordinates
         

@@ -82,6 +82,10 @@ type model struct {
 	selectedDirection int // Which direction to show in viz
 	directionData     map[string]DirectionStats
 
+	// 3D Logo rotation state
+	logoRotationX float64
+	logoRotationY float64
+
 	// Focus State
 	activePane int // 0 = Explorer (Left), 1 = Content (Right)
 
@@ -396,6 +400,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						if m.selectedDirection < 0 {
 							m.selectedDirection = len(m.vizDirections) - 1
 						}
+					} else {
+						// Rotate 3D logo
+						m.logoRotationY -= 0.15
 					}
 				case key.Matches(msg, m.keys.Right), key.Matches(msg, m.keys.NextDir):
 					if len(m.vizDirections) > 0 {
@@ -403,6 +410,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						if m.selectedDirection >= len(m.vizDirections) {
 							m.selectedDirection = 0
 						}
+					} else {
+						// Rotate 3D logo
+						m.logoRotationY += 0.15
+					}
+				case key.Matches(msg, m.keys.Up):
+					if len(m.vizDirections) == 0 {
+						m.logoRotationX -= 0.15
+					}
+				case key.Matches(msg, m.keys.Down):
+					if len(m.vizDirections) == 0 {
+						m.logoRotationX += 0.15
 					}
 				}
 			}
@@ -429,10 +447,8 @@ func (m *model) updateSelectionFromCursor() {
 		m.activeContext = item.Action
 	}
 
-	if item.Type == TypeAction || item.Type == TypeSource {
-		m.showPreview = true
-		m.previewLines = generateSampleGeometry(item.Name)
-	}
+	// Note: We no longer show sample geometry on selection.
+	// Geometry preview only appears after executing a task.
 }
 
 func (m model) handleExecute() model {
@@ -697,8 +713,8 @@ func (m *model) loadVisualizationData() {
 			y2 := lineMap["y2"].(float64)
 
 			dirLines = append(dirLines, geometry.Line{
-				Start: geometry.Point{x1, y1},
-				End:   geometry.Point{x2, y2},
+				Start: geometry.Point{X: x1, Y: y1},
+				End:   geometry.Point{X: x2, Y: y2},
 			})
 		}
 
@@ -1212,12 +1228,37 @@ func (m model) renderRightPanel() string {
 		return m.renderViz()
 	}
 
-	// Default message
+	// Render 3D rotating cube logo
+	cubeRender := m.render3DLogo()
+	sb.WriteString(cubeRender)
+	sb.WriteString("\n\n")
+
 	msg := "Select a Source to connect or an Action to execute.\n\nPress 'x' to execute/connect."
 	if m.activeSource != nil {
 		msg += fmt.Sprintf("\n\nConnected Source: %s", m.activeSource.Name)
 	}
-	return DescriptionStyle.Render(msg)
+	sb.WriteString(DescriptionStyle.Render(msg))
+	sb.WriteString("\n\n")
+	sb.WriteString(HelpStyle.Render("↑/↓/←/→: rotate cube"))
+	return sb.String()
+}
+
+// render3DLogo renders a cross-section of an SDFX box primitive
+func (m model) render3DLogo() string {
+	// Create demo SDF box
+	box, err := geometry.CreateDemoBox()
+	if err != nil {
+		return "Error creating SDF"
+	}
+
+	// Render slice with current rotation
+	params := geometry.SliceParams{
+		RotationX: m.logoRotationX,
+		RotationY: m.logoRotationY,
+		Depth:     0, // Slice through center
+	}
+
+	return geometry.RenderSDFSlice(box, 30, 15, params)
 }
 
 func (m model) renderViz() string {
