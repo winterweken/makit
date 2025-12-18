@@ -1,9 +1,11 @@
 package geometry
 
-// Point represents a 2D point
-type Point struct {
-	X, Y float64
-}
+import (
+	v2 "github.com/deadsy/sdfx/vec/v2"
+)
+
+// Point represents a 2D point (aliased to sdfx v2.Vec)
+type Point = v2.Vec
 
 // Line represents a line segment
 type Line struct {

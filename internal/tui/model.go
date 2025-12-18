@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -171,6 +172,9 @@ func defaultKeyMap() keyMap {
 }
 
 func NewModel() model {
+	// Ensure clean session by removing old visualization cache
+	clearCache()
+
 	m := model{
 		registry:     registry.GetRegistry(),
 		cursor:       0,
@@ -184,6 +188,19 @@ func NewModel() model {
 	}
 	m.rebuildTree()
 	return m
+}
+
+func clearCache() {
+	files := []string{
+		"/tmp/makit_viz.json",
+		filepath.Join(os.TempDir(), "makit_viz.json"),
+	}
+
+	for _, f := range files {
+		if _, err := os.Stat(f); err == nil {
+			os.Remove(f)
+		}
+	}
 }
 
 func (m model) Init() tea.Cmd {
@@ -680,8 +697,8 @@ func (m *model) loadVisualizationData() {
 			y2 := lineMap["y2"].(float64)
 
 			dirLines = append(dirLines, geometry.Line{
-				Start: geometry.Point{X: x1, Y: y1},
-				End:   geometry.Point{X: x2, Y: y2},
+				Start: geometry.Point{x1, y1},
+				End:   geometry.Point{x2, y2},
 			})
 		}
 
@@ -798,7 +815,22 @@ func (m *model) loadIsometricFaces(vizData map[string]interface{}) {
 
 				x, _ := pointSlice[0].(float64)
 				y, _ := pointSlice[1].(float64)
-				points = append(points, geometry.Point{X: x, Y: y})
+				z := 0.0
+				if len(pointSlice) > 2 {
+					z, _ = pointSlice[2].(float64)
+				}
+
+				// Apply Isometric Projection
+				// x_iso = (x - y) * cos(30)
+				// y_iso = (x + y) * sin(30) - z
+				angle := 30.0 * math.Pi / 180.0
+				cosAngle := math.Cos(angle)
+				sinAngle := math.Sin(angle)
+
+				isoX := (x - y) * cosAngle
+				isoY := (x+y)*sinAngle - z
+
+				points = append(points, geometry.Point{isoX, isoY})
 			}
 
 			if len(points) > 0 {
@@ -863,6 +895,7 @@ func normalizeFaces(faces []Face, targetWidth, targetHeight float64) []Face {
 	}
 
 	// Find bounds
+	// Find bounds
 	minX, maxX := faces[0].Points[0].X, faces[0].Points[0].X
 	minY, maxY := faces[0].Points[0].Y, faces[0].Points[0].Y
 
@@ -898,10 +931,10 @@ func normalizeFaces(faces []Face, targetWidth, targetHeight float64) []Face {
 	normalized := make([]Face, len(faces))
 	for i, face := range faces {
 		normalizedPoints := make([]geometry.Point, len(face.Points))
-		for j, p := range face.Points {
-			normalizedPoints[j] = geometry.Point{
-				X: (p.X - minX) * scale,
-				Y: (p.Y - minY) * scale,
+		for i, p := range face.Points {
+			normalizedPoints[i] = geometry.Point{
+				(p.X - minX) * scale,
+				(p.Y - minY) * scale,
 			}
 		}
 		normalized[i] = Face{
@@ -1195,10 +1228,46 @@ func (m model) renderViz() string {
 		var sb strings.Builder
 		sb.WriteString(PreviewTitleStyle.Render(fmt.Sprintf("%s (%d faces)", currentDir, len(dirStats.Faces))) + "\n\n")
 
-		// Add compass/key plan
-		sb.WriteString(m.renderCompass(currentDir))
+		// 1. Render Geometry (Faces)
+		// --------------------------
+		previewWidth := m.width/2 - 6
+		previewHeight := m.height - 10 // Leave room for stats
+		if previewWidth < 10 {
+			previewWidth = 10
+		}
+		if previewHeight < 10 {
+			previewHeight = 10
+		}
 
-		sb.WriteString("\n\n")
+		// Convert faces to lines for drawing
+		var lines []geometry.Line
+		for _, face := range dirStats.Faces {
+			if len(face.Points) < 2 {
+				continue
+			}
+			for i := 0; i < len(face.Points); i++ {
+				p1 := face.Points[i]
+				p2 := face.Points[(i+1)%len(face.Points)] // Wrap around to close loop
+				lines = append(lines, geometry.Line{Start: p1, End: p2})
+			}
+		}
+
+		c := canvas.NewCanvas(previewWidth, previewHeight)
+		if len(lines) > 0 {
+			geometry.DrawLines(c, lines, previewWidth, previewHeight)
+			sb.WriteString(c.Render())
+			sb.WriteString("\n\n")
+		} else {
+			sb.WriteString(DescriptionStyle.Render("No geometry to display."))
+			sb.WriteString("\n\n")
+		}
+
+		// 2. Add compass/key plan (Optional: maybe hide if Overview/Isometric?)
+		// --------------------------
+		// Only show compass for cardinal directions, maybe not for Overview/Isometric if strictly 3D?
+		// But let's keep it for now as reference.
+		// sb.WriteString(m.renderCompass(currentDir))
+		// sb.WriteString("\n\n")
 
 		// Wall stats (using normal style)
 		sb.WriteString(NormalStyle.Render(fmt.Sprintf("□ Walls: %d  (%.1f%% coverage)\n", dirStats.Walls, 100.0-dirStats.WWR)))
@@ -1274,44 +1343,44 @@ func generateSampleGeometry(taskName string) []geometry.Line {
 	case "revit-extract-walls", "extract-walls":
 		// Simple room outline
 		lines = append(lines,
-			geometry.Line{Start: geometry.Point{X: 0, Y: 0}, End: geometry.Point{X: 20, Y: 0}},
-			geometry.Line{Start: geometry.Point{X: 20, Y: 0}, End: geometry.Point{X: 20, Y: 15}},
-			geometry.Line{Start: geometry.Point{X: 20, Y: 15}, End: geometry.Point{X: 0, Y: 15}},
-			geometry.Line{Start: geometry.Point{X: 0, Y: 15}, End: geometry.Point{X: 0, Y: 0}},
+			geometry.Line{Start: geometry.Point{0, 0}, End: geometry.Point{20, 0}},
+			geometry.Line{Start: geometry.Point{20, 0}, End: geometry.Point{20, 15}},
+			geometry.Line{Start: geometry.Point{20, 15}, End: geometry.Point{0, 15}},
+			geometry.Line{Start: geometry.Point{0, 15}, End: geometry.Point{0, 0}},
 			// Interior wall
-			geometry.Line{Start: geometry.Point{X: 10, Y: 0}, End: geometry.Point{X: 10, Y: 15}},
+			geometry.Line{Start: geometry.Point{10, 0}, End: geometry.Point{10, 15}},
 		)
 
 	case "revit-extract-floors", "extract-floors":
 		// Floor slab outline
 		lines = append(lines,
-			geometry.Line{Start: geometry.Point{X: 0, Y: 0}, End: geometry.Point{X: 25, Y: 0}},
-			geometry.Line{Start: geometry.Point{X: 25, Y: 0}, End: geometry.Point{X: 25, Y: 20}},
-			geometry.Line{Start: geometry.Point{X: 25, Y: 20}, End: geometry.Point{X: 0, Y: 20}},
-			geometry.Line{Start: geometry.Point{X: 0, Y: 20}, End: geometry.Point{X: 0, Y: 0}},
+			geometry.Line{Start: geometry.Point{0, 0}, End: geometry.Point{25, 0}},
+			geometry.Line{Start: geometry.Point{25, 0}, End: geometry.Point{25, 20}},
+			geometry.Line{Start: geometry.Point{25, 20}, End: geometry.Point{0, 20}},
+			geometry.Line{Start: geometry.Point{0, 20}, End: geometry.Point{0, 0}},
 		)
 
 	case "revit-extract-rooms", "extract-rooms":
 		// Multiple rooms
 		lines = append(lines,
 			// Room 1
-			geometry.Line{Start: geometry.Point{X: 0, Y: 0}, End: geometry.Point{X: 10, Y: 0}},
-			geometry.Line{Start: geometry.Point{X: 10, Y: 0}, End: geometry.Point{X: 10, Y: 10}},
-			geometry.Line{Start: geometry.Point{X: 10, Y: 10}, End: geometry.Point{X: 0, Y: 10}},
-			geometry.Line{Start: geometry.Point{X: 0, Y: 10}, End: geometry.Point{X: 0, Y: 0}},
+			geometry.Line{Start: geometry.Point{0, 0}, End: geometry.Point{10, 0}},
+			geometry.Line{Start: geometry.Point{10, 0}, End: geometry.Point{10, 10}},
+			geometry.Line{Start: geometry.Point{10, 10}, End: geometry.Point{0, 10}},
+			geometry.Line{Start: geometry.Point{0, 10}, End: geometry.Point{0, 0}},
 			// Room 2
-			geometry.Line{Start: geometry.Point{X: 10, Y: 0}, End: geometry.Point{X: 20, Y: 0}},
-			geometry.Line{Start: geometry.Point{X: 20, Y: 0}, End: geometry.Point{X: 20, Y: 10}},
-			geometry.Line{Start: geometry.Point{X: 20, Y: 10}, End: geometry.Point{X: 10, Y: 10}},
+			geometry.Line{Start: geometry.Point{10, 0}, End: geometry.Point{20, 0}},
+			geometry.Line{Start: geometry.Point{20, 0}, End: geometry.Point{20, 10}},
+			geometry.Line{Start: geometry.Point{20, 10}, End: geometry.Point{10, 10}},
 		)
 
 	default:
 		// Default shape (Box)
 		lines = append(lines,
-			geometry.Line{Start: geometry.Point{X: 5, Y: 5}, End: geometry.Point{X: 15, Y: 5}},
-			geometry.Line{Start: geometry.Point{X: 15, Y: 5}, End: geometry.Point{X: 15, Y: 12}},
-			geometry.Line{Start: geometry.Point{X: 15, Y: 12}, End: geometry.Point{X: 5, Y: 12}},
-			geometry.Line{Start: geometry.Point{X: 5, Y: 12}, End: geometry.Point{X: 5, Y: 5}},
+			geometry.Line{Start: geometry.Point{5, 5}, End: geometry.Point{15, 5}},
+			geometry.Line{Start: geometry.Point{15, 5}, End: geometry.Point{15, 12}},
+			geometry.Line{Start: geometry.Point{15, 12}, End: geometry.Point{5, 12}},
+			geometry.Line{Start: geometry.Point{5, 12}, End: geometry.Point{5, 5}},
 		)
 	}
 

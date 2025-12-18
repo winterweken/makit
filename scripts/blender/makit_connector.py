@@ -8,13 +8,11 @@ import time
 MAKIT_SERVER_URL = "http://localhost:8085/geometry"
 
 def get_geometry_data():
-    """Extract geometry from selected objects or all objects"""
+    """Extract geometry from selected objects"""
     data = {"layout": {"layout_type": "blender_sync"}, "geometry": []}
     
-    # Use selected objects or all objects if none selected
+    # Use selected objects ONLY
     objects = bpy.context.selected_objects
-    if not objects:
-        objects = bpy.context.scene.objects
         
     for obj in objects:
         if obj.type != 'MESH':
@@ -39,7 +37,8 @@ def get_geometry_data():
                 v = mesh.vertices[vertex_index].co
                 # Apply world transform
                 world_v = matrix @ v
-                points.append({"x": world_v.x, "y": world_v.y, "z": world_v.z})
+                # Send as [x, y, z] array for Go compatibility
+                points.append([world_v.x, world_v.y, world_v.z])
             
             # Simple heuristic for type
             # Vertical-ish faces are walls, horizontal are floors?
@@ -74,7 +73,7 @@ def push_to_makit():
         }
         
         print(f"Sending {len(data['geometry'])} faces to Makit...")
-        response = requests.post(MAKIT_SERVER_URL, json=payload, timeout=0.5)
+        response = requests.post(MAKIT_SERVER_URL, json=payload, timeout=5.0)
         print(f"Response: {response.status_code}")
         
     except Exception as e:
