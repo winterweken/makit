@@ -1,9 +1,14 @@
 package geometry
 
-// Point represents a 2D point
-type Point struct {
-	X, Y float64
-}
+import (
+	"math"
+
+	v2 "github.com/deadsy/sdfx/vec/v2"
+	"github.com/winteweken/makit/pkg/canvas"
+)
+
+// Point represents a 2D point (aliased to sdfx v2.Vec)
+type Point = v2.Vec
 
 // Line represents a line segment
 type Line struct {
@@ -36,10 +41,11 @@ type DrawableGeometry interface {
 
 // Canvas interface for drawing
 type Canvas interface {
-	DrawLine(x0, y0, x1, y1 int)
-	DrawRect(x, y, w, h int)
-	FillRect(x, y, w, h int)
-	Set(x, y int)
+	DrawLine(x0, y0, x1, y1 int, color canvas.Color)
+	DrawRect(x, y, w, h int, color canvas.Color)
+	FillRect(x, y, w, h int, color canvas.Color)
+	FillPolygon(points []canvas.Point, color canvas.Color)
+	Set(x, y int, color canvas.Color)
 }
 
 // Scale and translate a point to fit in canvas coordinates
@@ -113,7 +119,7 @@ func GetBounds(lines []Line) Rectangle {
 }
 
 // DrawLines draws a set of lines on a canvas
-func DrawLines(canvas Canvas, lines []Line, canvasWidth, canvasHeight int) {
+func DrawLines(c Canvas, lines []Line, canvasWidth, canvasHeight int, color canvas.Color) {
 	if len(lines) == 0 {
 		return
 	}
@@ -123,6 +129,57 @@ func DrawLines(canvas Canvas, lines []Line, canvasWidth, canvasHeight int) {
 	for _, line := range lines {
 		x0, y0 := scalePoint(line.Start, bounds, canvasWidth, canvasHeight)
 		x1, y1 := scalePoint(line.End, bounds, canvasWidth, canvasHeight)
-		canvas.DrawLine(x0, y0, x1, y1)
+		c.DrawLine(x0, y0, x1, y1, color)
 	}
+}
+
+// DrawWall draws a wall as a filled polygon with thickness
+func DrawWall(c Canvas, line Line, thickness float64, bounds Rectangle, canvasWidth, canvasHeight int, color canvas.Color) {
+	// Calculate perpendicular vector
+	dx := line.End.X - line.Start.X
+	dy := line.End.Y - line.Start.Y
+	length := math.Sqrt(dx*dx + dy*dy)
+	
+	if length == 0 {
+		return
+	}
+	
+	nx := -dy / length * (thickness / 2)
+	ny := dx / length * (thickness / 2)
+	
+	// defines 4 corners of the wall rectangle
+	p1 := Point{X: line.Start.X + nx, Y: line.Start.Y + ny}
+	p2 := Point{X: line.End.X + nx, Y: line.End.Y + ny}
+	p3 := Point{X: line.End.X - nx, Y: line.End.Y - ny}
+	p4 := Point{X: line.Start.X - nx, Y: line.Start.Y - ny}
+	
+	// Scale points
+	sx1, sy1 := scalePoint(p1, bounds, canvasWidth, canvasHeight)
+	sx2, sy2 := scalePoint(p2, bounds, canvasWidth, canvasHeight)
+	sx3, sy3 := scalePoint(p3, bounds, canvasWidth, canvasHeight)
+	sx4, sy4 := scalePoint(p4, bounds, canvasWidth, canvasHeight)
+	
+	// Draw filled polygon
+	poly := []canvas.Point{
+		{X: sx1, Y: sy1},
+		{X: sx2, Y: sy2},
+		{X: sx3, Y: sy3},
+		{X: sx4, Y: sy4},
+	}
+	
+	c.FillPolygon(poly, color)
+}
+
+// DrawThickLine draws a line with a specific thickness (lineweight)
+func DrawThickLine(c Canvas, line Line, thickness float64, bounds Rectangle, canvasWidth, canvasHeight int, color canvas.Color) {
+	// Re-use DrawWall logic but conceptually checking if thickness is minimal
+	if thickness <= 0.5 { // Threshold for "hairline" or single pixel line
+		x0, y0 := scalePoint(line.Start, bounds, canvasWidth, canvasHeight)
+		x1, y1 := scalePoint(line.End, bounds, canvasWidth, canvasHeight)
+		c.DrawLine(x0, y0, x1, y1, color)
+		return
+	}
+	
+	// Otherwise draw as a filled polygon (same as wall for now, but semantically different)
+	DrawWall(c, line, thickness, bounds, canvasWidth, canvasHeight, color)
 }
