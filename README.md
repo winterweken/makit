@@ -6,8 +6,22 @@ A Go CLI tool for managing pyRevit extensions and automating Revit workflows.
 
 - Manage pyRevit installations and extensions
 - Run pyRevit scripts from the command line
+- **Architectural Rendering Engine**: Create detailed TUI-based floor plans and elevations
 - Configuration management for development workflows
 - Cross-platform support (Windows, macOS, Linux)
+
+## Quick Try: Architectural Demo
+
+To immediately see the new architectural rendering capabilities (Solid Walls, WWR Analysis, Symbols):
+
+```bash
+# Clone the repository
+git clone https://github.com/winteweken/makit.git
+cd makit
+
+# Run the demo
+go run examples/canvas_demo.go
+```
 
 ## Installation
 
@@ -27,13 +41,14 @@ go build -o makit ./cmd/makit
 
 Makit uses a hierarchical plugin system:
 
-```
+```text
 Tool (e.g., Revit, Rhino, Analysis)
   └── Category (e.g., Geometry, Analysis)
       └── Task (e.g., Extract Walls, Calculate Areas)
 ```
 
 This architecture allows you to:
+
 - Easily add new tools and categories
 - Organize tasks logically
 - Execute tasks with a consistent interface
@@ -98,7 +113,7 @@ general:
 
 ### Project Structure
 
-```
+```text
 makit/
 ├── cmd/
 │   └── makit/              # Main application entry point
