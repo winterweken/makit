@@ -1197,7 +1197,7 @@ func (m model) renderRightPanel() string {
 		}
 
 		c := canvas.NewCanvas(previewWidth, previewHeight)
-		geometry.DrawLines(c, m.previewLines, previewWidth, previewHeight)
+		geometry.DrawLines(c, m.previewLines, previewWidth, previewHeight, canvas.ColorWhite)
 
 		var sb strings.Builder
 		name := "Preview"
@@ -1295,7 +1295,7 @@ func (m model) renderViz() string {
 
 		c := canvas.NewCanvas(previewWidth, previewHeight)
 		if len(lines) > 0 {
-			geometry.DrawLines(c, lines, previewWidth, previewHeight)
+			geometry.DrawLines(c, lines, previewWidth, previewHeight, canvas.ColorWhite)
 			sb.WriteString(c.Render())
 			sb.WriteString("\n\n")
 		} else {

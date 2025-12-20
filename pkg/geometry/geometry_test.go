@@ -18,24 +18,24 @@ func TestGetBounds(t *testing.T) {
 		{
 			name: "Single line",
 			lines: []Line{
-				{Start: Point{0, 0}, End: Point{10, 10}},
+				{Start: Point{X: 0, Y: 0}, End: Point{X: 10, Y: 10}},
 			},
 			expected: Rectangle{0, 0, 10, 10},
 		},
 		{
 			name: "Multiple lines",
 			lines: []Line{
-				{Start: Point{0, 0}, End: Point{10, 0}},
-				{Start: Point{10, 0}, End: Point{10, 10}},
-				{Start: Point{10, 10}, End: Point{0, 10}},
-				{Start: Point{0, 10}, End: Point{0, 0}},
+				{Start: Point{X: 0, Y: 0}, End: Point{X: 10, Y: 0}},
+				{Start: Point{X: 10, Y: 0}, End: Point{X: 10, Y: 10}},
+				{Start: Point{X: 10, Y: 10}, End: Point{X: 0, Y: 10}},
+				{Start: Point{X: 0, Y: 10}, End: Point{X: 0, Y: 0}},
 			},
 			expected: Rectangle{0, 0, 10, 10},
 		},
 		{
 			name: "Negative coordinates",
 			lines: []Line{
-				{Start: Point{-5, -5}, End: Point{5, 5}},
+				{Start: Point{X: -5, Y: -5}, End: Point{X: 5, Y: 5}},
 			},
 			expected: Rectangle{-5, -5, 10, 10},
 		},
@@ -64,7 +64,7 @@ func TestScalePoint(t *testing.T) {
 	}{
 		{
 			name:  "Origin",
-			point: Point{0, 0},
+			point: Point{X: 0, Y: 0},
 			// Scale calculation:
 			// padding = 2
 			// availW = 400 - 4 = 396
@@ -81,7 +81,7 @@ func TestScalePoint(t *testing.T) {
 		},
 		{
 			name:  "Center",
-			point: Point{50, 50},
+			point: Point{X: 50, Y: 50},
 			// x = (50)*3.96 + 2 = 198 + 2 = 200
 			// y = (50)*3.96 + 202 = 198 + 202 = 400
 			wantX: 200,
