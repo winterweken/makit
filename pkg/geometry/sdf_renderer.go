@@ -66,7 +66,7 @@ func RenderSDFSlice(shape sdf.SDF3, canvasWidth, canvasHeight int, params SliceP
 
 			// Draw if near boundary (|dist| < threshold)
 			if math.Abs(dist) < threshold {
-				c.Set(px, py)
+				c.Set(px, py, canvas.ColorWhite)
 			}
 		}
 	}

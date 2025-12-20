@@ -131,10 +131,19 @@ func drawElevation(c *canvas.Canvas, offX, offY, w, h int) {
 	// Door (Green)
 	c.FillRect(int(startX+4.5*scale), int(startY-2.5*scale), int(1*scale), int(2.5*scale), canvas.ColorGreen)
 	
+	// WWR Calculation
+	totalFacadeArea := width * height
+	windowArea := (2*scale * 2*scale) * 2 // 2 windows
+	doorArea := (1*scale * 2.5*scale)     // Door counts as glazing
+	
+	totalGlazing := windowArea + doorArea
+	wwr := (totalGlazing / totalFacadeArea) * 100
+	solidRatio := 100 - wwr
+	
 	// WWR Label
-	c.DrawText(offX+2, offY+15, "WWR Analysis:", canvas.ColorYellow)
-	c.DrawText(offX+2, offY+16, "Glazing: 20%", canvas.ColorBlue)
-	c.DrawText(offX+2, offY+17, "Solid:   80%", canvas.ColorWhite)
+	c.DrawText(offX+2, offY+15, "WWR Analysis (inc. Door):", canvas.ColorYellow)
+	c.DrawText(offX+2, offY+16, fmt.Sprintf("Glazing: %.1f%%", wwr), canvas.ColorBlue)
+	c.DrawText(offX+2, offY+17, fmt.Sprintf("Solid:   %.1f%%", solidRatio), canvas.ColorWhite)
 }
 
 func drawData(c *canvas.Canvas, offX, offY, w, h int) {
