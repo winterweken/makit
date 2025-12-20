@@ -350,6 +350,11 @@ func (c *Canvas) Render() string {
 				lastColor = ColorReset
 			}
 
+			// If all dots are set, use a solid block character for better visual density
+			if dots == brailleBase+0xFF {
+				dots = '█'
+			}
+
 			sb.WriteRune(dots)
 		}
 		sb.WriteRune('\n')
