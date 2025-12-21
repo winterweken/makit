@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/winteweken/makit/internal/tools/analysis"
+	"github.com/winteweken/makit/internal/tools/architect"
 	"github.com/winteweken/makit/internal/tools/blender"
 	"github.com/winteweken/makit/internal/tools/ifc"
 	"github.com/winteweken/makit/internal/tools/revit"
@@ -44,6 +45,7 @@ func registerTools() {
 	blender.RegisterTasks()
 	analysis.RegisterTasks()
 	ifc.RegisterTasks()
+	architect.RegisterTasks()
 }
 
 func initConfig() {

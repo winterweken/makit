@@ -139,23 +139,23 @@ To add a new tool:
 1. Create a new package in `internal/tools/yourtool/`
 2. Implement `RegisterTasks()` function:
 
-```go
-package yourtool
+   ```go
+   package yourtool
 
-import "github.com/winteweken/makit/internal/registry"
+   import "github.com/winteweken/makit/internal/registry"
 
-func RegisterTasks() {
-    reg := registry.GetRegistry()
-    tool := reg.RegisterTool("yourtool", "Your tool description")
+   func RegisterTasks() {
+       reg := registry.GetRegistry()
+       tool := reg.RegisterTool("yourtool", "Your tool description")
 
-    category := tool.AddCategory("yourcategory", "Category description")
+       category := tool.AddCategory("yourcategory", "Category description")
 
-    category.AddTask("yourtask", "Task description", func(ctx *registry.TaskContext) error {
-        // Your task implementation
-        return nil
-    }).AddOption("option-name", "Option description", "string", false, "default")
-}
-```
+       category.AddTask("yourtask", "Task description", func(ctx *registry.TaskContext) error {
+           // Your task implementation
+           return nil
+       }).AddOption("option-name", "Option description", "string", false, "default")
+   }
+   ```
 
 3. Register in `internal/cmd/root.go`:
 
