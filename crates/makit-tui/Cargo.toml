@@ -8,6 +8,7 @@ description = "rsille-native TUI for makit"
 [dependencies]
 makit-core = { workspace = true }
 makit-geometry = { workspace = true }
+makit-tools = { path = "../makit-tools" }
 canvas = { workspace = true }
 render = { workspace = true }
 tui = { workspace = true }

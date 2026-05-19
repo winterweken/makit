@@ -4,6 +4,7 @@
 //! The canvas preview cycles between context-sensitive views based on
 //! the currently-selected tree node.
 
+use std::path::Path;
 use std::time::Duration;
 
 use canvas::Canvas;
@@ -12,6 +13,7 @@ use tui::prelude::*;
 use crate::theme::THEME;
 use crate::tree_data::build_tree_items;
 use makit_geometry::drawing::{draw_rect, fill_rect, draw_arrow};
+use makit_tools::murb::MurbResults;
 
 // ---------------------------------------------------------------------------
 // Messages
@@ -45,17 +47,38 @@ struct AppState {
     logo_angle: f64,
     /// Status message
     status: String,
+    /// Cached MURB simulation results (loaded from disk if available)
+    murb_results: Option<MurbResults>,
 }
 
-impl Default for AppState {
-    fn default() -> Self {
+impl AppState {
+    fn new() -> Self {
+        // Try to load murb results from the default output path
+        let murb_results = load_murb_results();
+        let status = if murb_results.is_some() {
+            "Ready — MURB results loaded · use ↑↓ to navigate".to_string()
+        } else {
+            "Ready — use ↑↓ to navigate, → to expand".to_string()
+        };
         Self {
             active_node: String::new(),
             opened_node: String::new(),
             show_help: false,
             logo_angle: 0.0,
-            status: "Ready — use ↑↓ to navigate, → to expand".to_string(),
+            status,
+            murb_results,
         }
+    }
+}
+
+/// Attempt to load MurbResults from the default output path.
+fn load_murb_results() -> Option<MurbResults> {
+    let path = Path::new("murb_results.json");
+    if path.exists() {
+        let json = std::fs::read_to_string(path).ok()?;
+        serde_json::from_str(&json).ok()
+    } else {
+        None
     }
 }
 
@@ -143,7 +166,7 @@ fn main_content(state: &AppState) -> impl Widget<Msg> {
 
 /// ─── Detail panel ──────────────────────────────────
 fn detail_panel(state: &AppState) -> Flex<Msg> {
-    let canvas_lines = render_canvas_lines(&state.active_node, state.logo_angle);
+    let canvas_lines = render_canvas_lines(&state.active_node, state.logo_angle, &state.murb_results);
 
     let active_display = if state.active_node.is_empty() {
         "—".to_string()
@@ -303,11 +326,12 @@ fn status_bar(state: &AppState) -> impl Widget<Msg> {
 // ---------------------------------------------------------------------------
 
 /// Render a braille canvas for the current context, return individual lines.
-fn render_canvas_lines(active_node: &str, angle: f64) -> Vec<String> {
+fn render_canvas_lines(active_node: &str, angle: f64, murb_results: &Option<MurbResults>) -> Vec<String> {
     let mut c = Canvas::new();
+    let mut extra_lines: Vec<String> = Vec::new();
 
     if active_node.contains("murb") {
-        render_energy_bars(&mut c);
+        render_energy_bars(&mut c, murb_results, &mut extra_lines);
     } else if active_node.contains("wall") {
         render_walls_preview(&mut c);
     } else if active_node.contains("floor") || active_node.contains("room") {
@@ -319,7 +343,9 @@ fn render_canvas_lines(active_node: &str, angle: f64) -> Vec<String> {
     let mut buf = Vec::new();
     c.print_on(&mut buf, false).unwrap_or_default();
     let output = String::from_utf8(buf).unwrap_or_default();
-    output.lines().map(|l| l.to_string()).collect()
+    let mut lines: Vec<String> = output.lines().map(|l| l.to_string()).collect();
+    lines.extend(extra_lines);
+    lines
 }
 
 /// Rotating hexagonal logo with inner counter-rotation and spokes
@@ -375,16 +401,62 @@ fn render_walls_preview(c: &mut Canvas) {
     draw_arrow(c, 40.0, 16.0, 44.0, 16.0);
 }
 
-/// Energy bar chart (monthly heating demand)
-fn render_energy_bars(c: &mut Canvas) {
-    let months = [28, 24, 18, 10, 5, 2, 1, 2, 6, 14, 22, 26];
-    for (i, height) in months.iter().enumerate() {
-        let x = (i as i32) * 3 + 2;
-        fill_rect(c, x, 0, 2, *height);
+/// Energy bar chart — uses real MURB results when available, falls back to
+/// static placeholder data otherwise. Adds summary text lines below the chart.
+fn render_energy_bars(c: &mut Canvas, results: &Option<MurbResults>, extra: &mut Vec<String>) {
+    let month_labels = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
+
+    match results {
+        Some(r) => {
+            // Data-driven bars from actual simulation results
+            let data = &r.monthly_heating_demand;
+            let max_val = data.iter().cloned().fold(0.0_f64, f64::max).max(1.0);
+            let chart_height = 28.0;
+
+            for (i, val) in data.iter().enumerate() {
+                let bar_h = ((val / max_val) * chart_height) as i32;
+                let x = (i as i32) * 3 + 2;
+                if bar_h > 0 {
+                    fill_rect(c, x, 0, 2, bar_h);
+                }
+            }
+
+            // Axes
+            c.line((0.0, 0.0), (40.0, 0.0));
+            c.line((0.0, 0.0), (0.0, 32.0));
+
+            // Month labels below chart
+            let label_line: String = month_labels
+                .iter()
+                .map(|m| format!(" {} ", m))
+                .collect();
+            extra.push(format!("  {}", label_line));
+
+            // Summary metrics
+            extra.push(String::new());
+            extra.push(format!("  TEDI  {:.1} kWh/m²", r.tedi_kwh_m2));
+            extra.push(format!("  TEUI  {:.1} kWh/m²", r.teui_kwh_m2));
+            extra.push(format!("  GHGI  {:.1} kgCO₂/m²", r.ghgi_kg_m2));
+        }
+        None => {
+            // Static placeholder bars
+            let months = [28, 24, 18, 10, 5, 2, 1, 2, 6, 14, 22, 26];
+            for (i, height) in months.iter().enumerate() {
+                let x = (i as i32) * 3 + 2;
+                fill_rect(c, x, 0, 2, *height);
+            }
+            c.line((0.0, 0.0), (40.0, 0.0));
+            c.line((0.0, 0.0), (0.0, 32.0));
+
+            let label_line: String = month_labels
+                .iter()
+                .map(|m| format!(" {} ", m))
+                .collect();
+            extra.push(format!("  {}", label_line));
+            extra.push(String::new());
+            extra.push("  No results — run murb-simulate".to_string());
+        }
     }
-    // Axes
-    c.line((0.0, 0.0), (40.0, 0.0));
-    c.line((0.0, 0.0), (0.0, 32.0));
 }
 
 /// Floor plan preview — rooms with door openings
@@ -404,7 +476,7 @@ pub fn run() -> anyhow::Result<()> {
     // Clear terminal before starting for a clean slate
     print!("\x1B[2J\x1B[H");
 
-    let app = App::new(AppState::default())
+    let app = App::new(AppState::new())
         .on_key(KeyCode::Char('?'), || Msg::ToggleHelp)
         .on_tick(Duration::from_millis(80), || Msg::Tick);
 

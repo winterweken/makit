@@ -1050,6 +1050,7 @@ dependencies = [
  "crossterm",
  "makit-core",
  "makit-geometry",
+ "makit-tools",
  "render",
  "serde",
  "serde_json",
