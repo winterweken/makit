@@ -18,10 +18,32 @@ const REVIT_PORT: u16 = 48884;
 
 pub fn register_tasks(reg: &mut Registry) {
     // Register Revit as a Source
-    reg.register_source("revit", "Autodesk Revit integration", Arc::new(handle_connect))
-        .add_option("workset", "Filter by workset name", "string", false, Some(""))
-        .add_option("wall-type", "Filter by wall type", "string", false, Some(""))
-        .add_option("output", "Output file path", "string", false, Some("building-model.json"));
+    reg.register_source(
+        "revit",
+        "Autodesk Revit integration",
+        Arc::new(handle_connect),
+    )
+    .add_option(
+        "workset",
+        "Filter by workset name",
+        "string",
+        false,
+        Some(""),
+    )
+    .add_option(
+        "wall-type",
+        "Filter by wall type",
+        "string",
+        false,
+        Some(""),
+    )
+    .add_option(
+        "output",
+        "Output file path",
+        "string",
+        false,
+        Some("building-model.json"),
+    );
 
     // Extraction actions
     reg.register_action(
@@ -30,7 +52,13 @@ pub fn register_tasks(reg: &mut Registry) {
         "extraction",
         Arc::new(handle_extract_walls),
     )
-    .add_option("output", "Output file path", "string", false, Some("walls.json"))
+    .add_option(
+        "output",
+        "Output file path",
+        "string",
+        false,
+        Some("walls.json"),
+    )
     .add_option("level", "Filter by level name", "string", false, Some(""));
 
     reg.register_action(
@@ -39,7 +67,13 @@ pub fn register_tasks(reg: &mut Registry) {
         "extraction",
         Arc::new(handle_extract_floors),
     )
-    .add_option("output", "Output file path", "string", false, Some("floors.json"));
+    .add_option(
+        "output",
+        "Output file path",
+        "string",
+        false,
+        Some("floors.json"),
+    );
 
     reg.register_action(
         "revit-extract-rooms",
@@ -47,7 +81,13 @@ pub fn register_tasks(reg: &mut Registry) {
         "extraction",
         Arc::new(handle_extract_rooms),
     )
-    .add_option("output", "Output file path", "string", false, Some("rooms.json"));
+    .add_option(
+        "output",
+        "Output file path",
+        "string",
+        false,
+        Some("rooms.json"),
+    );
 
     // Analysis actions
     reg.register_action(
@@ -56,8 +96,20 @@ pub fn register_tasks(reg: &mut Registry) {
         "analysis",
         Arc::new(handle_wall_orientations),
     )
-    .add_option("workset", "Filter by workset name", "string", false, Some(""))
-    .add_option("wall-type", "Filter by wall type", "string", false, Some(""))
+    .add_option(
+        "workset",
+        "Filter by workset name",
+        "string",
+        false,
+        Some(""),
+    )
+    .add_option(
+        "wall-type",
+        "Filter by wall type",
+        "string",
+        false,
+        Some(""),
+    )
     .add_option("unit", "Area unit (sqm, sqf)", "string", false, Some("sqm"))
     .add_option("output", "Save results to file", "string", false, Some(""));
 
@@ -67,7 +119,13 @@ pub fn register_tasks(reg: &mut Registry) {
         "analysis",
         Arc::new(handle_calculate_areas),
     )
-    .add_option("unit", "Area unit (sqft, sqm)", "string", false, Some("sqft"));
+    .add_option(
+        "unit",
+        "Area unit (sqft, sqm)",
+        "string",
+        false,
+        Some("sqft"),
+    );
 
     reg.register_action(
         "revit-find-clashes",
@@ -75,7 +133,13 @@ pub fn register_tasks(reg: &mut Registry) {
         "analysis",
         Arc::new(handle_find_clashes),
     )
-    .add_option("tolerance", "Clash detection tolerance", "float", false, Some("0.01"));
+    .add_option(
+        "tolerance",
+        "Clash detection tolerance",
+        "float",
+        false,
+        Some("0.01"),
+    );
 
     reg.register_action(
         "revit-validate-standards",
@@ -83,7 +147,13 @@ pub fn register_tasks(reg: &mut Registry) {
         "analysis",
         Arc::new(handle_validate_standards),
     )
-    .add_option("ruleset", "Path to validation ruleset", "string", true, None);
+    .add_option(
+        "ruleset",
+        "Path to validation ruleset",
+        "string",
+        true,
+        None,
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -206,11 +276,18 @@ fn handle_calculate_areas(ctx: &TaskContext) -> anyhow::Result<()> {
             room.area_sqm
         };
         let unit_label = if unit == "sqft" { "ft²" } else { "m²" };
-        println!("  {} ({}): {:.1} {}", room.name, room.number, area, unit_label);
+        println!(
+            "  {} ({}): {:.1} {}",
+            room.name, room.number, area, unit_label
+        );
     }
 
     let total: f64 = rooms.iter().map(|r| r.area_sqm).sum();
-    let total_display = if unit == "sqft" { total * 10.7639 } else { total };
+    let total_display = if unit == "sqft" {
+        total * 10.7639
+    } else {
+        total
+    };
     let unit_label = if unit == "sqft" { "ft²" } else { "m²" };
     println!("  ──────────────────────────────────");
     println!("  Total: {:.1} {}", total_display, unit_label);

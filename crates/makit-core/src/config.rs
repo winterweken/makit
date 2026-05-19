@@ -1,6 +1,9 @@
 //! Configuration management using figment.
 
-use figment::{Figment, providers::{Format, Yaml, Env}};
+use figment::{
+    providers::{Env, Format, Yaml},
+    Figment,
+};
 use serde::Deserialize;
 
 /// Main configuration structure.

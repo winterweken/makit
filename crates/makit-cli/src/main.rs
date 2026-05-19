@@ -1,5 +1,5 @@
-use clap::{Parser, Subcommand};
 use anyhow::Result;
+use clap::{Parser, Subcommand};
 
 mod commands;
 
@@ -64,12 +64,16 @@ fn main() -> Result<()> {
 
     match cli.command {
         Some(Commands::List { tool }) => commands::list::run(tool),
-        Some(Commands::Exec { tool, category, task, option }) => {
-            commands::exec::run(&tool, &category, &task, &option)
-        }
-        Some(Commands::Analyze { file, analysis_type }) => {
-            commands::analyze::run(&file, &analysis_type)
-        }
+        Some(Commands::Exec {
+            tool,
+            category,
+            task,
+            option,
+        }) => commands::exec::run(&tool, &category, &task, &option),
+        Some(Commands::Analyze {
+            file,
+            analysis_type,
+        }) => commands::analyze::run(&file, &analysis_type),
         Some(Commands::Tui) => commands::tui::run(),
         Some(Commands::Status) => {
             println!("makit status — checking connected tools...");

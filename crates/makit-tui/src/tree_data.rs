@@ -1,7 +1,7 @@
 //! Build the tool/action tree for the TUI explorer.
 
-use tui::prelude::TreeItem;
 use makit_core::Registry;
+use tui::prelude::TreeItem;
 
 /// Build the tree items from the current registry state.
 pub fn build_tree_items() -> Vec<TreeItem> {
@@ -51,10 +51,7 @@ pub fn build_tree_items() -> Vec<TreeItem> {
 
     let mut action_categories = Vec::new();
     for (cat, items) in action_by_cat {
-        let mut cat_item = TreeItem::new(
-            format!("cat:{}", cat),
-            format!("⊞ {}", cat),
-        );
+        let mut cat_item = TreeItem::new(format!("cat:{}", cat), format!("⊞ {}", cat));
         for item in items {
             cat_item = cat_item.child(item);
         }

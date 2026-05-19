@@ -70,13 +70,13 @@ impl Tool {
     }
 
     pub fn add_category(&mut self, name: &str, description: &str) -> &mut Category {
-        self.categories.entry(name.to_string()).or_insert_with(|| {
-            Category {
+        self.categories
+            .entry(name.to_string())
+            .or_insert_with(|| Category {
                 name: name.to_string(),
                 description: description.to_string(),
                 tasks: HashMap::new(),
-            }
-        })
+            })
     }
 }
 
@@ -90,13 +90,11 @@ pub struct Category {
 
 impl Category {
     pub fn add_task(&mut self, name: &str, description: &str, handler: TaskHandler) -> &mut Task {
-        self.tasks.entry(name.to_string()).or_insert_with(|| {
-            Task {
-                name: name.to_string(),
-                description: description.to_string(),
-                handler,
-                options: Vec::new(),
-            }
+        self.tasks.entry(name.to_string()).or_insert_with(|| Task {
+            name: name.to_string(),
+            description: description.to_string(),
+            handler,
+            options: Vec::new(),
         })
     }
 }

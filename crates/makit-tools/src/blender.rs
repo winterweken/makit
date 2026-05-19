@@ -5,7 +5,13 @@
 
 use std::sync::{Arc, RwLock};
 
-use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::{get, post}, Json, Router};
+use axum::{
+    extract::State,
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{get, post},
+    Json, Router,
+};
 use serde::{Deserialize, Serialize};
 
 use makit_core::models::TaskContext;
@@ -70,16 +76,18 @@ async fn handle_geometry(
         "Received mesh: {} vertices, {} faces{}",
         n_verts,
         n_faces,
-        if name.is_empty() { String::new() } else { format!(" ({})", name) }
+        if name.is_empty() {
+            String::new()
+        } else {
+            format!(" ({})", name)
+        }
     );
     println!("  {}", msg);
     (StatusCode::OK, msg)
 }
 
 /// Retrieve the current geometry (GET /geometry).
-async fn handle_get_geometry(
-    State(state): State<SyncState>,
-) -> impl IntoResponse {
+async fn handle_get_geometry(State(state): State<SyncState>) -> impl IntoResponse {
     let mesh = state.mesh.read().ok().and_then(|lock| lock.clone());
     match mesh {
         Some(m) => (StatusCode::OK, Json(Some(m))),
@@ -100,19 +108,17 @@ pub async fn start_server(port: u16) -> anyhow::Result<()> {
     println!();
     println!("Press Ctrl+C to stop.");
 
-    let listener = tokio::net::TcpListener::bind(&addr)
-        .await
-        .map_err(|e| {
-            if e.kind() == std::io::ErrorKind::AddrInUse {
-                anyhow::anyhow!(
-                    "Port {} is occupied — stop the existing server or choose \
+    let listener = tokio::net::TcpListener::bind(&addr).await.map_err(|e| {
+        if e.kind() == std::io::ErrorKind::AddrInUse {
+            anyhow::anyhow!(
+                "Port {} is occupied — stop the existing server or choose \
                      another port with --port <N>",
-                    port
-                )
-            } else {
-                anyhow::anyhow!("Failed to bind to {}: {}", addr, e)
-            }
-        })?;
+                port
+            )
+        } else {
+            anyhow::anyhow!("Failed to bind to {}: {}", addr, e)
+        }
+    })?;
 
     axum::serve(listener, app).await?;
     Ok(())
@@ -123,8 +129,12 @@ pub async fn start_server(port: u16) -> anyhow::Result<()> {
 // ---------------------------------------------------------------------------
 
 pub fn register_tasks(reg: &mut Registry) {
-    reg.register_source("blender", "Blender live geometry sync", Arc::new(handle_blender))
-        .add_option("port", "Server port", "int", false, Some("8085"));
+    reg.register_source(
+        "blender",
+        "Blender live geometry sync",
+        Arc::new(handle_blender),
+    )
+    .add_option("port", "Server port", "int", false, Some("8085"));
 }
 
 /// Handle `blender` source — starts the sync server.

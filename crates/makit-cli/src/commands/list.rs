@@ -16,15 +16,21 @@ pub fn run(tool_filter: Option<String>) -> Result<()> {
     // Sources
     println!("  ┌─ Sources ─────────────────────────────────────┐");
     for source in reg.list_sources() {
-        println!("  │  ◆ {:<16} {}",
-            source.name, source.description);
+        println!("  │  ◆ {:<16} {}", source.name, source.description);
         if !source.options.is_empty() {
             for opt in &source.options {
                 let req = if opt.required { " *" } else { "" };
                 let def = opt.default.as_deref().unwrap_or("");
-                println!("  │    └ --{:<14} {}{} {}",
-                    opt.name, opt.description, req,
-                    if def.is_empty() { String::new() } else { format!("[default: {def}]") }
+                println!(
+                    "  │    └ --{:<14} {}{} {}",
+                    opt.name,
+                    opt.description,
+                    req,
+                    if def.is_empty() {
+                        String::new()
+                    } else {
+                        format!("[default: {def}]")
+                    }
                 );
             }
         }
@@ -40,16 +46,22 @@ pub fn run(tool_filter: Option<String>) -> Result<()> {
                 continue;
             }
         }
-        println!("  │  ▸ {:<28} [{}]",
-            action.name, action.category);
+        println!("  │  ▸ {:<28} [{}]", action.name, action.category);
         println!("  │    {}", action.description);
         if !action.options.is_empty() {
             for opt in &action.options {
                 let req = if opt.required { " *" } else { "" };
                 let def = opt.default.as_deref().unwrap_or("");
-                println!("  │    └ --{:<14} {}{} {}",
-                    opt.name, opt.description, req,
-                    if def.is_empty() { String::new() } else { format!("[default: {def}]") }
+                println!(
+                    "  │    └ --{:<14} {}{} {}",
+                    opt.name,
+                    opt.description,
+                    req,
+                    if def.is_empty() {
+                        String::new()
+                    } else {
+                        format!("[default: {def}]")
+                    }
                 );
             }
         }

@@ -3,12 +3,7 @@
 use anyhow::Result;
 use makit_core::{Registry, TaskContext};
 
-pub fn run(
-    tool: &str,
-    category: &str,
-    task: &str,
-    options: &[(String, String)],
-) -> Result<()> {
+pub fn run(tool: &str, category: &str, task: &str, options: &[(String, String)]) -> Result<()> {
     let reg = Registry::global();
     let reg = reg.read().unwrap();
 

@@ -2,13 +2,13 @@
 //!
 //! Each module registers sources and/or actions with the global registry.
 
-pub mod revit;
-pub mod rhino;
-pub mod blender;
-pub mod ifc;
 pub mod analysis;
 pub mod architect;
+pub mod blender;
+pub mod ifc;
 pub mod murb;
+pub mod revit;
+pub mod rhino;
 
 /// Register all available tools with the global registry.
 pub fn register_all_tools() {

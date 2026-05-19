@@ -83,21 +83,57 @@ pub struct MurbResults {
 }
 
 // Default value functions for serde
-fn default_u_walls() -> f64 { 0.273 }
-fn default_u_windows() -> f64 { 2.56 }
-fn default_u_roof() -> f64 { 0.164 }
-fn default_cop_htg() -> f64 { 0.85 }
-fn default_cop_clg() -> f64 { 5.2 }
-fn default_cop_dhw() -> f64 { 0.85 }
-fn default_hrv() -> f64 { 0.55 }
-fn default_shgc() -> f64 { 0.4 }
+fn default_u_walls() -> f64 {
+    0.273
+}
+fn default_u_windows() -> f64 {
+    2.56
+}
+fn default_u_roof() -> f64 {
+    0.164
+}
+fn default_cop_htg() -> f64 {
+    0.85
+}
+fn default_cop_clg() -> f64 {
+    5.2
+}
+fn default_cop_dhw() -> f64 {
+    0.85
+}
+fn default_hrv() -> f64 {
+    0.55
+}
+fn default_shgc() -> f64 {
+    0.4
+}
 
 fn default_window_groups() -> Vec<WindowGroupInput> {
     vec![
-        WindowGroupInput { pct_window_area: 0.25, window_azimuth: 0.0, shgc: 0.4, shading: 0.0 },
-        WindowGroupInput { pct_window_area: 0.25, window_azimuth: 90.0, shgc: 0.4, shading: 0.0 },
-        WindowGroupInput { pct_window_area: 0.25, window_azimuth: 180.0, shgc: 0.4, shading: 0.0 },
-        WindowGroupInput { pct_window_area: 0.25, window_azimuth: 270.0, shgc: 0.4, shading: 0.0 },
+        WindowGroupInput {
+            pct_window_area: 0.25,
+            window_azimuth: 0.0,
+            shgc: 0.4,
+            shading: 0.0,
+        },
+        WindowGroupInput {
+            pct_window_area: 0.25,
+            window_azimuth: 90.0,
+            shgc: 0.4,
+            shading: 0.0,
+        },
+        WindowGroupInput {
+            pct_window_area: 0.25,
+            window_azimuth: 180.0,
+            shgc: 0.4,
+            shading: 0.0,
+        },
+        WindowGroupInput {
+            pct_window_area: 0.25,
+            window_azimuth: 270.0,
+            shgc: 0.4,
+            shading: 0.0,
+        },
     ]
 }
 
@@ -147,9 +183,7 @@ fn find_python() -> anyhow::Result<String> {
             return Ok(candidate.to_string());
         }
     }
-    anyhow::bail!(
-        "Python not found — MURB requires Python 3.10+ with murb_energy_tool installed"
-    )
+    anyhow::bail!("Python not found — MURB requires Python 3.10+ with murb_energy_tool installed")
 }
 
 /// Run a MURB simulation via the Python subprocess bridge.
@@ -182,27 +216,45 @@ pub fn run_simulation(input: &MurbInput) -> anyhow::Result<MurbResults> {
     let stdout = String::from_utf8(output.stdout)
         .map_err(|e| anyhow::anyhow!("Invalid UTF-8 from murb_runner: {}", e))?;
 
-    let results: MurbResults = serde_json::from_str(&stdout)
-        .map_err(|e| anyhow::anyhow!("Failed to parse MURB results: {} — output: {}", e, &stdout[..stdout.len().min(200)]))?;
+    let results: MurbResults = serde_json::from_str(&stdout).map_err(|e| {
+        anyhow::anyhow!(
+            "Failed to parse MURB results: {} — output: {}",
+            e,
+            &stdout[..stdout.len().min(200)]
+        )
+    })?;
 
     Ok(results)
 }
 
 /// Format MURB results as a text report.
 pub fn format_report(results: &MurbResults) -> String {
-    let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    let months = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
     let mut report = String::new();
 
     report.push_str("╔══════════════════════════════════════════╗\n");
     report.push_str(&format!("║  MURB Energy Report: {:<19} ║\n", results.name));
     report.push_str("╠══════════════════════════════════════════╣\n");
     report.push_str(&format!("║  Weather: {:<30} ║\n", results.weather_file));
-    report.push_str(&format!("║  GFA:     {:<10.0} m²                 ║\n", results.gfa));
+    report.push_str(&format!(
+        "║  GFA:     {:<10.0} m²                 ║\n",
+        results.gfa
+    ));
     report.push_str("╠══════════════════════════════════════════╣\n");
-    report.push_str(&format!("║  TEDI:    {:<10.2} kWh/m²             ║\n", results.tedi_kwh_m2));
-    report.push_str(&format!("║  TEUI:    {:<10.2} kWh/m²             ║\n", results.teui_kwh_m2));
-    report.push_str(&format!("║  GHGI:    {:<10.2} kgCO₂/m²           ║\n", results.ghgi_kg_m2));
+    report.push_str(&format!(
+        "║  TEDI:    {:<10.2} kWh/m²             ║\n",
+        results.tedi_kwh_m2
+    ));
+    report.push_str(&format!(
+        "║  TEUI:    {:<10.2} kWh/m²             ║\n",
+        results.teui_kwh_m2
+    ));
+    report.push_str(&format!(
+        "║  GHGI:    {:<10.2} kgCO₂/m²           ║\n",
+        results.ghgi_kg_m2
+    ));
     report.push_str("╠══════════════════════════════════════════╣\n");
     report.push_str("║  Month   Heating   Cooling   Total kWh  ║\n");
     report.push_str("║  ─────   ───────   ───────   ─────────  ║\n");
@@ -326,29 +378,97 @@ fn handle_connect(ctx: &TaskContext) -> anyhow::Result<()> {
 // ---------------------------------------------------------------------------
 
 pub fn register_tasks(reg: &mut Registry) {
-    reg.register_source("murb", "MURB energy modelling tool", Arc::new(handle_connect));
+    reg.register_source(
+        "murb",
+        "MURB energy modelling tool",
+        Arc::new(handle_connect),
+    );
 
-    reg.register_action("murb-simulate", "Run energy simulation", "analysis", Arc::new(handle_simulate))
-        .add_option("epw", "Path to EPW weather file", "string", true, None)
-        .add_option("name", "Simulation name", "string", false, Some("makit_run"))
-        .add_option("gfa", "Gross floor area [m²]", "float", true, None)
-        .add_option("walls-ag", "Above-grade wall area [m²]", "float", true, None)
-        .add_option("walls-bg", "Below-grade wall area [m²]", "float", false, Some("0"))
-        .add_option("windows", "Window area [m²]", "float", true, None)
-        .add_option("roof", "Roof area [m²]", "float", true, None)
-        .add_option("u-walls", "Wall U-value [W/m²K]", "float", false, Some("0.273"))
-        .add_option("u-windows", "Window U-value [W/m²K]", "float", false, Some("2.56"))
-        .add_option("u-roof", "Roof U-value [W/m²K]", "float", false, Some("0.164"))
-        .add_option("cop-htg", "Heating COP", "float", false, Some("0.85"))
-        .add_option("cop-clg", "Cooling COP", "float", false, Some("5.2"))
-        .add_option("cop-dhw", "DHW COP", "float", false, Some("0.85"))
-        .add_option("hrv", "HRV efficiency (0-1)", "float", false, Some("0.55"))
-        .add_option("province", "Canadian province code", "string", false, Some("ON"))
-        .add_option("output", "Output JSON path", "string", false, Some("murb_results.json"));
+    reg.register_action(
+        "murb-simulate",
+        "Run energy simulation",
+        "analysis",
+        Arc::new(handle_simulate),
+    )
+    .add_option("epw", "Path to EPW weather file", "string", true, None)
+    .add_option(
+        "name",
+        "Simulation name",
+        "string",
+        false,
+        Some("makit_run"),
+    )
+    .add_option("gfa", "Gross floor area [m²]", "float", true, None)
+    .add_option(
+        "walls-ag",
+        "Above-grade wall area [m²]",
+        "float",
+        true,
+        None,
+    )
+    .add_option(
+        "walls-bg",
+        "Below-grade wall area [m²]",
+        "float",
+        false,
+        Some("0"),
+    )
+    .add_option("windows", "Window area [m²]", "float", true, None)
+    .add_option("roof", "Roof area [m²]", "float", true, None)
+    .add_option(
+        "u-walls",
+        "Wall U-value [W/m²K]",
+        "float",
+        false,
+        Some("0.273"),
+    )
+    .add_option(
+        "u-windows",
+        "Window U-value [W/m²K]",
+        "float",
+        false,
+        Some("2.56"),
+    )
+    .add_option(
+        "u-roof",
+        "Roof U-value [W/m²K]",
+        "float",
+        false,
+        Some("0.164"),
+    )
+    .add_option("cop-htg", "Heating COP", "float", false, Some("0.85"))
+    .add_option("cop-clg", "Cooling COP", "float", false, Some("5.2"))
+    .add_option("cop-dhw", "DHW COP", "float", false, Some("0.85"))
+    .add_option("hrv", "HRV efficiency (0-1)", "float", false, Some("0.55"))
+    .add_option(
+        "province",
+        "Canadian province code",
+        "string",
+        false,
+        Some("ON"),
+    )
+    .add_option(
+        "output",
+        "Output JSON path",
+        "string",
+        false,
+        Some("murb_results.json"),
+    );
 
-    reg.register_action("murb-report", "Generate energy report", "reporting", Arc::new(handle_report))
-        .add_option("input", "Simulation results JSON", "string", true, None)
-        .add_option("format", "Report format (text, json)", "string", false, Some("text"));
+    reg.register_action(
+        "murb-report",
+        "Generate energy report",
+        "reporting",
+        Arc::new(handle_report),
+    )
+    .add_option("input", "Simulation results JSON", "string", true, None)
+    .add_option(
+        "format",
+        "Report format (text, json)",
+        "string",
+        false,
+        Some("text"),
+    );
 }
 
 #[cfg(test)]

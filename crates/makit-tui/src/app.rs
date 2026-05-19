@@ -12,7 +12,7 @@ use tui::prelude::*;
 
 use crate::theme::THEME;
 use crate::tree_data::build_tree_items;
-use makit_geometry::drawing::{draw_rect, fill_rect, draw_arrow};
+use makit_geometry::drawing::{draw_arrow, draw_isometric_box, draw_rect, fill_rect};
 use makit_tools::murb::MurbResults;
 
 // ---------------------------------------------------------------------------
@@ -147,7 +147,7 @@ fn main_content(state: &AppState) -> impl Widget<Msg> {
         .child(
             row::<Msg>()
                 .child(label::<Msg>("⊟").fg(THEME.dim))
-                .child(label::<Msg>(" Explorer").bold().fg(THEME.accent))
+                .child(label::<Msg>(" Explorer").bold().fg(THEME.accent)),
         )
         .child(divider::<Msg>().variant(DividerVariant::Dotted))
         .child(explorer);
@@ -158,21 +158,20 @@ fn main_content(state: &AppState) -> impl Widget<Msg> {
         detail_panel(state)
     };
 
-    row::<Msg>()
-        .gap(1)
-        .child(left_pane)
-        .child(right_pane)
+    row::<Msg>().gap(1).child(left_pane).child(right_pane)
 }
 
 /// ─── Detail panel ──────────────────────────────────
 fn detail_panel(state: &AppState) -> Flex<Msg> {
-    let canvas_lines = render_canvas_lines(&state.active_node, state.logo_angle, &state.murb_results);
+    let canvas_lines =
+        render_canvas_lines(&state.active_node, state.logo_angle, &state.murb_results);
 
     let active_display = if state.active_node.is_empty() {
         "—".to_string()
     } else {
         // Show just the meaningful part of the node id
-        state.active_node
+        state
+            .active_node
             .rsplit(':')
             .next()
             .unwrap_or(&state.active_node)
@@ -182,7 +181,8 @@ fn detail_panel(state: &AppState) -> Flex<Msg> {
     let opened_display = if state.opened_node.is_empty() {
         "—".to_string()
     } else {
-        state.opened_node
+        state
+            .opened_node
             .rsplit(':')
             .next()
             .unwrap_or(&state.opened_node)
@@ -196,20 +196,20 @@ fn detail_panel(state: &AppState) -> Flex<Msg> {
         .child(
             row::<Msg>()
                 .child(label::<Msg>("◈").fg(THEME.dim))
-                .child(label::<Msg>(" Detail").bold().fg(THEME.secondary))
+                .child(label::<Msg>(" Detail").bold().fg(THEME.secondary)),
         )
         .child(divider::<Msg>().variant(DividerVariant::Dotted))
         .child(
             row::<Msg>()
                 .gap(1)
                 .child(label::<Msg>("Focus:").fg(THEME.dim))
-                .child(label::<Msg>(active_display).bold().fg(THEME.text))
+                .child(label::<Msg>(active_display).bold().fg(THEME.text)),
         )
         .child(
             row::<Msg>()
                 .gap(1)
                 .child(label::<Msg>("Open:").fg(THEME.dim))
-                .child(label::<Msg>(opened_display).fg(THEME.dim))
+                .child(label::<Msg>(opened_display).fg(THEME.dim)),
         )
         .child(divider::<Msg>().text("Preview"));
 
@@ -218,22 +218,20 @@ fn detail_panel(state: &AppState) -> Flex<Msg> {
         panel = panel.child(label::<Msg>(line.clone()).fg(THEME.accent));
     }
 
-    panel
-        .child(divider::<Msg>().text("Actions"))
-        .child(
-            row::<Msg>()
-                .gap(2)
-                .child(
-                    button::<Msg>("Execute")
-                        .variant(ButtonVariant::Primary)
-                        .on_click(|| Msg::TreeOpened("execute".to_owned())),
-                )
-                .child(
-                    button::<Msg>("Help (?)")
-                        .variant(ButtonVariant::Secondary)
-                        .on_click(|| Msg::ToggleHelp),
-                ),
-        )
+    panel.child(divider::<Msg>().text("Actions")).child(
+        row::<Msg>()
+            .gap(2)
+            .child(
+                button::<Msg>("Execute")
+                    .variant(ButtonVariant::Primary)
+                    .on_click(|| Msg::TreeOpened("execute".to_owned())),
+            )
+            .child(
+                button::<Msg>("Help (?)")
+                    .variant(ButtonVariant::Secondary)
+                    .on_click(|| Msg::ToggleHelp),
+            ),
+    )
 }
 
 /// ─── Help panel ────────────────────────────────────
@@ -245,61 +243,71 @@ fn help_panel() -> Flex<Msg> {
         .child(
             row::<Msg>()
                 .child(label::<Msg>("◈").fg(THEME.dim))
-                .child(label::<Msg>(" Help").bold().fg(THEME.accent))
+                .child(label::<Msg>(" Help").bold().fg(THEME.accent)),
         )
         .child(divider::<Msg>().variant(DividerVariant::Dotted))
         .child(label::<Msg>(""))
         .child(
-            row::<Msg>().gap(1)
+            row::<Msg>()
+                .gap(1)
                 .child(label::<Msg>("Tab").bold().fg(THEME.primary))
-                .child(label::<Msg>("Switch focus between panes"))
+                .child(label::<Msg>("Switch focus between panes")),
         )
         .child(
-            row::<Msg>().gap(1)
+            row::<Msg>()
+                .gap(1)
                 .child(label::<Msg>("↑ ↓").bold().fg(THEME.primary))
-                .child(label::<Msg>("Navigate tree items"))
+                .child(label::<Msg>("Navigate tree items")),
         )
         .child(
-            row::<Msg>().gap(1)
+            row::<Msg>()
+                .gap(1)
                 .child(label::<Msg>("→  ").bold().fg(THEME.primary))
-                .child(label::<Msg>("Expand tree node"))
+                .child(label::<Msg>("Expand tree node")),
         )
         .child(
-            row::<Msg>().gap(1)
+            row::<Msg>()
+                .gap(1)
                 .child(label::<Msg>("←  ").bold().fg(THEME.primary))
-                .child(label::<Msg>("Collapse tree node"))
+                .child(label::<Msg>("Collapse tree node")),
         )
         .child(
-            row::<Msg>().gap(1)
+            row::<Msg>()
+                .gap(1)
                 .child(label::<Msg>("⏎  ").bold().fg(THEME.primary))
-                .child(label::<Msg>("Open / execute item"))
+                .child(label::<Msg>("Open / execute item")),
         )
         .child(
-            row::<Msg>().gap(1)
+            row::<Msg>()
+                .gap(1)
                 .child(label::<Msg>("?  ").bold().fg(THEME.primary))
-                .child(label::<Msg>("Toggle this panel"))
+                .child(label::<Msg>("Toggle this panel")),
         )
         .child(
-            row::<Msg>().gap(1)
+            row::<Msg>()
+                .gap(1)
                 .child(label::<Msg>("Esc").bold().fg(THEME.primary))
-                .child(label::<Msg>("Quit"))
+                .child(label::<Msg>("Quit")),
         )
         .child(label::<Msg>(""))
         .child(divider::<Msg>().text("Legend"))
         .child(
-            row::<Msg>().gap(1)
+            row::<Msg>()
+                .gap(1)
                 .child(label::<Msg>("◆").fg(THEME.accent))
-                .child(label::<Msg>("Sources — geometry input drivers"))
+                .child(label::<Msg>("Sources — geometry input drivers")),
         )
         .child(
-            row::<Msg>().gap(1)
+            row::<Msg>()
+                .gap(1)
                 .child(label::<Msg>("▸").fg(THEME.accent))
-                .child(label::<Msg>("Actions — operations on geometry"))
+                .child(label::<Msg>("Actions — operations on geometry")),
         )
         .child(
-            row::<Msg>().gap(1)
+            row::<Msg>()
+                .gap(1)
                 .child(label::<Msg>("⊞").fg(THEME.accent))
-                .child(label::<Msg>("Groups — analysis · extraction · reporting"))
+                .child(label::<Msg>("Groups — analysis · extraction · reporting")),
         )
         .child(label::<Msg>(""))
         .child(
@@ -326,7 +334,11 @@ fn status_bar(state: &AppState) -> impl Widget<Msg> {
 // ---------------------------------------------------------------------------
 
 /// Render a braille canvas for the current context, return individual lines.
-fn render_canvas_lines(active_node: &str, angle: f64, murb_results: &Option<MurbResults>) -> Vec<String> {
+fn render_canvas_lines(
+    active_node: &str,
+    angle: f64,
+    murb_results: &Option<MurbResults>,
+) -> Vec<String> {
     let mut c = Canvas::new();
     let mut extra_lines: Vec<String> = Vec::new();
 
@@ -334,6 +346,8 @@ fn render_canvas_lines(active_node: &str, angle: f64, murb_results: &Option<Murb
         render_energy_bars(&mut c, murb_results, &mut extra_lines);
     } else if active_node.contains("wall") {
         render_walls_preview(&mut c);
+    } else if active_node.contains("revit") || active_node.contains("architect") {
+        render_isometric_building(&mut c);
     } else if active_node.contains("floor") || active_node.contains("room") {
         render_floor_plan(&mut c);
     } else {
@@ -348,7 +362,8 @@ fn render_canvas_lines(active_node: &str, angle: f64, murb_results: &Option<Murb
     lines
 }
 
-/// Rotating hexagonal logo with inner counter-rotation and spokes
+/// Rotating hexagonal logo with inner counter-rotation and spokes.
+/// Uses direct line drawing for reliable braille-resolution visibility.
 fn render_logo(c: &mut Canvas, angle: f64) {
     let cx = 20.0;
     let cy = 16.0;
@@ -384,6 +399,21 @@ fn render_logo(c: &mut Canvas, angle: f64) {
             (cx + r * a.cos(), cy + r * a.sin()),
         );
     }
+}
+
+/// Isometric wireframe building — default 10×8×3m box with internal divisions.
+fn render_isometric_building(c: &mut Canvas) {
+    let ox = 20.0;
+    let oy = 28.0;
+
+    // Main building volume (10m × 3m × 8m)
+    draw_isometric_box(c, ox, oy, 10.0, 6.0, 8.0);
+
+    // Internal floor division (at 3m height)
+    draw_isometric_box(c, ox, oy, 10.0, 3.0, 8.0);
+
+    // Roof parapet (thin box on top)
+    draw_isometric_box(c, ox, oy, 10.0, 7.0, 8.0);
 }
 
 /// Wall orientation preview — building envelope with interior walls
@@ -426,10 +456,7 @@ fn render_energy_bars(c: &mut Canvas, results: &Option<MurbResults>, extra: &mut
             c.line((0.0, 0.0), (0.0, 32.0));
 
             // Month labels below chart
-            let label_line: String = month_labels
-                .iter()
-                .map(|m| format!(" {} ", m))
-                .collect();
+            let label_line: String = month_labels.iter().map(|m| format!(" {} ", m)).collect();
             extra.push(format!("  {}", label_line));
 
             // Summary metrics
@@ -448,10 +475,7 @@ fn render_energy_bars(c: &mut Canvas, results: &Option<MurbResults>, extra: &mut
             c.line((0.0, 0.0), (40.0, 0.0));
             c.line((0.0, 0.0), (0.0, 32.0));
 
-            let label_line: String = month_labels
-                .iter()
-                .map(|m| format!(" {} ", m))
-                .collect();
+            let label_line: String = month_labels.iter().map(|m| format!(" {} ", m)).collect();
             extra.push(format!("  {}", label_line));
             extra.push(String::new());
             extra.push("  No results — run murb-simulate".to_string());

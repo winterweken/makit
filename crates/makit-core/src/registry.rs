@@ -25,9 +25,9 @@ impl Registry {
 
     /// Register a new tool.
     pub fn register_tool(&mut self, name: &str, description: &str) -> &mut Tool {
-        self.tools.entry(name.to_string()).or_insert_with(|| {
-            Tool::new(name, description)
-        })
+        self.tools
+            .entry(name.to_string())
+            .or_insert_with(|| Tool::new(name, description))
     }
 
     /// Register a new geometry source.
@@ -37,14 +37,14 @@ impl Registry {
         description: &str,
         handler: TaskHandler,
     ) -> &mut Source {
-        self.sources.entry(name.to_string()).or_insert_with(|| {
-            Source {
+        self.sources
+            .entry(name.to_string())
+            .or_insert_with(|| Source {
                 name: name.to_string(),
                 description: description.to_string(),
                 handler,
                 options: Vec::new(),
-            }
-        })
+            })
     }
 
     /// Register a new action.
@@ -55,15 +55,15 @@ impl Registry {
         category: &str,
         handler: TaskHandler,
     ) -> &mut Action {
-        self.actions.entry(name.to_string()).or_insert_with(|| {
-            Action {
+        self.actions
+            .entry(name.to_string())
+            .or_insert_with(|| Action {
                 name: name.to_string(),
                 description: description.to_string(),
                 category: category.to_string(),
                 handler,
                 options: Vec::new(),
-            }
-        })
+            })
     }
 
     /// Get a tool by name.
@@ -113,9 +113,7 @@ impl Registry {
         let task = self
             .get_task(tool_name, category_name, task_name)
             .ok_or_else(|| {
-                anyhow::anyhow!(
-                    "task '{task_name}' not found in {tool_name}/{category_name}"
-                )
+                anyhow::anyhow!("task '{task_name}' not found in {tool_name}/{category_name}")
             })?;
         task.execute(ctx)
     }

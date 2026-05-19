@@ -85,7 +85,8 @@ pub fn cardinal_direction(nx: f64, ny: f64) -> &'static str {
 
 /// Analyze wall orientations and compute area breakdown by cardinal direction.
 pub fn analyze_orientations(walls: &[WallData]) -> Vec<OrientationResult> {
-    let mut buckets: std::collections::HashMap<&str, (usize, f64)> = std::collections::HashMap::new();
+    let mut buckets: std::collections::HashMap<&str, (usize, f64)> =
+        std::collections::HashMap::new();
 
     for wall in walls {
         let dir = cardinal_direction(wall.normal[0], wall.normal[1]);
@@ -112,7 +113,11 @@ pub fn analyze_orientations(walls: &[WallData]) -> Vec<OrientationResult> {
 
     results.sort_by(|a, b| {
         let order = |d: &str| match d {
-            "North" => 0, "East" => 1, "South" => 2, "West" => 3, _ => 4
+            "North" => 0,
+            "East" => 1,
+            "South" => 2,
+            "West" => 3,
+            _ => 4,
         };
         order(&a.direction).cmp(&order(&b.direction))
     });
@@ -136,15 +141,25 @@ mod tests {
     fn test_analyze_orientations() {
         let walls = vec![
             WallData {
-                id: 1, wall_type: "Basic".into(), level: "L1".into(),
-                area_sqm: 50.0, length_m: 10.0, height_m: 3.0,
-                start_point: [0.0, 0.0, 0.0], end_point: [10.0, 0.0, 0.0],
+                id: 1,
+                wall_type: "Basic".into(),
+                level: "L1".into(),
+                area_sqm: 50.0,
+                length_m: 10.0,
+                height_m: 3.0,
+                start_point: [0.0, 0.0, 0.0],
+                end_point: [10.0, 0.0, 0.0],
                 normal: [0.0, 1.0, 0.0],
             },
             WallData {
-                id: 2, wall_type: "Basic".into(), level: "L1".into(),
-                area_sqm: 30.0, length_m: 8.0, height_m: 3.0,
-                start_point: [0.0, 0.0, 0.0], end_point: [0.0, 8.0, 0.0],
+                id: 2,
+                wall_type: "Basic".into(),
+                level: "L1".into(),
+                area_sqm: 30.0,
+                length_m: 8.0,
+                height_m: 3.0,
+                start_point: [0.0, 0.0, 0.0],
+                end_point: [0.0, 8.0, 0.0],
                 normal: [0.0, -1.0, 0.0],
             },
         ];

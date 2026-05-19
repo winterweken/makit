@@ -3,8 +3,8 @@
 //! The pyRevit extension (in `pyrevit-extension/`) runs inside Revit and
 //! exposes an HTTP API on port 48884. This client talks to it using reqwest.
 
-use anyhow::{Context, Result};
 use super::models::*;
+use anyhow::{Context, Result};
 
 /// Default pyRevit HTTP bridge port.
 const DEFAULT_PORT: u16 = 48884;

@@ -3,7 +3,7 @@
 //! Run with: cargo run -p makit --example canvas_demo
 
 use canvas::Canvas;
-use makit_geometry::drawing::{draw_lines, draw_rect, draw_arrow, fill_rect};
+use makit_geometry::drawing::{draw_arrow, draw_lines, draw_rect, fill_rect};
 use makit_geometry::types::{Line, Point};
 
 fn main() {

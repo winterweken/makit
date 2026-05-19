@@ -4,16 +4,11 @@
 //! including lines, walls (thick lines as filled polygons), and scanline
 //! polygon fill.
 
+use crate::types::{get_bounds, scale_point, Line, Point, Rectangle};
 use canvas::Canvas;
-use crate::types::{Line, Point, Rectangle, get_bounds, scale_point};
 
 /// Draw a set of lines on a canvas, auto-scaled to fit.
-pub fn draw_lines(
-    canvas: &mut Canvas,
-    lines: &[Line],
-    canvas_width: i32,
-    canvas_height: i32,
-) {
+pub fn draw_lines(canvas: &mut Canvas, lines: &[Line], canvas_width: i32, canvas_height: i32) {
     if lines.is_empty() {
         return;
     }
@@ -175,6 +170,71 @@ pub fn draw_arrow(canvas: &mut Canvas, x0: f64, y0: f64, x1: f64, y1: f64) {
     }
 }
 
+/// Project a 3D point to 2D screen coordinates using 30° dimetric
+/// isometric projection.
+///
+/// - `x`, `y`, `z`: world coordinates (y is up)
+/// - Returns `(screen_x, screen_y)` in canvas coordinates
+pub fn isometric_project(x: f64, y: f64, z: f64) -> (f64, f64) {
+    // Standard 30° isometric: cos(30°) ≈ 0.866, sin(30°) = 0.5
+    let cos30 = 0.866_025_403_8_f64;
+    let sin30 = 0.5_f64;
+
+    let sx = (x - z) * cos30;
+    let sy = (x + z) * sin30 - y;
+    (sx, sy)
+}
+
+/// Draw an isometric wireframe box on the canvas.
+///
+/// - `c`: Canvas to render onto
+/// - `ox`, `oy`: screen-space offset for positioning
+/// - `w`, `h`, `d`: box dimensions in world units (width, height, depth)
+pub fn draw_isometric_box(c: &mut Canvas, ox: f64, oy: f64, w: f64, h: f64, d: f64) {
+    // 8 corners of the box
+    let corners = [
+        (0.0, 0.0, 0.0),
+        (w, 0.0, 0.0),
+        (w, 0.0, d),
+        (0.0, 0.0, d), // bottom
+        (0.0, h, 0.0),
+        (w, h, 0.0),
+        (w, h, d),
+        (0.0, h, d), // top
+    ];
+
+    let projected: Vec<(f64, f64)> = corners
+        .iter()
+        .map(|&(x, y, z)| {
+            let (sx, sy) = isometric_project(x, y, z);
+            (ox + sx, oy + sy)
+        })
+        .collect();
+
+    // 12 edges of a box
+    let edges = [
+        // Bottom face
+        (0, 1),
+        (1, 2),
+        (2, 3),
+        (3, 0),
+        // Top face
+        (4, 5),
+        (5, 6),
+        (6, 7),
+        (7, 4),
+        // Vertical edges
+        (0, 4),
+        (1, 5),
+        (2, 6),
+        (3, 7),
+    ];
+
+    for &(a, b) in &edges {
+        c.line(projected[a], projected[b]);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -210,6 +270,31 @@ mod tests {
     fn test_draw_arrow() {
         let mut c = Canvas::new();
         draw_arrow(&mut c, 0.0, 0.0, 20.0, 10.0);
+        let (w, h) = c.get_size();
+        assert!(w > 0);
+        assert!(h > 0);
+    }
+
+    #[test]
+    fn test_isometric_project() {
+        // Origin maps to origin
+        let (sx, sy) = isometric_project(0.0, 0.0, 0.0);
+        assert!((sx).abs() < 0.001);
+        assert!((sy).abs() < 0.001);
+
+        // Moving along X should move right and slightly down
+        let (sx, _sy) = isometric_project(10.0, 0.0, 0.0);
+        assert!(sx > 0.0);
+
+        // Moving up (Y) should decrease screen Y (move up on screen)
+        let (_sx, sy) = isometric_project(0.0, 10.0, 0.0);
+        assert!(sy < 0.0);
+    }
+
+    #[test]
+    fn test_draw_isometric_box() {
+        let mut c = Canvas::new();
+        draw_isometric_box(&mut c, 20.0, 20.0, 10.0, 8.0, 6.0);
         let (w, h) = c.get_size();
         assert!(w > 0);
         assert!(h > 0);
