@@ -1,0 +1,27 @@
+[package]
+name = "makit"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "A multi-tool CLI and TUI for AEC workflows"
+
+[[bin]]
+name = "makit"
+path = "src/main.rs"
+
+[dependencies]
+makit-core = { workspace = true }
+makit-tools = { workspace = true }
+makit-tui = { workspace = true }
+makit-geometry = { workspace = true }
+clap = { workspace = true }
+figment = { workspace = true }
+anyhow = { workspace = true }
+tokio = { workspace = true }
+
+[[example]]
+name = "canvas_demo"
+path = "examples/canvas_demo.rs"
+
+[dev-dependencies]
+canvas = { workspace = true }

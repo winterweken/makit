@@ -1,0 +1,16 @@
+[package]
+name = "makit-tools"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Tool implementations for makit (revit, rhino, blender, ifc, murb)"
+
+[dependencies]
+makit-core = { workspace = true }
+makit-geometry = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+reqwest = { workspace = true }
+axum = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
