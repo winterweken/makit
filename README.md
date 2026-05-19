@@ -76,7 +76,9 @@ makit/
 │   ├── makit-tools/         # Tool implementations (revit, rhino, blender, ifc, murb)
 │   └── makit-tui/           # rsille-native TUI (tree explorer, canvas viz, theme)
 ├── pyrevit-extension/       # Python pyRevit extension (runs inside Revit)
-├── scripts/blender/         # Python Blender addon
+├── scripts/
+│   ├── blender/             # Python Blender addon
+│   └── murb_runner.py       # Python bridge for MURB energy tool
 ├── examples/IFC/            # Sample IFC files
 └── docs/                    # Architecture documentation
 ```
@@ -99,7 +101,8 @@ Tools register **sources** (geometry input drivers) and **actions** (operations)
 | `revit-wall-orientations` | analysis | Analyze wall orientations + WWR |
 | `murb-simulate` | analysis | Run monthly energy simulation |
 | `murb-report` | reporting | Generate TEDI/TEUI/GHGI report |
-| ... | ... | 13 actions total |
+| `architect-render-demo` | rendering | Render architectural demo |
+| ... | ... | 12 actions total |
 
 ### Dependencies
 
@@ -118,7 +121,7 @@ Tools register **sources** (geometry input drivers) and **actions** (operations)
 # Build
 cargo build
 
-# Run tests
+# Run tests (47 tests across 5 crates)
 cargo test
 
 # Run the CLI
