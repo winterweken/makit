@@ -49,7 +49,12 @@ struct AppState {
     status: String,
     /// Cached MURB simulation results (loaded from disk if available)
     murb_results: Option<MurbResults>,
+    /// Current terminal width (updated each tick)
+    term_width: u16,
 }
+
+/// Minimum width for side-by-side pane layout.
+const WIDE_BREAKPOINT: u16 = 80;
 
 impl AppState {
     fn new() -> Self {
@@ -60,6 +65,7 @@ impl AppState {
         } else {
             "Ready — use ↑↓ to navigate, → to expand".to_string()
         };
+        let (w, _) = crossterm::terminal::size().unwrap_or((120, 40));
         Self {
             active_node: String::new(),
             opened_node: String::new(),
@@ -67,7 +73,13 @@ impl AppState {
             logo_angle: 0.0,
             status,
             murb_results,
+            term_width: w,
         }
+    }
+
+    /// Whether the terminal is wide enough for side-by-side panes.
+    fn is_wide(&self) -> bool {
+        self.term_width >= WIDE_BREAKPOINT
     }
 }
 
@@ -100,6 +112,10 @@ fn update(state: &mut AppState, msg: Msg) {
         }
         Msg::Tick => {
             state.logo_angle += 0.04;
+            // Refresh terminal width each tick for responsive layout
+            if let Ok((w, _)) = crossterm::terminal::size() {
+                state.term_width = w;
+            }
         }
     }
 }
@@ -132,10 +148,11 @@ fn header_bar() -> impl Widget<Msg> {
 /// ─── Main content ──────────────────────────────────
 fn main_content(state: &AppState) -> impl Widget<Msg> {
     let tree_items = build_tree_items();
+    let tree_height = if state.is_wide() { 20 } else { 10 };
 
     let explorer = tree::<Msg>()
         .key("explorer")
-        .height(20)
+        .height(tree_height)
         .border(BorderStyle::Rounded)
         .items(tree_items)
         .on_change(Msg::TreeFocused)
@@ -158,7 +175,13 @@ fn main_content(state: &AppState) -> impl Widget<Msg> {
         detail_panel(state)
     };
 
-    row::<Msg>().gap(1).child(left_pane).child(right_pane)
+    if state.is_wide() {
+        // Side-by-side layout for wide terminals
+        row::<Msg>().gap(1).child(left_pane).child(right_pane)
+    } else {
+        // Stacked layout for narrow terminals
+        col::<Msg>().gap(0).child(left_pane).child(right_pane)
+    }
 }
 
 /// ─── Detail panel ──────────────────────────────────
@@ -497,14 +520,11 @@ fn render_floor_plan(c: &mut Canvas) {
 
 /// Run the makit TUI.
 pub fn run() -> anyhow::Result<()> {
-    // Clear terminal before starting for a clean slate
-    print!("\x1B[2J\x1B[H");
-
     let app = App::new(AppState::new())
         .on_key(KeyCode::Char('?'), || Msg::ToggleHelp)
         .on_tick(Duration::from_millis(80), || Msg::Tick);
 
-    app.run_inline(update, view)
+    app.run(update, view)
         .map_err(|e| anyhow::anyhow!("TUI error: {}", e))?;
 
     Ok(())
