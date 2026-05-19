@@ -1,6 +1,6 @@
 //! Main TUI application using rsille's Elm-like architecture.
 //!
-//! State + Msg + update + view pattern, using inline rendering mode.
+//! State + Msg + update + view pattern, using full-screen rendering mode.
 //! The canvas preview cycles between context-sensitive views based on
 //! the currently-selected tree node.
 
@@ -29,6 +29,8 @@ pub enum Msg {
     ToggleHelp,
     /// Animation frame tick
     Tick,
+    /// IFC file selected from picker
+    IfcFileSelected(String),
 }
 
 // ---------------------------------------------------------------------------
@@ -51,6 +53,10 @@ struct AppState {
     murb_results: Option<MurbResults>,
     /// Current terminal width (updated each tick)
     term_width: u16,
+    /// Discovered IFC files on disk
+    ifc_files: Vec<String>,
+    /// Currently selected IFC file path
+    selected_ifc: Option<String>,
 }
 
 /// Minimum width for side-by-side pane layout.
@@ -66,6 +72,7 @@ impl AppState {
             "Ready — use ↑↓ to navigate, → to expand".to_string()
         };
         let (w, _) = crossterm::terminal::size().unwrap_or((120, 40));
+        let ifc_files = discover_ifc_files();
         Self {
             active_node: String::new(),
             opened_node: String::new(),
@@ -74,6 +81,8 @@ impl AppState {
             status,
             murb_results,
             term_width: w,
+            ifc_files,
+            selected_ifc: None,
         }
     }
 
@@ -81,6 +90,28 @@ impl AppState {
     fn is_wide(&self) -> bool {
         self.term_width >= WIDE_BREAKPOINT
     }
+}
+
+/// Scan common locations for `.ifc` files.
+fn discover_ifc_files() -> Vec<String> {
+    let search_dirs = [".", "examples/IFC", "examples"];
+    let mut found = Vec::new();
+    for dir in &search_dirs {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("ifc")) {
+                if let Some(s) = path.to_str() {
+                    found.push(s.to_string());
+                }
+            }
+        }
+    }
+    found.sort();
+    found.dedup();
+    found
 }
 
 /// Attempt to load MurbResults from the default output path.
@@ -116,6 +147,10 @@ fn update(state: &mut AppState, msg: Msg) {
             if let Ok((w, _)) = crossterm::terminal::size() {
                 state.term_width = w;
             }
+        }
+        Msg::IfcFileSelected(path) => {
+            state.status = format!("◆ IFC loaded: {}", path);
+            state.selected_ifc = Some(path);
         }
     }
 }
@@ -212,6 +247,8 @@ fn detail_panel(state: &AppState) -> Flex<Msg> {
             .to_string()
     };
 
+    let is_ifc_context = state.active_node.contains("ifc");
+
     let mut panel = col::<Msg>()
         .border(BorderStyle::Rounded)
         .padding(Padding::new(0, 1, 0, 1))
@@ -233,8 +270,54 @@ fn detail_panel(state: &AppState) -> Flex<Msg> {
                 .gap(1)
                 .child(label::<Msg>("Open:").fg(THEME.dim))
                 .child(label::<Msg>(opened_display).fg(THEME.dim)),
-        )
-        .child(divider::<Msg>().text("Preview"));
+        );
+
+    // Show IFC file picker when IFC source is focused
+    if is_ifc_context {
+        panel = panel.child(divider::<Msg>().text("IFC File"));
+
+        if state.ifc_files.is_empty() {
+            panel = panel.child(
+                label::<Msg>("No .ifc files found in working directory")
+                    .fg(THEME.dim),
+            );
+        } else {
+            let mut file_select = select::<Msg>()
+                .key("ifc-file-picker")
+                .placeholder("Select an IFC file...")
+                .height(8)
+                .border(BorderStyle::Rounded)
+                .on_change(Msg::IfcFileSelected);
+
+            for path in &state.ifc_files {
+                // Show just the filename as the label, full path as value
+                let label_text = Path::new(path)
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or(path);
+                file_select = file_select.option(
+                    SelectOption::new(path.clone(), label_text.to_string()),
+                );
+            }
+
+            panel = panel.child(file_select);
+
+            if let Some(ref selected) = state.selected_ifc {
+                let file_name = Path::new(selected)
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or(selected);
+                panel = panel.child(
+                    row::<Msg>()
+                        .gap(1)
+                        .child(label::<Msg>("✓").fg(THEME.accent))
+                        .child(label::<Msg>(file_name.to_string()).fg(THEME.text)),
+                );
+            }
+        }
+    }
+
+    panel = panel.child(divider::<Msg>().text("Preview"));
 
     // Render each line of the braille canvas as a separate label
     for line in &canvas_lines {
