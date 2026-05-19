@@ -150,6 +150,10 @@ fn handle_blender(ctx: &TaskContext) -> anyhow::Result<()> {
 mod tests {
     use super::*;
 
+    use axum::body::Body;
+    use http_body_util::BodyExt;
+    use tower::ServiceExt;
+
     #[test]
     fn test_mesh_data_deserialization() {
         let json = r#"{
@@ -175,6 +179,187 @@ mod tests {
     fn test_router_builds() {
         let state = SyncState::default();
         let _router = build_router(state);
-        // If this compiles and runs, the router is valid
+    }
+
+    // -----------------------------------------------------------------------
+    // Integration tests — exercise the full router via tower::oneshot
+    // -----------------------------------------------------------------------
+
+    /// Helper: build a fresh router + shared state for each test.
+    fn test_app() -> (Router, SyncState) {
+        let state = SyncState::default();
+        let router = build_router(state.clone());
+        (router, state)
+    }
+
+    /// Helper: collect an axum response body into bytes.
+    async fn body_bytes(body: Body) -> Vec<u8> {
+        body.collect().await.unwrap().to_bytes().to_vec()
+    }
+
+    #[tokio::test]
+    async fn integration_health_returns_ok() {
+        let (app, _) = test_app();
+
+        let req = axum::http::Request::builder()
+            .uri("/health")
+            .body(Body::empty())
+            .unwrap();
+
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let text = String::from_utf8(body_bytes(resp.into_body()).await).unwrap();
+        assert!(text.contains("makit blender sync server"));
+    }
+
+    #[tokio::test]
+    async fn integration_get_geometry_empty_returns_404() {
+        let (app, _) = test_app();
+
+        let req = axum::http::Request::builder()
+            .uri("/geometry")
+            .body(Body::empty())
+            .unwrap();
+
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn integration_post_then_get_geometry() {
+        let state = SyncState::default();
+
+        // POST a mesh
+        let mesh = MeshData {
+            vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+            faces: vec![vec![0, 1, 2]],
+            name: "Triangle".to_string(),
+        };
+        let payload = serde_json::to_string(&mesh).unwrap();
+
+        let post_req = axum::http::Request::builder()
+            .method("POST")
+            .uri("/geometry")
+            .header("content-type", "application/json")
+            .body(Body::from(payload))
+            .unwrap();
+
+        let app = build_router(state.clone());
+        let resp = app.oneshot(post_req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let body = String::from_utf8(body_bytes(resp.into_body()).await).unwrap();
+        assert!(body.contains("3 vertices"));
+        assert!(body.contains("1 faces"));
+        assert!(body.contains("Triangle"));
+
+        // GET the stored geometry back
+        let get_req = axum::http::Request::builder()
+            .uri("/geometry")
+            .body(Body::empty())
+            .unwrap();
+
+        let app = build_router(state.clone());
+        let resp = app.oneshot(get_req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let returned: MeshData =
+            serde_json::from_slice(&body_bytes(resp.into_body()).await).unwrap();
+        assert_eq!(returned.name, "Triangle");
+        assert_eq!(returned.vertices.len(), 3);
+        assert_eq!(returned.faces.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn integration_post_replaces_previous_mesh() {
+        let state = SyncState::default();
+
+        // POST first mesh
+        let mesh1 = MeshData {
+            vertices: vec![[0.0, 0.0, 0.0]],
+            faces: vec![],
+            name: "First".to_string(),
+        };
+
+        let app = build_router(state.clone());
+        let req = axum::http::Request::builder()
+            .method("POST")
+            .uri("/geometry")
+            .header("content-type", "application/json")
+            .body(Body::from(serde_json::to_string(&mesh1).unwrap()))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // POST second mesh
+        let mesh2 = MeshData {
+            vertices: vec![[1.0, 1.0, 1.0], [2.0, 2.0, 2.0]],
+            faces: vec![vec![0, 1]],
+            name: "Second".to_string(),
+        };
+
+        let app = build_router(state.clone());
+        let req = axum::http::Request::builder()
+            .method("POST")
+            .uri("/geometry")
+            .header("content-type", "application/json")
+            .body(Body::from(serde_json::to_string(&mesh2).unwrap()))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // GET should return the second mesh, not the first
+        let app = build_router(state.clone());
+        let req = axum::http::Request::builder()
+            .uri("/geometry")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let returned: MeshData =
+            serde_json::from_slice(&body_bytes(resp.into_body()).await).unwrap();
+        assert_eq!(returned.name, "Second");
+        assert_eq!(returned.vertices.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn integration_post_invalid_json_returns_error() {
+        let (app, _) = test_app();
+
+        let req = axum::http::Request::builder()
+            .method("POST")
+            .uri("/geometry")
+            .header("content-type", "application/json")
+            .body(Body::from("{not valid json}"))
+            .unwrap();
+
+        let resp = app.oneshot(req).await.unwrap();
+        // axum returns 422 Unprocessable Entity for JSON parse failures
+        assert!(resp.status().is_client_error());
+    }
+
+    #[tokio::test]
+    async fn integration_mesh_without_name_defaults_to_empty() {
+        let state = SyncState::default();
+
+        let json = r#"{"vertices": [[1.0, 2.0, 3.0]], "faces": []}"#;
+
+        let app = build_router(state.clone());
+        let req = axum::http::Request::builder()
+            .method("POST")
+            .uri("/geometry")
+            .header("content-type", "application/json")
+            .body(Body::from(json))
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Verify the default empty name round-trips
+        let stored = state.mesh.read().unwrap();
+        let mesh = stored.as_ref().unwrap();
+        assert!(mesh.name.is_empty());
+        assert_eq!(mesh.vertices.len(), 1);
     }
 }

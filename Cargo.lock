@@ -1033,12 +1033,14 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "http-body-util",
  "makit-core",
  "makit-geometry",
  "reqwest",
  "serde",
  "serde_json",
  "tokio",
+ "tower",
 ]
 
 [[package]]
