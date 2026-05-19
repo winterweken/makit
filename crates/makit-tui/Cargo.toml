@@ -1,0 +1,18 @@
+[package]
+name = "makit-tui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "rsille-native TUI for makit"
+
+[dependencies]
+makit-core = { workspace = true }
+makit-geometry = { workspace = true }
+makit-tools = { path = "../makit-tools" }
+canvas = { workspace = true }
+render = { workspace = true }
+tui = { workspace = true }
+crossterm = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }

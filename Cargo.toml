@@ -1,0 +1,54 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/makit-cli",
+    "crates/makit-core",
+    "crates/makit-geometry",
+    "crates/makit-tools",
+    "crates/makit-tui",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["winterweken"]
+license = "MIT"
+repository = "https://github.com/winterweken/makit"
+
+[workspace.dependencies]
+# Internal crates
+makit-core = { path = "crates/makit-core" }
+makit-geometry = { path = "crates/makit-geometry" }
+makit-tools = { path = "crates/makit-tools" }
+makit-tui = { path = "crates/makit-tui" }
+
+# rsille v3 workspace packages
+canvas = { git = "https://github.com/nidhoggfgg/rsille", branch = "main" }
+render = { git = "https://github.com/nidhoggfgg/rsille", branch = "main" }
+tui = { git = "https://github.com/nidhoggfgg/rsille", branch = "main" }
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Config
+figment = { version = "0.10", features = ["yaml", "env"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# HTTP
+reqwest = { version = "0.12", features = ["json"] }
+axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+
+# Error handling
+anyhow = "1"
+thiserror = "2"
+
+# Terminal
+crossterm = { version = "0.28", features = ["event-stream"] }
+
+# Testing
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"

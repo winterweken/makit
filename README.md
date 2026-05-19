@@ -1,185 +1,140 @@
 # Makit
 
-A Go CLI tool for managing pyRevit extensions and automating Revit workflows.
+**A multi-tool CLI and TUI for AEC workflows** — orchestrate Revit, Rhino, Blender, IFC analysis, and MURB energy modelling from one interface.
+
+Built in Rust with [rsille](https://github.com/nidhoggfgg/rsille) for braille-rendered terminal graphics and a native TUI framework. Makit bridges the gap between BIM authoring tools and programmatic analysis. Connect to live applications, extract building geometry, run cross-platform analytics, simulate energy performance, and visualize results — all from the terminal.
+
+---
 
 ## Features
 
-- Manage pyRevit installations and extensions
-- Run pyRevit scripts from the command line
-- **Architectural Rendering Engine**: Create detailed TUI-based floor plans and elevations
-- Configuration management for development workflows
-- Cross-platform support (Windows, macOS, Linux)
+- **Unified CLI & Interactive TUI** — browse sources and actions in a tree-view explorer with real-time braille canvas preview
+- **Live Revit Integration** — extract walls, floors, rooms, and run orientation/WWR analysis via a pyRevit HTTP bridge
+- **IFC Analysis** — standalone wall orientation and Window-to-Wall Ratio analysis on IFC files (no Revit required)
+- **Blender Sync Server** — receive live geometry from Blender over HTTP for visualization in the TUI
+- **Rhino & Grasshopper** — import/export models and run Grasshopper definitions headlessly
+- **MURB Energy Modelling** — monthly-timestep heat balance simulation for early-stage TEDI/TEUI/GHGI analysis via Python bridge
+- **Braille Canvas Engine** — draw floor plans, elevations, energy charts, and data sheets using rsille's braille-character canvas
+- **Animated 3D Logo** — rotating hexagonal logo rendered in braille on the TUI home screen
+- **Cross-Platform Analysis** — extract from any source to a generic JSON format, then run the same analysis code everywhere
 
-## Quick Try: Architectural Demo
+## Quick Start
 
-To immediately see the new architectural rendering capabilities (Solid Walls, WWR Analysis, Symbols):
+### Install
 
 ```bash
-# Clone the repository
-git clone https://github.com/winteweken/makit.git
+git clone https://github.com/winterweken/makit.git
 cd makit
-
-# Run the demo
-go run examples/canvas_demo.go
+cargo build --release
 ```
 
-## Installation
+The binary is at `target/release/makit`.
+
+### Launch the TUI
 
 ```bash
-go install github.com/winteweken/makit/cmd/makit@latest
+cargo run -p makit -- tui
 ```
 
-Or build from source:
+Use `↑/↓` to navigate, `→/←` to expand/collapse, `Enter` to select, `Tab` to switch focus, `?` for help, and `Esc` to quit.
+
+### CLI Commands
 
 ```bash
-git clone https://github.com/winteweken/makit.git
-cd makit
-go build -o makit ./cmd/makit
+# List all registered tools, sources, and actions
+makit list
+
+# Execute a specific action
+makit exec revit analysis revit-wall-orientations
+
+# Analyze an IFC file
+makit analyze examples/IFC/sample.ifc
+
+# Show help
+makit --help
 ```
+
+### Canvas Demo
+
+```bash
+cargo run -p makit --example canvas_demo
+```
+
+Renders braille-character shapes, a floor plan with interior walls, and filled rectangles — straight in the terminal.
+
+---
 
 ## Architecture
 
-Makit uses a hierarchical plugin system:
-
-```text
-Tool (e.g., Revit, Rhino, Analysis)
-  └── Category (e.g., Geometry, Analysis)
-      └── Task (e.g., Extract Walls, Calculate Areas)
+```
+makit/
+├── Cargo.toml              # Workspace root
+├── crates/
+│   ├── makit-cli/           # Binary — clap CLI (list, exec, analyze, tui, status, init)
+│   ├── makit-core/          # Registry singleton, config (figment/YAML), model types
+│   ├── makit-geometry/      # Point, Line, Rectangle, Room, Floor + braille drawing
+│   ├── makit-tools/         # Tool implementations (revit, rhino, blender, ifc, murb)
+│   └── makit-tui/           # rsille-native TUI (tree explorer, canvas viz, theme)
+├── pyrevit-extension/       # Python pyRevit extension (runs inside Revit)
+├── scripts/blender/         # Python Blender addon
+├── examples/IFC/            # Sample IFC files
+└── docs/                    # Architecture documentation
 ```
 
-This architecture allows you to:
+### Tool Registry
 
-- Easily add new tools and categories
-- Organize tasks logically
-- Execute tasks with a consistent interface
-- Extend functionality without modifying core code
+Tools register **sources** (geometry input drivers) and **actions** (operations) at startup:
 
-## Usage
+| Source | Description |
+|--------|-------------|
+| `revit` | Autodesk Revit integration via pyRevit HTTP |
+| `rhino` | Rhino 3D / Grasshopper |
+| `blender` | Blender live geometry sync |
+| `ifc` | IFC file loader |
+| `murb` | MURB energy modelling tool |
 
-### List Available Tools
+| Action | Category | Description |
+|--------|----------|-------------|
+| `revit-extract-walls` | extraction | Extract wall elements from Revit |
+| `revit-wall-orientations` | analysis | Analyze wall orientations + WWR |
+| `murb-simulate` | analysis | Run monthly energy simulation |
+| `murb-report` | reporting | Generate TEDI/TEUI/GHGI report |
+| ... | ... | 13 actions total |
 
-```bash
-makit list                    # Show all tools
-makit list revit              # Show Revit categories
-makit list revit geometry     # Show tasks in geometry category
-```
+### Dependencies
 
-### Execute Tasks
+- **rsille v3** — braille canvas, TUI widgets (tree, list, select, button, layout), terminal rendering
+- **clap** — CLI argument parsing
+- **figment** — config management (YAML + env vars)
+- **reqwest** — HTTP client for pyRevit bridge
+- **axum** — HTTP server for Blender sync
+- **tokio** — async runtime
 
-```bash
-# Revit geometry extraction
-makit exec revit geometry extract-walls --output walls.json
-makit exec revit geometry extract-floors
-
-# Revit analysis
-makit exec revit analysis find-clashes --tolerance 0.1
-makit exec revit analysis calculate-areas
-
-# Rhino operations
-makit exec rhino import-export import-revit --input model.rvt
-makit exec rhino grasshopper run-definition --definition script.gh
-
-# Analysis tools
-makit exec analysis geometric volume-analysis --unit cf
-makit exec analysis performance energy-analysis --weather-file data.epw
-```
-
-### Legacy Commands
-
-```bash
-makit init      # Initialize configuration
-makit status    # Check pyRevit status
-makit run       # Run pyRevit script
-```
-
-## Configuration
-
-Edit `~/.makit.yaml` to customize settings:
-
-```yaml
-pyrevit:
-  install_path: ""
-  extensions_paths:
-    - "~/pyRevit/extensions"
-  default_revit_version: "2024"
-
-general:
-  editor: "code"
-  auto_update: true
-  log_level: "info"
-```
+---
 
 ## Development
 
-### Project Structure
-
-```text
-makit/
-├── cmd/
-│   └── makit/              # Main application entry point
-├── internal/
-│   ├── cmd/                # CLI commands (list, exec, init, etc.)
-│   ├── config/             # Configuration management
-│   ├── pyrevit/            # pyRevit integration
-│   ├── registry/           # Task registry system
-│   │   ├── models.go       # Tool, Category, Task models
-│   │   └── registry.go     # Global registry
-│   └── tools/              # Tool implementations
-│       ├── revit/          # Revit tool with categories
-│       ├── rhino/          # Rhino tool with categories
-│       └── analysis/       # Analysis tools
-└── pkg/
-    └── utils/              # Shared utilities
-```
-
-### Adding New Tools
-
-To add a new tool:
-
-1. Create a new package in `internal/tools/yourtool/`
-2. Implement `RegisterTasks()` function:
-
-```go
-package yourtool
-
-import "github.com/winteweken/makit/internal/registry"
-
-func RegisterTasks() {
-    reg := registry.GetRegistry()
-    tool := reg.RegisterTool("yourtool", "Your tool description")
-
-    category := tool.AddCategory("yourcategory", "Category description")
-
-    category.AddTask("yourtask", "Task description", func(ctx *registry.TaskContext) error {
-        // Your task implementation
-        return nil
-    }).AddOption("option-name", "Option description", "string", false, "default")
-}
-```
-
-3. Register in `internal/cmd/root.go`:
-
-```go
-import "github.com/winteweken/makit/internal/tools/yourtool"
-
-func registerTools() {
-    revit.RegisterTasks()
-    rhino.RegisterTasks()
-    analysis.RegisterTasks()
-    yourtool.RegisterTasks()  // Add your tool
-}
-```
-
-### Building
-
 ```bash
-go build -o makit ./cmd/makit
-```
+# Build
+cargo build
 
-### Running Tests
+# Run tests
+cargo test
 
-```bash
-go test ./...
+# Run the CLI
+cargo run -p makit -- --help
+
+# Run the TUI
+cargo run -p makit -- tui
+
+# Run the canvas demo
+cargo run -p makit --example canvas_demo
+
+# Format
+cargo fmt
+
+# Lint
+cargo clippy
 ```
 
 ## License

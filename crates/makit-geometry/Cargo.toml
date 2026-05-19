@@ -1,0 +1,11 @@
+[package]
+name = "makit-geometry"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Geometry primitives and braille canvas drawing for makit"
+
+[dependencies]
+canvas = { workspace = true }
+render = { workspace = true }
+crossterm = { workspace = true }
