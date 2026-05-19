@@ -1,20 +1,31 @@
-<p align="center">
-  <img src=".github/banner.png" alt="makit — AEC multi-tool" width="100%" />
-</p>
-
-<h1 align="center">⬡ makit</h1>
-
-<p align="center">
-  <strong>A multi-tool CLI &amp; TUI for AEC workflows</strong><br/>
-  Orchestrate Revit, Blender, IFC analysis, and MURB energy modelling from one terminal.
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/language-Rust-f74c00?style=flat-square" alt="Rust" />
-  <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT" />
-  <img src="https://img.shields.io/badge/tests-50_passing-brightgreen?style=flat-square" alt="Tests" />
-  <img src="https://img.shields.io/badge/platform-macOS_%7C_Linux_%7C_Windows-lightgrey?style=flat-square" alt="Platform" />
-</p>
+```
+╔══════════════════════════════════════════════════════════════════════╗
+║                                                                      ║
+║     ⬡ makit                                                         ║
+║     ─────────────────────────────────────────                        ║
+║     A multi-tool CLI & TUI for AEC workflows                        ║
+║                                                                      ║
+║     ◆ revit    ◆ blender    ◆ ifc    ◆ murb    ◆ rhino              ║
+║                                                                      ║
+║     ┌─────────────┐  ┌──────────────────────────────────┐           ║
+║     │ ⊟ Explorer   │  │ ◈ Detail                         │           ║
+║     │··············│  │··································│           ║
+║     │ ▸ Revit      │  │  ⣀⣀⣀                            │           ║
+║     │   ▸ Walls    │  │ ⣸⣿⣿⣿⡇ ⣿⡇                      │           ║
+║     │   ▸ Floors   │  │ ⣿⣿⣿⣿⡇ ⣿⡇ ⣿⡇                   │           ║
+║     │ ▸ IFC        │  │ ⣿⣿⣿⣿⡇ ⣿⡇ ⣿⡇ ⣿⡇                │           ║
+║     │ ▸ MURB       │  │ ⣿⣿⣿⣿⡇ ⣿⡇ ⣿⡇ ⣿⡇ ⣿⡇ ⣿⡇         │           ║
+║     │ ▸ Blender    │  │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │           ║
+║     └─────────────┘  │  J  F  M  A  M  J  J  A  S  O   │           ║
+║                       └──────────────────────────────────┘           ║
+║     ┌────────────────────────────────────────────────────┐           ║
+║     │ Ready — use ↑↓ to navigate, → to expand            │           ║
+║     └────────────────────────────────────────────────────┘           ║
+║                                                                      ║
+║     Rust · rsille · MIT                                              ║
+║                                                                      ║
+╚══════════════════════════════════════════════════════════════════════╝
+```
 
 ---
 
