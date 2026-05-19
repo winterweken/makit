@@ -13,6 +13,7 @@ use tui::prelude::*;
 use crate::theme::THEME;
 use crate::tree_data::build_tree_items;
 use makit_geometry::drawing::{draw_arrow, draw_isometric_box, draw_rect, fill_rect};
+use makit_tools::building_model::{self, WwrAnalysis};
 use makit_tools::murb::MurbResults;
 
 // ---------------------------------------------------------------------------
@@ -57,6 +58,8 @@ struct AppState {
     ifc_files: Vec<String>,
     /// Currently selected IFC file path
     selected_ifc: Option<String>,
+    /// Cached WWR analysis results from selected file
+    wwr_analysis: Option<WwrAnalysis>,
 }
 
 /// Minimum width for side-by-side pane layout.
@@ -83,6 +86,7 @@ impl AppState {
             term_width: w,
             ifc_files,
             selected_ifc: None,
+            wwr_analysis: None,
         }
     }
 
@@ -149,7 +153,45 @@ fn update(state: &mut AppState, msg: Msg) {
             }
         }
         Msg::IfcFileSelected(path) => {
-            state.status = format!("◆ IFC loaded: {}", path);
+            // Try to load and analyze the selected file
+            let file_path = Path::new(&path);
+            let json_path = if file_path
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("ifc"))
+            {
+                building_model::find_json_for_ifc(file_path)
+            } else if file_path
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+            {
+                Some(file_path.to_path_buf())
+            } else {
+                None
+            };
+
+            match json_path {
+                Some(jp) => match building_model::load_model(&jp) {
+                    Ok(model) => {
+                        let analysis = building_model::analyze_wwr(&model);
+                        state.status = format!(
+                            "◆ {} walls, WWR {:.1}% — {}",
+                            analysis.wall_count, analysis.overall_wwr, path
+                        );
+                        state.wwr_analysis = Some(analysis);
+                    }
+                    Err(e) => {
+                        state.status = format!("✗ Error loading {}: {}", path, e);
+                        state.wwr_analysis = None;
+                    }
+                },
+                None => {
+                    state.status = format!(
+                        "◆ Selected: {} (extract JSON first for analysis)",
+                        path
+                    );
+                    state.wwr_analysis = None;
+                }
+            }
             state.selected_ifc = Some(path);
         }
     }
@@ -302,7 +344,69 @@ fn detail_panel(state: &AppState) -> Flex<Msg> {
 
             panel = panel.child(file_select);
 
-            if let Some(ref selected) = state.selected_ifc {
+            // Show analysis results if available
+            if let Some(ref analysis) = state.wwr_analysis {
+                panel = panel.child(divider::<Msg>().text("WWR Analysis"));
+
+                if !analysis.project_name.is_empty() {
+                    panel = panel.child(
+                        row::<Msg>()
+                            .gap(1)
+                            .child(label::<Msg>("Project:").fg(THEME.dim))
+                            .child(
+                                label::<Msg>(analysis.project_name.clone())
+                                    .bold()
+                                    .fg(THEME.text),
+                            ),
+                    );
+                }
+
+                // Orientation breakdown
+                for r in &analysis.orientations {
+                    let line = format!(
+                        "{:<6} {:>2} walls {:>6.1} m²  {:>5.1}%",
+                        r.direction, r.count, r.total_area_sqm, r.percentage
+                    );
+                    panel = panel.child(label::<Msg>(line).fg(THEME.accent));
+                }
+
+                // Totals
+                panel = panel.child(divider::<Msg>().variant(DividerVariant::Dotted));
+                panel = panel.child(
+                    row::<Msg>()
+                        .gap(1)
+                        .child(label::<Msg>("Walls:").fg(THEME.dim))
+                        .child(
+                            label::<Msg>(format!(
+                                "{} ({:.1} m²)",
+                                analysis.wall_count, analysis.total_wall_area
+                            ))
+                            .fg(THEME.text),
+                        ),
+                );
+                panel = panel.child(
+                    row::<Msg>()
+                        .gap(1)
+                        .child(label::<Msg>("Windows:").fg(THEME.dim))
+                        .child(
+                            label::<Msg>(format!(
+                                "{} ({:.1} m²)",
+                                analysis.window_count, analysis.total_window_area
+                            ))
+                            .fg(THEME.text),
+                        ),
+                );
+                panel = panel.child(
+                    row::<Msg>()
+                        .gap(1)
+                        .child(label::<Msg>("WWR:").fg(THEME.dim))
+                        .child(
+                            label::<Msg>(format!("{:.1}%", analysis.overall_wwr))
+                                .bold()
+                                .fg(THEME.primary),
+                        ),
+                );
+            } else if let Some(ref selected) = state.selected_ifc {
                 let file_name = Path::new(selected)
                     .file_name()
                     .and_then(|n| n.to_str())
@@ -312,6 +416,9 @@ fn detail_panel(state: &AppState) -> Flex<Msg> {
                         .gap(1)
                         .child(label::<Msg>("✓").fg(THEME.accent))
                         .child(label::<Msg>(file_name.to_string()).fg(THEME.text)),
+                );
+                panel = panel.child(
+                    label::<Msg>("Extract JSON for analysis results").fg(THEME.dim),
                 );
             }
         }

@@ -5,6 +5,7 @@
 pub mod analysis;
 pub mod architect;
 pub mod blender;
+pub mod building_model;
 pub mod ifc;
 pub mod murb;
 pub mod revit;
