@@ -169,22 +169,10 @@ mod tests {
     /// Build a mock pyRevit HTTP server router.
     fn mock_revit_router() -> Router {
         Router::new()
-            .route(
-                "/api/status",
-                get(|| async { StatusCode::OK }),
-            )
-            .route(
-                "/api/walls",
-                get(|| async { Json(mock_walls()) }),
-            )
-            .route(
-                "/api/rooms",
-                get(|| async { Json(mock_rooms()) }),
-            )
-            .route(
-                "/api/floors",
-                get(|| async { Json(mock_floors()) }),
-            )
+            .route("/api/status", get(|| async { StatusCode::OK }))
+            .route("/api/walls", get(|| async { Json(mock_walls()) }))
+            .route("/api/rooms", get(|| async { Json(mock_rooms()) }))
+            .route("/api/floors", get(|| async { Json(mock_floors()) }))
     }
 
     /// Build a mock server that returns 500 on all API endpoints.
