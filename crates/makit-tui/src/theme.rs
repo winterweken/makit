@@ -1,25 +1,23 @@
 //! Theme and styling for the makit TUI.
 
+use tui::prelude::Color;
+
 /// Color palette for the makit TUI theme.
 pub struct Theme {
-    pub primary: crossterm::style::Color,
-    pub secondary: crossterm::style::Color,
-    pub accent: crossterm::style::Color,
-    pub text: crossterm::style::Color,
-    pub dim: crossterm::style::Color,
-    pub border: crossterm::style::Color,
+    pub primary: Color,
+    pub secondary: Color,
+    pub accent: Color,
+    pub text: Color,
+    pub dim: Color,
+    pub border: Color,
 }
 
-impl Default for Theme {
-    fn default() -> Self {
-        use crossterm::style::Color;
-        Self {
-            primary: Color::Rgb { r: 90, g: 200, b: 250 },
-            secondary: Color::Rgb { r: 180, g: 130, b: 255 },
-            accent: Color::Rgb { r: 255, g: 180, b: 80 },
-            text: Color::Rgb { r: 230, g: 230, b: 230 },
-            dim: Color::Rgb { r: 100, g: 100, b: 100 },
-            border: Color::Rgb { r: 60, g: 60, b: 70 },
-        }
-    }
-}
+/// Default dark theme palette.
+pub const THEME: Theme = Theme {
+    primary: Color::Rgb(90, 200, 250),
+    secondary: Color::Rgb(180, 130, 255),
+    accent: Color::Rgb(255, 180, 80),
+    text: Color::Rgb(230, 230, 230),
+    dim: Color::Rgb(100, 100, 100),
+    border: Color::Rgb(60, 60, 70),
+};

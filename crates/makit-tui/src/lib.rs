@@ -2,5 +2,6 @@
 
 pub mod app;
 pub mod theme;
+pub mod tree_data;
 
-pub use app::App;
+pub use app::run;
