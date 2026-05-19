@@ -27,3 +27,12 @@ __pycache__/
 *.pyc
 *.pyo
 .venv/
+
+# Agent scratch files
+.agent/
+
+# Large binary assets
+*.ifc
+
+# SVG layouts (not source code)
+examples/IFC/layouts/
