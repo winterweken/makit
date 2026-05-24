@@ -1,0 +1,49 @@
+--- crates/makit-tui/src/app.rs
++++ crates/makit-tui/src/app.rs
+@@ -105,14 +105,25 @@
+             
+             let reg = makit_core::Registry::global();
+             if let Ok(reg_guard) = reg.read() {
+-                let ctx = makit_core::TaskContext::new();
+                 if id.starts_with("action:") {
+                     let parts: Vec<&str> = id.split(':').collect();
+                     if parts.len() >= 2 {
+                         let actual_action = parts[1];
+                         if let Some(action) = reg_guard.actions.get(actual_action) {
++                            let mut ctx = makit_core::TaskContext::new();
++                            ctx.task = action.name.clone();
++                            ctx.category = action.category.clone();
++                            
++                            for opt in &action.options {
++                                if let Some(def) = &opt.default {
++                                    ctx.options.insert(opt.name.clone(), def.clone());
++                                }
++                            }
++                            
++                            if parts.len() >= 4 && parts[2] == "opt" {
++                                ctx.options.entry(parts[3].to_string()).or_insert_with(String::new);
++                            }
++
+                             if let Err(e) = (action.handler)(&ctx) {
+                                 state.status = format!("Error: {}", e);
+                             } else {
+@@ -126,7 +137,19 @@
+                     let parts: Vec<&str> = id.split(':').collect();
+                     if parts.len() >= 2 {
+                         let actual_source = parts[1];
+                         if let Some(source) = reg_guard.sources.get(actual_source) {
++                            let mut ctx = makit_core::TaskContext::new();
++                            ctx.task = source.name.clone();
++                            
++                            for opt in &source.options {
++                                if let Some(def) = &opt.default {
++                                    ctx.options.insert(opt.name.clone(), def.clone());
++                                }
++                            }
++                            
++                            if parts.len() >= 4 && parts[2] == "opt" {
++                                ctx.options.entry(parts[3].to_string()).or_insert_with(String::new);
++                            }
++
+                             if let Err(e) = (source.handler)(&ctx) {
+                                 state.status = format!("Error: {}", e);

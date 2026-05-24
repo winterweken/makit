@@ -1,0 +1,31 @@
+--- crates/makit-core/src/config.rs
++++ crates/makit-core/src/config.rs
+@@ -77,10 +77,20 @@
+ 
+     #[test]
+     fn test_default_config() {
+-        let config = Config::load(None);
+-        // Note: this may fail if a broken ~/.makit.yaml exists on the user system.
+-        // We'll just test that we can parse a specific file or env var.
++        // To test defaults robustly without interference from ~/.makit.yaml,
++        // we parse an empty YAML string to see Serde's default behavior.
++        use figment::{Figment, providers::Yaml, providers::Format};
++        
++        let figment = Figment::new().merge(Yaml::string(""));
++        let config: Result<Config, _> = figment.extract();
++        assert!(config.is_ok(), "Failed to parse empty config into defaults");
++        
++        let config = config.unwrap();
++        
++        // Verify GeneralConfig defaults
++        assert_eq!(config.general.editor, "code");
++        assert_eq!(config.general.log_level, "info");
++        assert_eq!(config.general.auto_update, false);
++        
++        // Verify PyRevitConfig defaults
++        assert_eq!(config.pyrevit.default_revit_version, "2024");
++        assert!(config.pyrevit.install_path.is_empty());
++        assert!(config.pyrevit.extensions_paths.is_empty());
+     }
+ 
+     #[test]
