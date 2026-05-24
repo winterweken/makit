@@ -299,4 +299,30 @@ mod tests {
         assert!(w > 0);
         assert!(h > 0);
     }
+    #[test]
+    fn test_draw_wall() {
+        let mut c = Canvas::new();
+        let line = Line::new(Point::new(0.0, 0.0), Point::new(10.0, 0.0));
+        let bounds = Rectangle::new(-5.0, -5.0, 20.0, 10.0);
+        draw_wall(&mut c, &line, 2.0, &bounds, 40, 20);
+        let (w, h) = c.get_size();
+        assert!(w > 0);
+        assert!(h > 0);
+    }
+
+    #[test]
+    fn test_draw_thick_line() {
+        let mut c = Canvas::new();
+        let line = Line::new(Point::new(0.0, 0.0), Point::new(10.0, 10.0));
+        let bounds = Rectangle::new(-5.0, -5.0, 20.0, 20.0);
+        
+        // Test thin line
+        draw_thick_line(&mut c, &line, 0.2, &bounds, 40, 20);
+        
+        // Test thick wall
+        draw_thick_line(&mut c, &line, 2.0, &bounds, 40, 20);
+        let (w, h) = c.get_size();
+        assert!(w > 0);
+        assert!(h > 0);
+    }
 }

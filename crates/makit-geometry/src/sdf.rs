@@ -208,4 +208,30 @@ mod tests {
             elapsed
         );
     }
+    #[test]
+    fn test_sdf_ring() {
+        let radius = 5.0;
+        let thickness = 1.0;
+        
+        // Point on the ring radius should be inside (distance ~ -thickness)
+        assert!((sdf_ring(radius, 0.0, radius, thickness) - (-thickness)).abs() < 0.001);
+        
+        // Point at origin should be outside (distance = radius - thickness)
+        assert!((sdf_ring(0.0, 0.0, radius, thickness) - (radius - thickness)).abs() < 0.001);
+        
+        // Point far away should be outside
+        assert!(sdf_ring(20.0, 0.0, radius, thickness) > 0.0);
+    }
+
+    #[test]
+    fn test_sdf_hex_ring() {
+        let radius = 10.0;
+        let thickness = 1.0;
+        
+        // Point on the ring boundary
+        assert!((sdf_hex_ring(0.0, radius, radius, thickness) - (-thickness)).abs() < 0.001);
+        
+        // Origin is outside the ring shell
+        assert!(sdf_hex_ring(0.0, 0.0, radius, thickness) > 0.0);
+    }
 }

@@ -6,7 +6,10 @@ use tui::prelude::TreeItem;
 /// Build the tree items from the current registry state.
 pub fn build_tree_items() -> Vec<TreeItem> {
     let reg = Registry::global();
-    let reg = reg.read().unwrap();
+    let reg = match reg.read() {
+        Ok(guard) => guard,
+        Err(_) => return Vec::new(),
+    };
 
     let mut source_children = Vec::new();
     for source in reg.list_sources() {

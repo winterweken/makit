@@ -11,7 +11,7 @@ use canvas::Canvas;
 use tui::prelude::*;
 
 use crate::theme::THEME;
-use crate::tree_data::build_tree_items;
+
 use makit_geometry::drawing::{draw_arrow, draw_isometric_box, draw_rect, fill_rect};
 use makit_tools::building_model::{self, WwrAnalysis};
 use makit_tools::murb::MurbResults;
@@ -26,6 +26,8 @@ pub enum Msg {
     TreeFocused(String),
     /// Tree explorer: node was opened (Enter)
     TreeOpened(String),
+    /// Execute a task
+    Execute(String),
     /// Toggle help overlay
     ToggleHelp,
     /// Animation frame tick
@@ -50,6 +52,8 @@ struct AppState {
     logo_angle: f64,
     /// Status message
     status: String,
+    /// Receiver for async task results
+    receiver: Option<std::sync::mpsc::Receiver<Result<String, String>>>,
     /// Cached MURB simulation results (loaded from disk if available)
     murb_results: Option<MurbResults>,
     /// Current terminal width (updated each tick)
@@ -60,6 +64,8 @@ struct AppState {
     selected_ifc: Option<String>,
     /// Cached WWR analysis results from selected file
     wwr_analysis: Option<WwrAnalysis>,
+    /// Cached tree items
+    tree_items: Vec<TreeItem>,
 }
 
 /// Minimum width for side-by-side pane layout.
@@ -82,11 +88,13 @@ impl AppState {
             show_help: false,
             logo_angle: 0.0,
             status,
+            receiver: None,
             murb_results,
             term_width: w,
             ifc_files,
             selected_ifc: None,
             wwr_analysis: None,
+            tree_items: crate::tree_data::build_tree_items(),
         }
     }
 
@@ -142,6 +150,70 @@ fn update(state: &mut AppState, msg: Msg) {
             state.status = format!("▸ Opened: {}", id);
             state.opened_node = id;
         }
+        Msg::Execute(id) => {
+            state.status = format!("▸ Executing: {}", id);
+            
+            let reg = makit_core::Registry::global();
+            let mut handler_to_run = None;
+            let mut ctx = makit_core::TaskContext::new();
+            let mut name = String::new();
+
+            if let Ok(reg_guard) = reg.read() {
+                if id.starts_with("action:") {
+                    let parts: Vec<&str> = id.split(':').collect();
+                    if parts.len() >= 2 {
+                        let actual_action = parts[1];
+                        if let Some(action) = reg_guard.actions.get(actual_action) {
+                            for opt in &action.options {
+                                if let Some(def) = &opt.default {
+                                    ctx.options.insert(opt.name.clone(), def.clone());
+                                }
+                            }
+                            if parts.len() >= 4 && parts[2] == "opt" {
+                                let opt_name = parts[3];
+                                let val = action.options.iter().find(|o| o.name == opt_name).and_then(|o| o.default.clone()).unwrap_or_else(|| "true".to_string());
+                                ctx.options.insert(opt_name.to_string(), val);
+                            }
+                            handler_to_run = Some(action.handler.clone());
+                            name = actual_action.to_string();
+                        }
+                    }
+                } else if id.starts_with("source:") {
+                    let parts: Vec<&str> = id.split(':').collect();
+                    if parts.len() >= 2 {
+                        let actual_source = parts[1];
+                        if let Some(source) = reg_guard.sources.get(actual_source) {
+                            for opt in &source.options {
+                                if let Some(def) = &opt.default {
+                                    ctx.options.insert(opt.name.clone(), def.clone());
+                                }
+                            }
+                            if parts.len() >= 4 && parts[2] == "opt" {
+                                let opt_name = parts[3];
+                                let val = source.options.iter().find(|o| o.name == opt_name).and_then(|o| o.default.clone()).unwrap_or_else(|| "true".to_string());
+                                ctx.options.insert(opt_name.to_string(), val);
+                            }
+                            handler_to_run = Some(source.handler.clone());
+                            name = actual_source.to_string();
+                        }
+                    }
+                }
+            }
+
+            if let Some(handler) = handler_to_run {
+                let (tx, rx) = std::sync::mpsc::channel();
+                state.receiver = Some(rx);
+                std::thread::spawn(move || {
+                    let result = match handler(&ctx) {
+                        Ok(_) => Ok(format!("Success: {}", name)),
+                        Err(e) => Err(format!("Error: {}", e)),
+                    };
+                    let _ = tx.send(result);
+                });
+            } else {
+                state.status = "Error: Item not found".to_string();
+            }
+        }
         Msg::ToggleHelp => {
             state.show_help = !state.show_help;
         }
@@ -150,6 +222,15 @@ fn update(state: &mut AppState, msg: Msg) {
             // Refresh terminal width each tick for responsive layout
             if let Ok((w, _)) = crossterm::terminal::size() {
                 state.term_width = w;
+            }
+            if let Some(rx) = &state.receiver {
+                if let Ok(res) = rx.try_recv() {
+                    match res {
+                        Ok(msg) => state.status = msg,
+                        Err(err) => state.status = err,
+                    }
+                    state.receiver = None;
+                }
             }
         }
         Msg::IfcFileSelected(path) => {
@@ -224,14 +305,14 @@ fn header_bar() -> impl Widget<Msg> {
 
 /// ─── Main content ──────────────────────────────────
 fn main_content(state: &AppState) -> impl Widget<Msg> {
-    let tree_items = build_tree_items();
     let tree_height = if state.is_wide() { 20 } else { 10 };
+
 
     let explorer = tree::<Msg>()
         .key("explorer")
         .height(tree_height)
         .border(BorderStyle::Rounded)
-        .items(tree_items)
+        .items(state.tree_items.clone())
         .on_change(Msg::TreeFocused)
         .on_submit(Msg::TreeOpened);
 
@@ -437,7 +518,10 @@ fn detail_panel(state: &AppState) -> Flex<Msg> {
             .child(
                 button::<Msg>("Execute")
                     .variant(ButtonVariant::Primary)
-                    .on_click(|| Msg::TreeOpened("execute".to_owned())),
+                    .on_click({
+                        let id = state.active_node.clone();
+                        move || Msg::Execute(id.clone())
+                    }),
             )
             .child(
                 button::<Msg>("Help (?)")

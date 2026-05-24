@@ -118,7 +118,17 @@ pub fn get_bounds(lines: &[Line]) -> Rectangle {
         }
     }
 
-    Rectangle::new(min_x, min_y, max_x - min_x, max_y - min_y)
+    let mut width = max_x - min_x;
+    let mut height = max_y - min_y;
+
+    if width < 1e-6 {
+        width = 1.0;
+    }
+    if height < 1e-6 {
+        height = 1.0;
+    }
+
+    Rectangle::new(min_x, min_y, width, height)
 }
 
 /// Scale a world-space point to canvas pixel coordinates.
