@@ -228,7 +228,7 @@ Tools register **sources** (geometry input drivers) and **actions** (operations)
 # Build
 cargo build
 
-# Run all 250 tests (10 core, 40 geometry, 28 tools, 172 tui)
+# Run all 255 tests (10 core, 40 geometry, 28 tools, 177 tui)
 cargo test
 
 # Run the CLI

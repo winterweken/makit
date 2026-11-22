@@ -49,6 +49,7 @@ pub fn update(state: &mut AppState, msg: Msg) -> Vec<Cmd> {
         apply(state, msg)
     };
     normalize_focus(state);
+    sync_scroll(state);
     cmds
 }
 
@@ -82,14 +83,12 @@ fn apply(state: &mut AppState, msg: Msg) -> Vec<Cmd> {
         Msg::Expand => {
             if state.focus == Focus::Tree {
                 state.tree.expand();
-                scroll_tree(state);
             }
             Vec::new()
         }
         Msg::Collapse => {
             if state.focus == Focus::Tree {
                 state.tree.collapse_or_parent();
-                scroll_tree(state);
             }
             Vec::new()
         }
@@ -122,8 +121,6 @@ fn apply(state: &mut AppState, msg: Msg) -> Vec<Cmd> {
         Msg::Click { pane, row } => click(state, pane, row),
         Msg::Resize { width, height } => {
             state.viewport = Rect::new(0, 0, width, height);
-            scroll_tree(state);
-            scroll_ifc(state);
             scroll_help(state, 0);
             Vec::new()
         }
@@ -186,12 +183,10 @@ fn navigate(state: &mut AppState, delta: isize) -> Vec<Cmd> {
     match state.focus {
         Focus::Tree => {
             state.tree.move_by(delta);
-            scroll_tree(state);
         }
         Focus::IfcPicker => {
             let last = state.ifc.files.len().saturating_sub(1);
             state.ifc.selected = state.ifc.selected.saturating_add_signed(delta).min(last);
-            scroll_ifc(state);
         }
         // Up (negative delta) scrolls back through older lines.
         Focus::Output => scroll_log(state, -delta),
@@ -207,7 +202,6 @@ fn jump(state: &mut AppState, to_top: bool) -> Vec<Cmd> {
             } else {
                 state.tree.last();
             }
-            scroll_tree(state);
         }
         Focus::IfcPicker => {
             state.ifc.selected = if to_top {
@@ -215,7 +209,6 @@ fn jump(state: &mut AppState, to_top: bool) -> Vec<Cmd> {
             } else {
                 state.ifc.files.len().saturating_sub(1)
             };
-            scroll_ifc(state);
         }
         Focus::Output => {
             state.log_scroll = if to_top { max_log_scroll(state) } else { 0 };
@@ -249,7 +242,6 @@ fn activate(state: &mut AppState) -> Vec<Cmd> {
                 state.opened = Some(node);
             }
             state.tree.toggle();
-            scroll_tree(state);
             Vec::new()
         }
         Focus::IfcPicker => load_ifc(state, state.ifc.selected),
@@ -512,8 +504,6 @@ fn ifc_loaded(state: &mut AppState, path: String, result: Result<IfcOutcome, Str
         }
     }
     state.ifc.loaded = Some(path);
-    // The details block changed height; keep the picker cursor visible.
-    scroll_ifc(state);
 }
 
 fn cycle_focus(state: &mut AppState, step: isize) -> Vec<Cmd> {
@@ -528,12 +518,10 @@ fn scroll(state: &mut AppState, pane: Pane, delta: isize) -> Vec<Cmd> {
     match pane {
         Pane::Tree => {
             state.tree.move_by(delta);
-            scroll_tree(state);
         }
         Pane::IfcPicker => {
             let last = state.ifc.files.len().saturating_sub(1);
             state.ifc.selected = state.ifc.selected.saturating_add_signed(delta).min(last);
-            scroll_ifc(state);
         }
         Pane::Output => scroll_log(state, -delta * OUTPUT_WHEEL_LINES),
         Pane::Detail => {}
@@ -549,7 +537,6 @@ fn click(state: &mut AppState, pane: Pane, row: Option<usize>) -> Vec<Cmd> {
                 Some(r) if r == state.tree.selected() => activate(state),
                 Some(r) => {
                     state.tree.select(r);
-                    scroll_tree(state);
                     Vec::new()
                 }
                 None => Vec::new(),
@@ -560,7 +547,6 @@ fn click(state: &mut AppState, pane: Pane, row: Option<usize>) -> Vec<Cmd> {
             match row {
                 Some(r) => {
                     state.ifc.selected = r.min(state.ifc.files.len().saturating_sub(1));
-                    scroll_ifc(state);
                     load_ifc(state, state.ifc.selected)
                 }
                 None => Vec::new(),
@@ -574,29 +560,34 @@ fn click(state: &mut AppState, pane: Pane, row: Option<usize>) -> Vec<Cmd> {
     }
 }
 
-fn scroll_tree(state: &mut AppState) {
-    let height = layout::compute(state.viewport, state).tree_inner.height;
-    state.tree.scroll_to_selected(usize::from(height));
-}
+/// Keep each list's selection inside the rows it has room to draw.
+///
+/// This runs after every message, because many of them change that room
+/// without touching a list: a resize, the Output pane opening, another
+/// node taking focus. The view lets ratatui scroll a list to its selection
+/// and the mouse hit-tests read these offsets, so a stale offset makes a
+/// click land on a different row from the one drawn under it.
+fn sync_scroll(state: &mut AppState) {
+    let layout = layout::compute(state.viewport, state);
+    state
+        .tree
+        .scroll_to_selected(usize::from(layout.tree_inner.height));
 
-fn scroll_ifc(state: &mut AppState) {
-    let Some(height) = layout::compute(state.viewport, state)
+    let rows = layout
         .ifc
-        .and_then(|i| i.list_inner)
-        .map(|r| usize::from(r.height))
-    else {
-        return;
-    };
-    let ifc = &mut state.ifc;
-    if height == 0 {
+        .and_then(|ifc| ifc.list_inner)
+        .map_or(0, |inner| usize::from(inner.height));
+    if rows == 0 {
+        // The picker is not drawn; its offset is settled when it returns.
         return;
     }
+    let ifc = &mut state.ifc;
     if ifc.selected < ifc.offset {
         ifc.offset = ifc.selected;
-    } else if ifc.selected >= ifc.offset + height {
-        ifc.offset = ifc.selected + 1 - height;
+    } else if ifc.selected >= ifc.offset + rows {
+        ifc.offset = ifc.selected + 1 - rows;
     }
-    ifc.offset = ifc.offset.min(ifc.files.len().saturating_sub(height));
+    ifc.offset = ifc.offset.min(ifc.files.len().saturating_sub(rows));
 }
 
 fn max_log_scroll(state: &AppState) -> usize {
@@ -1016,6 +1007,141 @@ mod tests {
         assert_eq!(s.viewport, Rect::new(0, 0, 60, 8));
         let visible = layout::compute(s.viewport, &s).tree_inner.height as usize;
         assert!(s.tree.selected() < s.tree.offset() + visible.max(1));
+    }
+
+    /// The tree rows the Explorer has room to draw.
+    fn tree_window(s: &AppState) -> std::ops::Range<usize> {
+        let height = usize::from(layout::compute(s.viewport, s).tree_inner.height);
+        s.tree.offset()..s.tree.offset() + height
+    }
+
+    /// The files the IFC picker has room to draw.
+    fn ifc_window(s: &AppState) -> std::ops::Range<usize> {
+        let height = layout::compute(s.viewport, s)
+            .ifc
+            .and_then(|ifc| ifc.list_inner)
+            .map_or(0, |inner| usize::from(inner.height));
+        s.ifc.offset..s.ifc.offset + height
+    }
+
+    /// Nine tree rows on a 120×16 screen, the last one selected. They all
+    /// fit until the Output pane takes rows from the Explorer.
+    fn last_row_selected_on_a_short_screen() -> AppState {
+        let mut s = state();
+        select(&mut s, "action:murb-simulate:opt:verbose");
+        update(
+            &mut s,
+            Msg::Resize {
+                width: 120,
+                height: 16,
+            },
+        );
+        assert_eq!(s.tree.offset(), 0);
+        assert!(tree_window(&s).contains(&s.tree.selected()));
+        s
+    }
+
+    /// Six files in the picker on a 120×16 screen, the last one selected.
+    /// They all fit until the Detail pane loses rows.
+    fn last_file_selected_on_a_short_screen() -> AppState {
+        let mut s = state();
+        s.ifc.files = (0..6).map(|i| format!("examples/IFC/{i}.ifc")).collect();
+        s.tree.select(1); // source:ifc shows the picker
+        update(
+            &mut s,
+            Msg::Resize {
+                width: 120,
+                height: 16,
+            },
+        );
+        update(&mut s, Msg::FocusNext);
+        assert_eq!(s.focus, Focus::IfcPicker);
+        update(&mut s, Msg::End);
+        assert_eq!((s.ifc.selected, s.ifc.offset), (5, 0));
+        assert!(ifc_window(&s).contains(&5));
+        s
+    }
+
+    #[test]
+    fn opening_output_keeps_the_tree_selection_in_its_window() {
+        let mut s = last_row_selected_on_a_short_screen();
+        update(&mut s, Msg::ToggleOutput);
+        assert!(s.output_visible());
+        let window = tree_window(&s);
+        assert!(
+            window.len() <= s.tree.selected(),
+            "the Explorer should have lost rows, has {}",
+            window.len()
+        );
+        assert!(
+            window.contains(&s.tree.selected()),
+            "row {} is outside {window:?}",
+            s.tree.selected()
+        );
+
+        // Closing it gives the rows back, with none left scrolled away.
+        update(&mut s, Msg::ToggleOutput);
+        assert_eq!(s.tree.offset(), 0);
+    }
+
+    #[test]
+    fn the_first_output_line_keeps_the_tree_selection_in_its_window() {
+        let mut s = last_row_selected_on_a_short_screen();
+        update(&mut s, Msg::Output("hello".into()));
+        assert!(s.output_visible());
+        let window = tree_window(&s);
+        assert!(window.len() <= s.tree.selected());
+        assert!(
+            window.contains(&s.tree.selected()),
+            "row {} is outside {window:?}",
+            s.tree.selected()
+        );
+    }
+
+    #[test]
+    fn opening_output_keeps_the_picker_selection_in_its_window() {
+        let mut s = last_file_selected_on_a_short_screen();
+        update(&mut s, Msg::ToggleOutput);
+        assert!(s.output_visible());
+        let window = ifc_window(&s);
+        assert!(
+            !window.is_empty() && window.len() < 6,
+            "the picker should have lost rows, has {}",
+            window.len()
+        );
+        assert!(
+            window.contains(&s.ifc.selected),
+            "file {} is outside {window:?}",
+            s.ifc.selected
+        );
+    }
+
+    #[test]
+    fn a_picker_resized_while_hidden_comes_back_with_its_selection_in_view() {
+        let mut s = last_file_selected_on_a_short_screen();
+        update(&mut s, Msg::FocusPrev);
+        assert_eq!(s.focus, Focus::Tree);
+        update(&mut s, Msg::Down); // source:revit has no picker
+        assert!(!s.ifc_section_visible());
+        update(
+            &mut s,
+            Msg::Resize {
+                width: 120,
+                height: 12,
+            },
+        );
+        update(&mut s, Msg::Up); // back to source:ifc
+        let window = ifc_window(&s);
+        assert!(
+            !window.is_empty() && window.len() < 6,
+            "the picker should have lost rows, has {}",
+            window.len()
+        );
+        assert!(
+            window.contains(&s.ifc.selected),
+            "file {} is outside {window:?}",
+            s.ifc.selected
+        );
     }
 
     #[test]

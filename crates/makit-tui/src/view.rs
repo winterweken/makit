@@ -798,6 +798,40 @@ mod tests {
     }
 
     #[test]
+    fn after_output_opens_a_click_lands_on_the_row_drawn_there() {
+        use crate::msg::{Msg, Pane};
+        use crate::update::update;
+        use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+
+        // Five rows fit at 120×10 until the Output pane opens.
+        let mut s = state(120, 10);
+        update(&mut s, Msg::End);
+        let last = s.tree.selected();
+        assert_eq!(s.tree.rows()[last].id, "cat:energy");
+        update(&mut s, Msg::ToggleOutput);
+
+        let lines = text(&render(&s));
+        let click = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 3,
+            row: row_of(&lines, "⊞ energy") as u16,
+            modifiers: KeyModifiers::NONE,
+        };
+        let msg = crate::keymap::map_mouse(&s, &click);
+        assert!(
+            matches!(
+                msg,
+                Some(Msg::Click {
+                    pane: Pane::Tree,
+                    row: Some(row),
+                }) if row == last
+            ),
+            "the click gave {msg:?}, wanted row {last}; screen:\n{}",
+            lines.join("\n")
+        );
+    }
+
+    #[test]
     fn wide_layout_renders_all_regions() {
         let s = state(120, 40);
         let lines = text(&render(&s));
