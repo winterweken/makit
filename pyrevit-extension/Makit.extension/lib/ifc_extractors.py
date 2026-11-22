@@ -6,6 +6,7 @@ try:
     import ifcopenshell.util.element
     import ifcopenshell.util.placement
     import ifcopenshell.util.unit
+    import ifcopenshell.geom
     IFC_AVAILABLE = True
 except ImportError:
     IFC_AVAILABLE = False
@@ -350,6 +351,132 @@ def extract_ifc_wall_to_generic(wall, ifc_file, area_unit='sqm', centre=None):
     return generic_wall
 
 
+def get_storey_name(element):
+    """Name of the building storey that contains an element, or None"""
+    try:
+        for rel in element.ContainedInStructure:
+            if rel.is_a('IfcRelContainedInSpatialStructure') and rel.RelatingStructure.is_a('IfcBuildingStorey'):
+                return rel.RelatingStructure.Name
+    except Exception:
+        pass
+    return None
+
+def get_triangles(element):
+    """
+    An element's surface as triangles in world coordinates, in metres:
+    a list of (unit normal, area, centroid)
+    """
+    settings = ifcopenshell.geom.settings()
+    settings.set('use-world-coords', True)
+    shape = ifcopenshell.geom.create_shape(settings, element)
+    verts = shape.geometry.verts
+    faces = shape.geometry.faces
+    triangles = []
+    for i in range(0, len(faces), 3):
+        a, b, c = [verts[3 * faces[i + k]:3 * faces[i + k] + 3] for k in range(3)]
+        u = [b[j] - a[j] for j in range(3)]
+        v = [c[j] - a[j] for j in range(3)]
+        n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]
+        length = math.sqrt(sum(x * x for x in n))
+        if length == 0:
+            continue
+        centroid = [(a[j] + b[j] + c[j]) / 3.0 for j in range(3)]
+        triangles.append(([x / length for x in n], length / 2.0, centroid))
+    return triangles
+
+def is_glazing(part):
+    """
+    Whether a curtain-wall part is glass: an IfcWindow; a door whose name
+    or type says glass or glazed (a framed entrance door with a glass
+    light is not); or a panel whose name, type or material says so
+    """
+    if part.is_a('IfcWindow'):
+        return True
+    names = [part.Name or '', getattr(part, 'ObjectType', None) or '']
+    if not part.is_a('IfcDoor'):
+        try:
+            names += [m.Name or '' for m in ifcopenshell.util.element.get_materials(part)]
+        except Exception:
+            pass
+    text = ' '.join(names).lower()
+    return 'glass' in text or 'glaz' in text
+
+def extract_ifc_curtain_wall_to_generic(curtain_wall, ifc_file, area_unit='sqm', centre=None):
+    """
+    An IFC curtain wall as a GenericWall
+
+    Its glazed panels become its windows and its frames and opaque panels
+    its wall area, each measured as face area from the geometry, since
+    exporters rarely give curtain walls quantities. Like Revit's, its
+    orientation points inward: isCurtainWall tells the analyses to
+    reverse it. Returns None when no part has geometry.
+    """
+    length_scale, _ = get_unit_scales(ifc_file)
+    meshes = []
+    for part in ifcopenshell.util.element.get_decomposition(curtain_wall):
+        if not getattr(part, 'Representation', None) or part.is_a('IfcCurtainWall'):
+            continue
+        try:
+            meshes.append((part, get_triangles(part)))
+        except Exception as e:
+            print("Warning: no geometry for {}: {}".format(part.GlobalId, str(e)))
+    if not meshes:
+        return None
+
+    # The facade faces along the horizontal normal that carries most area
+    weights = {}
+    total = 0.0
+    sx = sy = 0.0
+    for part, triangles in meshes:
+        for n, area, centroid in triangles:
+            total += area
+            sx += centroid[0] * area
+            sy += centroid[1] * area
+            if abs(n[2]) > 0.1:
+                continue
+            key = (round(n[0], 2), round(n[1], 2))
+            if key[0] < 0 or (key[0] == 0 and key[1] < 0):
+                key = (-key[0], -key[1])
+            weights[key] = weights.get(key, 0.0) + area
+    if not weights:
+        return None
+    nx, ny = max(weights, key=weights.get)
+    length = math.hypot(nx, ny)
+    nx, ny = nx / length, ny / length
+    if centre is not None and total > 0:
+        mx = sx / total - centre[0] * length_scale
+        my = sy / total - centre[1] * length_scale
+        if mx * nx + my * ny < 0:
+            nx, ny = -nx, -ny
+
+    to_unit = 1.0 if area_unit == 'sqm' else SQM_TO_SQF
+    level = get_storey_name(curtain_wall) or ""
+    generic_wall = GenericWall(id=curtain_wall.GlobalId, name=curtain_wall.Name or "")
+    generic_wall.orientation = GeometricVector(-nx, -ny, 0.0)
+    generic_wall.is_curtain_wall = True
+    generic_wall.is_external = get_is_external(curtain_wall)
+    generic_wall.level = level
+    generic_wall.wall_type = curtain_wall.ObjectType or ""
+    generic_wall.properties['ifcType'] = curtain_wall.is_a()
+
+    opaque = 0.0
+    for part, triangles in meshes:
+        # each panel or frame shows two faces along the facade normal
+        face = sum(area for n, area, _ in triangles if abs(n[0] * nx + n[1] * ny) > 0.99) / 2.0
+        if face <= 0:
+            continue
+        if is_glazing(part):
+            window = GenericWindow(id=part.GlobalId, name=part.Name or "")
+            window.area = round(face * to_unit, 2)
+            window.host_id = curtain_wall.GlobalId
+            window.level = level
+            generic_wall.windows.append(window)
+        else:
+            opaque += face
+    generic_wall.area = round(opaque * to_unit, 2)
+    return generic_wall
+
+
 def extract_ifc_window_to_generic(window, ifc_file, area_unit='sqm'):
     """
     Extract an IFC window element and convert to GenericWindow
@@ -510,6 +637,26 @@ def extract_building_model_from_ifc(ifc_path, options=None):
 
         except Exception as e:
             print("Error extracting wall {}: {}".format(wall.GlobalId, str(e)))
+
+    # Extract curtain walls; their glass becomes windows
+    for curtain_wall in ifc_file.by_type('IfcCurtainWall'):
+        try:
+            parent = ifcopenshell.util.element.get_aggregate(curtain_wall)
+            if parent is not None and parent.is_a('IfcCurtainWall'):
+                continue  # part of a curtain wall already extracted
+            if storey_filter and get_storey_name(curtain_wall) != storey_filter:
+                continue
+            if wall_type_filter and wall_type_filter.lower() not in (curtain_wall.ObjectType or '').lower():
+                continue
+            generic_wall = extract_ifc_curtain_wall_to_generic(curtain_wall, ifc_file, area_unit, centre)
+            if generic_wall is None:
+                continue
+            if not include_windows:
+                generic_wall.windows = []
+            building_model.walls.append(generic_wall)
+            building_model.windows.extend(generic_wall.windows)
+        except Exception as e:
+            print("Error extracting curtain wall {}: {}".format(curtain_wall.GlobalId, str(e)))
 
     # Extract windows if requested
     if include_windows:

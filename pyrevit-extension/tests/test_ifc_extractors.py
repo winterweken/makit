@@ -207,6 +207,94 @@ class WallOrientationTest(unittest.TestCase):
         shutil.rmtree(self.tmp)
 
 
+def curtain_house(external=True, panel_material="Glass"):
+    """A 10 m square house in metres with a curtain wall on its south side:
+    two 2 x 3 m panels and a 50 mm mullion, all with real box geometry."""
+    import ifcopenshell.api.aggregate
+    import ifcopenshell.api.context
+    import ifcopenshell.api.geometry
+    import ifcopenshell.api.material
+    f = new_file(None)
+    model = ifcopenshell.api.context.add_context(f, context_type="Model")
+    body = ifcopenshell.api.context.add_context(
+        f, context_type="Model", context_identifier="Body", target_view="MODEL_VIEW", parent=model)
+    for name, origin, x_axis in [("south", (0, 0), (1, 0)), ("east", (10, 0), (0, 1)),
+                                 ("north", (10, 10), (-1, 0)), ("west", (0, 10), (0, -1))]:
+        wall = f.createIfcWall(ifcopenshell.guid.new(), None, name, None, None, place(f, origin, x_axis), None, None, None)
+        add_quantities(f, wall, "Qto_WallBaseQuantities", lengths=[("Length", 10.0), ("Height", 3.0)])
+        mark_external(f, wall)
+
+    cw = f.createIfcCurtainWall(ifcopenshell.guid.new(), None, "glazing", None, None, place(f, (2, 0), (1, 0)), None, None, None)
+    prop = f.createIfcPropertySingleValue("IsExternal", None, f.create_entity("IfcBoolean", external), None)
+    pset = f.createIfcPropertySet(ifcopenshell.guid.new(), None, "Pset_CurtainWallCommon", None, [prop])
+    f.createIfcRelDefinesByProperties(ifcopenshell.guid.new(), None, None, None, [cw], pset)
+
+    material = ifcopenshell.api.material.add_material(f, name=panel_material)
+    parts = []
+    for i, x in enumerate((2.0, 4.0)):
+        plate = f.createIfcPlate(ifcopenshell.guid.new(), None, "panel %d" % i, None, None, place(f, (x, 0), (1, 0)), None, None, None)
+        rep = ifcopenshell.api.geometry.add_wall_representation(f, context=body, length=2.0, height=3.0, thickness=0.02)
+        ifcopenshell.api.geometry.assign_representation(f, product=plate, representation=rep)
+        ifcopenshell.api.material.assign_material(f, products=[plate], material=material)
+        parts.append(plate)
+    mullion = f.createIfcMember(ifcopenshell.guid.new(), None, "mullion", None, None, place(f, (6.0, 0), (1, 0)), None, None, None)
+    rep = ifcopenshell.api.geometry.add_wall_representation(f, context=body, length=0.05, height=3.0, thickness=0.1)
+    ifcopenshell.api.geometry.assign_representation(f, product=mullion, representation=rep)
+    parts.append(mullion)
+    ifcopenshell.api.aggregate.assign_object(f, products=parts, relating_object=cw)
+    return f
+
+
+@unittest.skipIf(ifcopenshell is None, "needs ifcopenshell")
+class CurtainWallTest(unittest.TestCase):
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.mkdtemp()
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp)
+
+    def extract(self, f):
+        path = os.path.join(self.tmp, "house.ifc")
+        f.write(path)
+        return ifc_extractors.extract_building_model_from_ifc(path)
+
+    def test_a_curtain_wall_brings_its_glass_and_faces_out(self):
+        import analysis_engine
+        model = self.extract(curtain_house())
+        cw = next(w for w in model.walls if w.name == "glazing")
+        self.assertTrue(cw.is_curtain_wall)
+        self.assertIs(cw.is_external, True)
+        self.assertEqual(sorted(w.area for w in cw.windows), [6.0, 6.0])
+        self.assertAlmostEqual(cw.area, 0.15)   # the mullion's face
+        # stored inward like Revit's, so the analysis turns it to face south
+        self.assertEqual(analysis_engine.calculate_wall_orientation(cw, model.project_north, cw.is_curtain_wall), "South")
+        self.assertEqual({w.id for w in model.windows} >= {w.id for w in cw.windows}, True)
+
+    def test_an_opaque_panel_counts_as_wall(self):
+        cw = next(w for w in self.extract(curtain_house(panel_material="Aluminium")).walls if w.name == "glazing")
+        self.assertEqual(cw.windows, [])
+        self.assertAlmostEqual(cw.area, 12.15)
+
+    def test_a_door_is_glass_only_when_it_says_so(self):
+        import ifcopenshell.api.material
+        f = new_file(None)
+        glass = ifcopenshell.api.material.add_material(f, name="Glass")
+        frame = ifcopenshell.api.material.add_material(f, name="Aluminium")
+        glazed = f.createIfcDoor(ifcopenshell.guid.new(), None, "Curtain Wall Dbl Glass", None, None, None, None, None, None, None, None, None, None)
+        entrance = f.createIfcDoor(ifcopenshell.guid.new(), None, "Entrance door", None, None, None, None, None, None, None, None, None, None)
+        for d in (glazed, entrance):
+            f.createIfcRelAssociatesMaterial(ifcopenshell.guid.new(), None, None, None, [d], f.createIfcMaterialList([frame, glass]))
+        self.assertTrue(ifc_extractors.is_glazing(glazed))
+        self.assertFalse(ifc_extractors.is_glazing(entrance))
+
+    def test_an_interior_curtain_wall_is_flagged_interior(self):
+        cw = next(w for w in self.extract(curtain_house(external=False)).walls if w.name == "glazing")
+        self.assertIs(cw.is_external, False)
+
+
 @unittest.skipIf(ifcopenshell is None, "needs ifcopenshell")
 class SampleFileTest(unittest.TestCase):
 

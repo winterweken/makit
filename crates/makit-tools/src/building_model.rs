@@ -311,8 +311,11 @@ pub fn analyze_wwr(model: &BuildingModel) -> WwrAnalysis {
     let total_window_area: f64 = in_walls.iter().map(|win| win.area).sum::<f64>()
         + loose.iter().map(|win| win.area).sum::<f64>();
 
-    let overall_wwr = if total_wall_area > 0.0 {
-        (total_window_area / total_wall_area) * 100.0
+    // Wall areas are net of their openings, so the glazed share of the
+    // facade is window / (wall + window), as in analysis_engine.calculate_wwr.
+    let facade = total_wall_area + total_window_area;
+    let overall_wwr = if facade > 0.0 {
+        (total_window_area / facade) * 100.0
     } else {
         0.0
     };
@@ -441,7 +444,8 @@ mod tests {
         let result = analyze_wwr(&model);
         assert_eq!(result.window_count, 2);
         assert_eq!(result.total_window_area, 3.0);
-        assert_eq!(result.overall_wwr, 30.0);
+        // window / (wall + window): wall areas are net of their openings
+        assert_eq!(result.overall_wwr, 23.1);
     }
 
     #[test]

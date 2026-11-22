@@ -60,7 +60,7 @@ This document uses **progressive disclosure**. Level 1 (this file) is loaded eve
 - `cargo test`: Run the full test suite across all crates (279 tests: 10 core, 40 geometry, 47 tools, 182 tui).
 - `cargo fmt`: Enforce standard Rust formatting; required for all changes.
 - `cargo clippy`: Run lints; address all warnings before opening a PR.
-- `.venv/bin/python -m unittest discover -s pyrevit-extension/tests`: Python IFC extractor and analysis tests (13). They need `ifcopenshell`; set up `.venv` once with `uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell`.
+- `.venv/bin/python -m unittest discover -s pyrevit-extension/tests`: Python IFC extractor and analysis tests (17). They need `ifcopenshell`; set up `.venv` once with `uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell`.
 - `python3 -m unittest discover -s scripts/tests`: MURB runner tests (2); they stand in for `murb_energy_tool`, so they need no extra packages.
 
 ## Coding Style & Naming Conventions
@@ -90,7 +90,7 @@ This document uses **progressive disclosure**. Level 1 (this file) is loaded eve
 | You want to change | Read first | Key trap |
 |--------------------|-----------|----------|
 | Revit bridge / extraction | `docs/WALL_ORIENTATION_ANALYSIS.md` | atan2 axis convention; pyRevit HTTP on port 48884; a wall's `orientation` is its outward normal in project coordinates and `projectNorth` turns it to true north (both Python and Rust apply it); an IFC wall's local X runs along the wall; walls with `isExternal: false` (and their windows) are left out of the analysis |
-| IFC parsing / analysis | `docs/IFC_SUPPORT.md` | IfcOpenShell import; storey filtering edge cases; scale quantities by the file's units (`get_unit_scales`), and Revit writes a bogus mm² `NetSideArea` before the real one |
+| IFC parsing / analysis | `docs/IFC_SUPPORT.md` | IfcOpenShell import; storey filtering edge cases; scale quantities by the file's units (`get_unit_scales`), and Revit writes a bogus mm² `NetSideArea` before the real one; curtain walls are measured from their parts' geometry and stored with an inward normal, like Revit's |
 | Bridge architecture / JSON schema | `docs/HYBRID_ARCHITECTURE.md` | 3-layer separation; generic format is platform-agnostic |
 | TUI canvas / preview rendering | `crates/makit-tui/src/preview.rs`, `node.rs` | Routing is `PreviewKind::for_node` (matches the task name, not option names); previews are drawn into a `Recording` and scaled by `fit_bounds`; the logo preview is coloured from `logo::segments` in `view.rs`, so change its shape in `logo.rs` |
 | TUI layout / mouse | `crates/makit-tui/src/layout.rs` | `view` and `keymap` must both use `layout::compute` so clicks hit what is drawn; on short screens `detail_rows` drops the preview whole and the picker may be absent (then it cannot take focus); list scroll offsets are set in one place, `sync_scroll` at the end of `update`, because the mouse hit-tests read them |
@@ -99,7 +99,7 @@ This document uses **progressive disclosure**. Level 1 (this file) is loaded eve
 | TUI signals / shutdown | `crates/makit-tui/src/signals.rs`, `lib.rs` | The event loop may never see the signal flag (crossterm's poll spins once the tty is gone); the watchdog thread must stay able to end the process by itself |
 | Geometry / SDF / isometric | `crates/makit-geometry/src/` | SDF needs subpixel for braille; use line-based for TUI |
 | Registry / task wiring | `crates/makit-core/src/registry.rs` | Global singleton; `register_tasks()` called at startup |
-| MURB energy bridge | `scripts/murb_runner.py` + `crates/makit-tools/src/murb.rs` | Subprocess JSON IPC; needs `murb_energy_tool` on the Python path (stdlib-only, not pip-installable: set `PYTHONPATH` to the murb repo); its results are `Vec` lists, not numpy arrays; `murb-simulate --window-directions` (`azimuth:share` pairs, e.g. `S:60,W:40`) splits the glazing by facing; without it `--model` (IFC or extraction; the IFC picker fills it) takes the split from windows in exterior walls (`building_model::window_area_by_facing`; curtain-wall glass is not extracted yet); with neither, 25% each way |
+| MURB energy bridge | `scripts/murb_runner.py` + `crates/makit-tools/src/murb.rs` | Subprocess JSON IPC; needs `murb_energy_tool` on the Python path (stdlib-only, not pip-installable: set `PYTHONPATH` to the murb repo); its results are `Vec` lists, not numpy arrays; `murb-simulate --window-directions` (`azimuth:share` pairs, e.g. `S:60,W:40`) splits the glazing by facing; without it `--model` (IFC or extraction; the IFC picker fills it) takes the split from windows in exterior walls, curtain-wall glass included (`building_model::window_area_by_facing`); with neither, 25% each way |
 
 ---
 
