@@ -1,120 +1,424 @@
-//! Main TUI application using rsille's Elm-like architecture.
+//! Application state — the "Model" of the Elm architecture.
 //!
-//! State + Msg + update + view pattern, using full-screen rendering mode.
-//! The canvas preview cycles between context-sensitive views based on
-//! the currently-selected tree node.
+//! `AppState` is plain data: no terminal handles, no channels, no global
+//! registry access. Everything that touches the outside world lives in
+//! `runtime.rs`; loaders here only run once at startup.
 
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::path::Path;
-use std::time::Duration;
 
-use canvas::Canvas;
-use tui::prelude::*;
-
-use crate::theme::THEME;
-
-use makit_geometry::drawing::{draw_arrow, draw_isometric_box, draw_rect, fill_rect};
-use makit_tools::building_model::{self, WwrAnalysis};
+use makit_tools::building_model::WwrAnalysis;
 use makit_tools::murb::MurbResults;
+use ratatui::layout::Rect;
 
-// ---------------------------------------------------------------------------
-// Messages
-// ---------------------------------------------------------------------------
+use crate::node::{NodeId, PickedFile, PreviewKind};
+use crate::options::Catalog;
+use crate::preview::PreviewData;
+use crate::tree::{Tree, TreeNode};
 
-#[derive(Debug, Clone)]
-pub enum Msg {
-    /// Tree explorer: node was highlighted
-    TreeFocused(String),
-    /// Tree explorer: node was opened (Enter)
-    TreeOpened(String),
-    /// Execute a task
-    Execute(String),
-    /// Toggle help overlay
-    ToggleHelp,
-    /// Animation frame tick
-    Tick,
-    /// IFC file selected from picker
-    IfcFileSelected(String),
+/// Minimum terminal width for the side-by-side pane layout.
+pub const WIDE_BREAKPOINT: u16 = 80;
+
+/// Maximum number of lines kept in the Output pane.
+pub const LOG_CAPACITY: usize = 1000;
+
+/// Which pane receives navigation keys.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Focus {
+    Tree,
+    IfcPicker,
+    Output,
 }
 
-// ---------------------------------------------------------------------------
-// Application State
-// ---------------------------------------------------------------------------
-
-#[derive(Debug)]
-struct AppState {
-    /// Currently highlighted node in the tree
-    active_node: String,
-    /// Last opened (Enter) node
-    opened_node: String,
-    /// Show help panel
-    show_help: bool,
-    /// Logo rotation angle (radians)
-    logo_angle: f64,
-    /// Status message
-    status: String,
-    /// Receiver for async task results
-    receiver: Option<std::sync::mpsc::Receiver<Result<String, String>>>,
-    /// Cached MURB simulation results (loaded from disk if available)
-    murb_results: Option<MurbResults>,
-    /// Current terminal width (updated each tick)
-    term_width: u16,
-    /// Discovered IFC files on disk
-    ifc_files: Vec<String>,
-    /// Currently selected IFC file path
-    selected_ifc: Option<String>,
-    /// Cached WWR analysis results from selected file
-    wwr_analysis: Option<WwrAnalysis>,
-    /// Cached tree items
-    tree_items: Vec<TreeItem>,
+/// A task currently running on a worker thread.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RunningTask {
+    pub name: String,
+    /// The source or action node that was run.
+    pub node: NodeId,
+    /// The user asked for it to stop.
+    pub stopping: bool,
+    /// Results file to re-read when the task succeeds.
+    pub results: Option<String>,
 }
 
-/// Minimum width for side-by-side pane layout.
-const WIDE_BREAKPOINT: u16 = 80;
-
-impl AppState {
-    fn new() -> Self {
-        // Try to load murb results from the default output path
-        let murb_results = load_murb_results();
-        let status = if murb_results.is_some() {
-            "Ready — MURB results loaded · use ↑↓ to navigate".to_string()
-        } else {
-            "Ready — use ↑↓ to navigate, → to expand".to_string()
-        };
-        let (w, _) = crossterm::terminal::size().unwrap_or((120, 40));
-        let ifc_files = discover_ifc_files();
+impl RunningTask {
+    /// A freshly started task for `node`.
+    pub fn new(node: NodeId) -> Self {
         Self {
-            active_node: String::new(),
-            opened_node: String::new(),
-            show_help: false,
-            logo_angle: 0.0,
-            status,
-            receiver: None,
-            murb_results,
-            term_width: w,
-            ifc_files,
-            selected_ifc: None,
-            wwr_analysis: None,
-            tree_items: crate::tree_data::build_tree_items(),
+            name: node.display_name().to_string(),
+            node,
+            stopping: false,
+            results: None,
+        }
+    }
+}
+
+/// Where an option's current value comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ValueSource {
+    /// Typed by the user.
+    User,
+    /// Taken from the IFC picker's loaded file.
+    Picker,
+    /// The registered default.
+    Default,
+}
+
+/// The single-line form for typing an option value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Editor {
+    /// The source or action the option belongs to.
+    pub task: NodeId,
+    pub opt: String,
+    pub buffer: String,
+    /// Cursor position, in characters from the start of `buffer`.
+    pub cursor: usize,
+    /// Run the task once the value is accepted (the editor was opened
+    /// because the task could not run without it).
+    pub run_after: bool,
+}
+
+impl Editor {
+    /// Open the form on `task --opt`, with `initial` ready to edit.
+    pub fn new(task: NodeId, opt: impl Into<String>, initial: &str, run_after: bool) -> Self {
+        Self {
+            task,
+            opt: opt.into(),
+            buffer: initial.to_string(),
+            cursor: initial.chars().count(),
+            run_after,
         }
     }
 
-    /// Whether the terminal is wide enough for side-by-side panes.
-    fn is_wide(&self) -> bool {
-        self.term_width >= WIDE_BREAKPOINT
+    fn len(&self) -> usize {
+        self.buffer.chars().count()
+    }
+
+    /// Byte offset of character `index` in the buffer.
+    fn byte_at(&self, index: usize) -> usize {
+        self.buffer
+            .char_indices()
+            .nth(index)
+            .map_or(self.buffer.len(), |(byte, _)| byte)
+    }
+
+    /// Insert `c` at the cursor.
+    pub fn insert(&mut self, c: char) {
+        let at = self.byte_at(self.cursor);
+        self.buffer.insert(at, c);
+        self.cursor += 1;
+    }
+
+    /// Delete the character before the cursor.
+    pub fn backspace(&mut self) {
+        if self.cursor > 0 {
+            self.cursor -= 1;
+            self.delete();
+        }
+    }
+
+    /// Delete the character under the cursor.
+    pub fn delete(&mut self) {
+        if self.cursor < self.len() {
+            let at = self.byte_at(self.cursor);
+            self.buffer.remove(at);
+        }
+    }
+
+    /// Move the cursor by `delta` characters, staying inside the text.
+    pub fn move_by(&mut self, delta: isize) {
+        self.cursor = self.cursor.saturating_add_signed(delta).min(self.len());
+    }
+
+    /// Move the cursor to the start.
+    pub fn home(&mut self) {
+        self.cursor = 0;
+    }
+
+    /// Move the cursor to the end.
+    pub fn end(&mut self) {
+        self.cursor = self.len();
+    }
+
+    /// Empty the field.
+    pub fn clear(&mut self) {
+        self.buffer.clear();
+        self.cursor = 0;
     }
 }
 
-/// Scan common locations for `.ifc` files.
-fn discover_ifc_files() -> Vec<String> {
-    let search_dirs = [".", "examples/IFC", "examples"];
+/// IFC file picker state.
+#[derive(Debug, Clone, Default)]
+pub struct IfcState {
+    /// Discovered `.ifc` paths.
+    pub files: Vec<String>,
+    /// Highlighted row in the picker.
+    pub selected: usize,
+    /// First visible row in the picker.
+    pub offset: usize,
+    /// Path currently being loaded on a worker thread.
+    pub loading: Option<String>,
+    /// Last file whose load finished.
+    pub loaded: Option<String>,
+    /// WWR analysis for `loaded`, when its JSON extraction exists.
+    pub analysis: Option<WwrAnalysis>,
+    /// Path of the JSON extraction `analysis` was read from.
+    pub json: Option<String>,
+    /// Why loading `loaded` failed, if it did.
+    pub error: Option<String>,
+}
+
+/// Data gathered once at startup (kept separate so tests can inject it).
+#[derive(Debug, Clone, Default)]
+pub struct InitialData {
+    pub tree: Vec<TreeNode>,
+    pub ifc_files: Vec<String>,
+    pub murb_results: Option<MurbResults>,
+    /// Options of every source and action.
+    pub catalog: Catalog,
+    pub viewport: Rect,
+}
+
+/// The whole TUI state.
+#[derive(Debug)]
+pub struct AppState {
+    pub tree: Tree,
+    pub focus: Focus,
+    pub show_help: bool,
+    /// Lines the help overlay is scrolled down by.
+    pub help_scroll: u16,
+    pub show_output: bool,
+    /// Set once the Output pane has auto-opened, so hiding it sticks.
+    pub output_auto_opened: bool,
+    /// Last node opened with Enter.
+    pub opened: Option<NodeId>,
+    /// Logo rotation angle (radians).
+    pub logo_angle: f64,
+    /// Frame counter for spinners.
+    pub frame: u64,
+    pub status: String,
+    /// Terminal size, used for layout-dependent updates and mouse hit-tests.
+    pub viewport: Rect,
+    pub tasks: BTreeMap<u64, RunningTask>,
+    pub next_task_id: u64,
+    pub log: VecDeque<String>,
+    /// Lines scrolled back from the bottom of the log (0 = follow output).
+    pub log_scroll: usize,
+    pub ifc: IfcState,
+    pub murb_results: Option<MurbResults>,
+    /// Options of every source and action.
+    pub catalog: Catalog,
+    /// Option values the user entered, by task.
+    pub values: HashMap<NodeId, BTreeMap<String, String>>,
+    /// The open option form, if any (modal).
+    pub editor: Option<Editor>,
+    pub should_quit: bool,
+}
+
+impl AppState {
+    /// Build the initial state from startup data.
+    pub fn new(data: InitialData) -> Self {
+        let status = if data.murb_results.is_some() {
+            "Ready — MURB results loaded · ↑↓ navigate · e execute · ? help".to_string()
+        } else {
+            "Ready — ↑↓ navigate · → expand · e execute · ? help".to_string()
+        };
+        Self {
+            tree: Tree::new(data.tree),
+            focus: Focus::Tree,
+            show_help: false,
+            help_scroll: 0,
+            show_output: false,
+            output_auto_opened: false,
+            opened: None,
+            logo_angle: 0.0,
+            frame: 0,
+            status,
+            viewport: data.viewport,
+            tasks: BTreeMap::new(),
+            next_task_id: 1,
+            log: VecDeque::new(),
+            log_scroll: 0,
+            ifc: IfcState {
+                files: data.ifc_files,
+                ..IfcState::default()
+            },
+            murb_results: data.murb_results,
+            catalog: data.catalog,
+            values: HashMap::new(),
+            editor: None,
+            should_quit: false,
+        }
+    }
+
+    /// The current value of `task --opt` and where it comes from: what the
+    /// user typed, else the IFC picker's file (for the option bound to it),
+    /// else the registered default. Empty values count as unset.
+    pub fn option_value(&self, task: &NodeId, opt: &str) -> Option<(String, ValueSource)> {
+        let typed = self.values.get(task).and_then(|v| v.get(opt));
+        if let Some(value) = typed.filter(|v| !v.is_empty()) {
+            return Some((value.clone(), ValueSource::User));
+        }
+        if let Some(value) = self.picked_value(task, opt) {
+            return Some((value, ValueSource::Picker));
+        }
+        self.catalog
+            .spec(task, opt)
+            .and_then(|spec| spec.default.clone())
+            .filter(|v| !v.is_empty())
+            .map(|v| (v, ValueSource::Default))
+    }
+
+    /// The IFC picker's contribution to `task --opt`, if it is bound to it.
+    fn picked_value(&self, task: &NodeId, opt: &str) -> Option<String> {
+        let (bound, which) = task.picker_option()?;
+        if bound != opt {
+            return None;
+        }
+        match which {
+            PickedFile::Ifc => self.ifc.loaded.clone(),
+            PickedFile::Json => self.ifc.json.clone(),
+        }
+    }
+
+    /// Every option of `task` that has a value, ready to run with.
+    pub fn resolved_options(&self, task: &NodeId) -> BTreeMap<String, String> {
+        self.catalog
+            .options(task)
+            .iter()
+            .filter_map(|spec| {
+                self.option_value(task, &spec.name)
+                    .map(|(value, _)| (spec.name.clone(), value))
+            })
+            .collect()
+    }
+
+    /// Required options of `task` that still have no value, in
+    /// registration order.
+    pub fn missing_required(&self, task: &NodeId) -> Vec<String> {
+        self.catalog
+            .options(task)
+            .iter()
+            .filter(|spec| spec.required && self.option_value(task, &spec.name).is_none())
+            .map(|spec| spec.name.clone())
+            .collect()
+    }
+
+    /// The node under the explorer cursor.
+    pub fn active_node(&self) -> Option<NodeId> {
+        self.tree.selected_id().and_then(NodeId::parse)
+    }
+
+    /// Description of the node under the explorer cursor.
+    pub fn active_description(&self) -> &str {
+        self.tree
+            .selected_row()
+            .map(|r| r.description.as_str())
+            .unwrap_or("")
+    }
+
+    /// Which preview the detail pane shows.
+    pub fn preview_kind(&self) -> PreviewKind {
+        let kind = PreviewKind::for_node(self.active_node().as_ref());
+        // The IFC source has no drawing of its own: once a file has been
+        // analysed, its walls are worth more than the logo.
+        if kind == PreviewKind::Logo && self.preview_data().wwr.is_some() {
+            PreviewKind::Walls
+        } else {
+            kind
+        }
+    }
+
+    /// The real data the preview can draw for the focused node.
+    pub fn preview_data(&self) -> PreviewData<'_> {
+        PreviewData {
+            murb: self.murb_results.as_ref(),
+            // The analysis describes the picked file, so it only belongs
+            // to nodes that work on that file.
+            wwr: self
+                .ifc
+                .analysis
+                .as_ref()
+                .filter(|_| self.ifc_section_visible()),
+        }
+    }
+
+    /// Whether the IFC picker section is shown in the detail pane.
+    pub fn ifc_section_visible(&self) -> bool {
+        self.active_node().is_some_and(|n| n.is_ifc_context())
+    }
+
+    /// Whether the picker list itself can take focus: it has files to
+    /// offer and the screen has room to draw it.
+    pub fn ifc_picker_focusable(&self) -> bool {
+        self.ifc_section_visible()
+            && !self.ifc.files.is_empty()
+            && crate::layout::compute(self.viewport, self)
+                .ifc
+                .is_some_and(|ifc| ifc.list.is_some())
+    }
+
+    /// Panes that can currently take focus, in Tab order.
+    pub fn focus_order(&self) -> Vec<Focus> {
+        let mut order = vec![Focus::Tree];
+        if self.ifc_picker_focusable() {
+            order.push(Focus::IfcPicker);
+        }
+        if self.output_visible() {
+            order.push(Focus::Output);
+        }
+        order
+    }
+
+    /// Whether the Output pane is on screen: switched on, and the terminal
+    /// is tall enough to fit it.
+    pub fn output_visible(&self) -> bool {
+        self.show_output && crate::layout::output_height(self.viewport.height) > 0
+    }
+
+    /// Whether the runtime should deliver animation ticks.
+    pub fn needs_tick(&self) -> bool {
+        self.preview_kind().is_animated() || !self.tasks.is_empty() || self.ifc.loading.is_some()
+    }
+
+    /// Append a line to the Output log, dropping the oldest past capacity.
+    pub fn push_log(&mut self, line: String) {
+        if self.log.len() == LOG_CAPACITY {
+            self.log.pop_front();
+        }
+        if self.log_scroll > 0 {
+            // Keep the scrolled-back view anchored while new lines arrive.
+            self.log_scroll = (self.log_scroll + 1).min(LOG_CAPACITY);
+        }
+        self.log.push_back(line);
+    }
+}
+
+/// Gather startup data: registry tree, IFC files, cached MURB results.
+pub fn load_initial_data(viewport: Rect) -> InitialData {
+    InitialData {
+        tree: crate::tree_data::build_tree_from_global(),
+        ifc_files: discover_ifc_files(&[".", "examples/IFC", "examples"]),
+        murb_results: load_murb_results(Path::new("murb_results.json")),
+        catalog: Catalog::from_global(),
+        viewport,
+    }
+}
+
+/// Scan `dirs` (non-recursively) for `.ifc` files, sorted and deduplicated.
+pub fn discover_ifc_files(dirs: &[&str]) -> Vec<String> {
     let mut found = Vec::new();
-    for dir in &search_dirs {
+    for dir in dirs {
         let Ok(entries) = std::fs::read_dir(dir) else {
             continue;
         };
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("ifc")) {
+            if path
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("ifc"))
+            {
                 if let Some(s) = path.to_str() {
                     found.push(s.to_string());
                 }
@@ -126,680 +430,287 @@ fn discover_ifc_files() -> Vec<String> {
     found
 }
 
-/// Attempt to load MurbResults from the default output path.
-fn load_murb_results() -> Option<MurbResults> {
-    let path = Path::new("murb_results.json");
-    if path.exists() {
-        let json = std::fs::read_to_string(path).ok()?;
-        serde_json::from_str(&json).ok()
-    } else {
-        None
+/// Load cached MURB simulation results, if present and valid.
+pub fn load_murb_results(path: &Path) -> Option<MurbResults> {
+    let json = std::fs::read_to_string(path).ok()?;
+    serde_json::from_str(&json).ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::options::OptionSpec;
+
+    fn state() -> AppState {
+        AppState::new(InitialData {
+            tree: vec![TreeNode::new("sources", "Sources")
+                .child(TreeNode::new("source:ifc", "◆ ifc").description("IFC file loader"))
+                .child(TreeNode::new("source:revit", "◆ revit"))],
+            ifc_files: vec!["examples/IFC/a.ifc".into()],
+            murb_results: None,
+            viewport: Rect::new(0, 0, 120, 40),
+            ..InitialData::default()
+        })
     }
-}
 
-// ---------------------------------------------------------------------------
-// Update
-// ---------------------------------------------------------------------------
-
-fn update(state: &mut AppState, msg: Msg) {
-    match msg {
-        Msg::TreeFocused(id) => {
-            state.active_node = id;
-        }
-        Msg::TreeOpened(id) => {
-            state.status = format!("▸ Opened: {}", id);
-            state.opened_node = id;
-        }
-        Msg::Execute(id) => {
-            state.status = format!("▸ Executing: {}", id);
-            
-            let reg = makit_core::Registry::global();
-            let mut handler_to_run = None;
-            let mut ctx = makit_core::TaskContext::new();
-            let mut name = String::new();
-
-            if let Ok(reg_guard) = reg.read() {
-                if id.starts_with("action:") {
-                    let parts: Vec<&str> = id.split(':').collect();
-                    if parts.len() >= 2 {
-                        let actual_action = parts[1];
-                        if let Some(action) = reg_guard.actions.get(actual_action) {
-                            for opt in &action.options {
-                                if let Some(def) = &opt.default {
-                                    ctx.options.insert(opt.name.clone(), def.clone());
-                                }
-                            }
-                            if parts.len() >= 4 && parts[2] == "opt" {
-                                let opt_name = parts[3];
-                                let val = action.options.iter().find(|o| o.name == opt_name).and_then(|o| o.default.clone()).unwrap_or_else(|| "true".to_string());
-                                ctx.options.insert(opt_name.to_string(), val);
-                            }
-                            handler_to_run = Some(action.handler.clone());
-                            name = actual_action.to_string();
-                        }
-                    }
-                } else if id.starts_with("source:") {
-                    let parts: Vec<&str> = id.split(':').collect();
-                    if parts.len() >= 2 {
-                        let actual_source = parts[1];
-                        if let Some(source) = reg_guard.sources.get(actual_source) {
-                            for opt in &source.options {
-                                if let Some(def) = &opt.default {
-                                    ctx.options.insert(opt.name.clone(), def.clone());
-                                }
-                            }
-                            if parts.len() >= 4 && parts[2] == "opt" {
-                                let opt_name = parts[3];
-                                let val = source.options.iter().find(|o| o.name == opt_name).and_then(|o| o.default.clone()).unwrap_or_else(|| "true".to_string());
-                                ctx.options.insert(opt_name.to_string(), val);
-                            }
-                            handler_to_run = Some(source.handler.clone());
-                            name = actual_source.to_string();
-                        }
-                    }
-                }
-            }
-
-            if let Some(handler) = handler_to_run {
-                let (tx, rx) = std::sync::mpsc::channel();
-                state.receiver = Some(rx);
-                std::thread::spawn(move || {
-                    let result = match handler(&ctx) {
-                        Ok(_) => Ok(format!("Success: {}", name)),
-                        Err(e) => Err(format!("Error: {}", e)),
-                    };
-                    let _ = tx.send(result);
-                });
-            } else {
-                state.status = "Error: Item not found".to_string();
-            }
-        }
-        Msg::ToggleHelp => {
-            state.show_help = !state.show_help;
-        }
-        Msg::Tick => {
-            state.logo_angle += 0.04;
-            // Refresh terminal width each tick for responsive layout
-            if let Ok((w, _)) = crossterm::terminal::size() {
-                state.term_width = w;
-            }
-            if let Some(rx) = &state.receiver {
-                if let Ok(res) = rx.try_recv() {
-                    match res {
-                        Ok(msg) => state.status = msg,
-                        Err(err) => state.status = err,
-                    }
-                    state.receiver = None;
-                }
-            }
-        }
-        Msg::IfcFileSelected(path) => {
-            // Try to load and analyze the selected file
-            let file_path = Path::new(&path);
-            let json_path = if file_path
-                .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("ifc"))
-            {
-                building_model::find_json_for_ifc(file_path)
-            } else if file_path
-                .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
-            {
-                Some(file_path.to_path_buf())
-            } else {
-                None
-            };
-
-            match json_path {
-                Some(jp) => match building_model::load_model(&jp) {
-                    Ok(model) => {
-                        let analysis = building_model::analyze_wwr(&model);
-                        state.status = format!(
-                            "◆ {} walls, WWR {:.1}% — {}",
-                            analysis.wall_count, analysis.overall_wwr, path
-                        );
-                        state.wwr_analysis = Some(analysis);
-                    }
-                    Err(e) => {
-                        state.status = format!("✗ Error loading {}: {}", path, e);
-                        state.wwr_analysis = None;
-                    }
-                },
-                None => {
-                    state.status = format!(
-                        "◆ Selected: {} (extract JSON first for analysis)",
-                        path
-                    );
-                    state.wwr_analysis = None;
-                }
-            }
-            state.selected_ifc = Some(path);
-        }
+    #[test]
+    fn focus_order_tracks_context() {
+        let mut s = state();
+        assert_eq!(s.focus_order(), vec![Focus::Tree]);
+        s.tree.select(1); // source:ifc
+        assert!(s.ifc_section_visible());
+        assert_eq!(s.focus_order(), vec![Focus::Tree, Focus::IfcPicker]);
+        s.show_output = true;
+        assert_eq!(
+            s.focus_order(),
+            vec![Focus::Tree, Focus::IfcPicker, Focus::Output]
+        );
+        s.ifc.files.clear();
+        assert_eq!(s.focus_order(), vec![Focus::Tree, Focus::Output]);
     }
-}
 
-// ---------------------------------------------------------------------------
-// View
-// ---------------------------------------------------------------------------
-
-fn view(state: &AppState) -> impl Widget<Msg> {
-    col::<Msg>()
-        .gap(0)
-        .child(header_bar())
-        .child(main_content(state))
-        .child(status_bar(state))
-}
-
-/// ─── Header bar ────────────────────────────────────
-fn header_bar() -> impl Widget<Msg> {
-    row::<Msg>()
-        .padding(Padding::new(0, 1, 0, 1))
-        .style(Style::default().bg(Color::Rgb(16, 18, 26)))
-        .child(label::<Msg>("⬡").bold().fg(THEME.accent))
-        .child(label::<Msg>(" makit ").bold().fg(THEME.primary))
-        .child(spacer::<Msg>().fill())
-        .child(label::<Msg>("Esc·quit").fg(THEME.dim))
-        .child(label::<Msg>("  ?·help").fg(THEME.dim))
-        .child(label::<Msg>("  Tab·focus").fg(THEME.dim))
-}
-
-/// ─── Main content ──────────────────────────────────
-fn main_content(state: &AppState) -> impl Widget<Msg> {
-    let tree_height = if state.is_wide() { 20 } else { 10 };
-
-
-    let explorer = tree::<Msg>()
-        .key("explorer")
-        .height(tree_height)
-        .border(BorderStyle::Rounded)
-        .items(state.tree_items.clone())
-        .on_change(Msg::TreeFocused)
-        .on_submit(Msg::TreeOpened);
-
-    let left_pane = col::<Msg>()
-        .border(BorderStyle::Rounded)
-        .padding(Padding::new(0, 1, 0, 1))
-        .child(
-            row::<Msg>()
-                .child(label::<Msg>("⊟").fg(THEME.dim))
-                .child(label::<Msg>(" Explorer").bold().fg(THEME.accent)),
-        )
-        .child(divider::<Msg>().variant(DividerVariant::Dotted))
-        .child(explorer);
-
-    let right_pane = if state.show_help {
-        help_panel()
-    } else {
-        detail_panel(state)
-    };
-
-    if state.is_wide() {
-        // Side-by-side layout for wide terminals
-        row::<Msg>().gap(1).child(left_pane).child(right_pane)
-    } else {
-        // Stacked layout for narrow terminals
-        col::<Msg>().gap(0).child(left_pane).child(right_pane)
+    #[test]
+    fn active_node_and_description() {
+        let mut s = state();
+        s.tree.select(1);
+        assert_eq!(s.active_node(), NodeId::parse("source:ifc"));
+        assert_eq!(s.active_description(), "IFC file loader");
     }
-}
 
-/// ─── Detail panel ──────────────────────────────────
-fn detail_panel(state: &AppState) -> Flex<Msg> {
-    let canvas_lines =
-        render_canvas_lines(&state.active_node, state.logo_angle, &state.murb_results);
+    #[test]
+    fn ticks_only_when_something_moves() {
+        let mut s = state();
+        s.tree.select(0); // logo preview animates
+        assert!(s.needs_tick());
+        s.tree.select(2); // revit → static building preview
+        assert!(!s.needs_tick());
+        s.tasks
+            .insert(1, RunningTask::new(NodeId::Source("revit".into())));
+        assert!(s.needs_tick());
+    }
 
-    let active_display = if state.active_node.is_empty() {
-        "—".to_string()
-    } else {
-        // Show just the meaningful part of the node id
-        state
-            .active_node
-            .rsplit(':')
-            .next()
-            .unwrap_or(&state.active_node)
-            .to_string()
-    };
+    #[test]
+    fn log_is_capped_and_scroll_anchor_moves() {
+        let mut s = state();
+        for i in 0..LOG_CAPACITY + 5 {
+            s.push_log(format!("line {i}"));
+        }
+        assert_eq!(s.log.len(), LOG_CAPACITY);
+        assert_eq!(s.log.front().unwrap(), "line 5");
 
-    let opened_display = if state.opened_node.is_empty() {
-        "—".to_string()
-    } else {
-        state
-            .opened_node
-            .rsplit(':')
-            .next()
-            .unwrap_or(&state.opened_node)
-            .to_string()
-    };
+        let mut s = state();
+        s.push_log("a".into());
+        s.log_scroll = 1;
+        s.push_log("b".into());
+        assert_eq!(s.log_scroll, 2);
 
-    let is_ifc_context = state.active_node.contains("ifc");
+        // Also anchored once the log is full.
+        let mut s = state();
+        for i in 0..LOG_CAPACITY {
+            s.push_log(format!("{i}"));
+        }
+        s.log_scroll = 5;
+        s.push_log("new".into());
+        assert_eq!(s.log_scroll, 6);
+    }
 
-    let mut panel = col::<Msg>()
-        .border(BorderStyle::Rounded)
-        .padding(Padding::new(0, 1, 0, 1))
-        .gap(0)
-        .child(
-            row::<Msg>()
-                .child(label::<Msg>("◈").fg(THEME.dim))
-                .child(label::<Msg>(" Detail").bold().fg(THEME.secondary)),
-        )
-        .child(divider::<Msg>().variant(DividerVariant::Dotted))
-        .child(
-            row::<Msg>()
-                .gap(1)
-                .child(label::<Msg>("Focus:").fg(THEME.dim))
-                .child(label::<Msg>(active_display).bold().fg(THEME.text)),
-        )
-        .child(
-            row::<Msg>()
-                .gap(1)
-                .child(label::<Msg>("Open:").fg(THEME.dim))
-                .child(label::<Msg>(opened_display).fg(THEME.dim)),
+    #[test]
+    fn discovers_example_ifc_files() {
+        let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples/IFC");
+        let files = discover_ifc_files(&[root, root]);
+        assert!(!files.is_empty(), "examples/IFC should contain .ifc files");
+        assert!(files.iter().all(|f| f.to_lowercase().ends_with(".ifc")));
+        let mut sorted = files.clone();
+        sorted.dedup();
+        assert_eq!(files, sorted);
+    }
+
+    #[test]
+    fn missing_murb_results_is_none() {
+        assert!(load_murb_results(Path::new("/definitely/not/here.json")).is_none());
+    }
+
+    // ─── Option values ──────────────────────────────────────────────────
+
+    fn ifc() -> NodeId {
+        NodeId::Source("ifc".into())
+    }
+
+    fn wwr() -> NodeId {
+        NodeId::Action("wall-orientation-wwr".into())
+    }
+
+    fn with_catalog() -> AppState {
+        let spec = |name: &str, required: bool, default: Option<&str>| OptionSpec {
+            name: name.into(),
+            description: String::new(),
+            kind: "string".into(),
+            required,
+            default: default.map(str::to_string),
+        };
+        let mut s = state();
+        s.catalog.insert(ifc(), vec![spec("file", true, None)]);
+        s.catalog.insert(
+            wwr(),
+            vec![
+                spec("input", true, None),
+                spec("unit", false, Some("sqm")),
+                spec("output", false, Some("")),
+            ],
+        );
+        s
+    }
+
+    #[test]
+    fn option_values_come_from_the_user_then_the_picker_then_defaults() {
+        let mut s = with_catalog();
+        assert_eq!(s.option_value(&wwr(), "input"), None);
+        assert_eq!(
+            s.option_value(&wwr(), "unit"),
+            Some(("sqm".to_string(), ValueSource::Default))
+        );
+        // An empty default is no value at all.
+        assert_eq!(s.option_value(&wwr(), "output"), None);
+
+        s.ifc.loaded = Some("m/a.ifc".into());
+        s.ifc.json = Some("m/building-model.json".into());
+        assert_eq!(
+            s.option_value(&ifc(), "file"),
+            Some(("m/a.ifc".to_string(), ValueSource::Picker))
+        );
+        assert_eq!(
+            s.option_value(&wwr(), "input"),
+            Some(("m/building-model.json".to_string(), ValueSource::Picker))
+        );
+        // The picker only fills the option it is bound to.
+        assert_eq!(
+            s.option_value(&wwr(), "unit"),
+            Some(("sqm".to_string(), ValueSource::Default))
         );
 
-    // Show IFC file picker when IFC source is focused
-    if is_ifc_context {
-        panel = panel.child(divider::<Msg>().text("IFC File"));
-
-        if state.ifc_files.is_empty() {
-            panel = panel.child(
-                label::<Msg>("No .ifc files found in working directory")
-                    .fg(THEME.dim),
-            );
-        } else {
-            let mut file_select = select::<Msg>()
-                .key("ifc-file-picker")
-                .placeholder("Select an IFC file...")
-                .height(8)
-                .border(BorderStyle::Rounded)
-                .on_change(Msg::IfcFileSelected);
-
-            for path in &state.ifc_files {
-                // Show just the filename as the label, full path as value
-                let label_text = Path::new(path)
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or(path);
-                file_select = file_select.option(
-                    SelectOption::new(path.clone(), label_text.to_string()),
-                );
-            }
-
-            panel = panel.child(file_select);
-
-            // Show analysis results if available
-            if let Some(ref analysis) = state.wwr_analysis {
-                panel = panel.child(divider::<Msg>().text("WWR Analysis"));
-
-                if !analysis.project_name.is_empty() {
-                    panel = panel.child(
-                        row::<Msg>()
-                            .gap(1)
-                            .child(label::<Msg>("Project:").fg(THEME.dim))
-                            .child(
-                                label::<Msg>(analysis.project_name.clone())
-                                    .bold()
-                                    .fg(THEME.text),
-                            ),
-                    );
-                }
-
-                // Orientation breakdown
-                for r in &analysis.orientations {
-                    let line = format!(
-                        "{:<6} {:>2} walls {:>6.1} m²  {:>5.1}%",
-                        r.direction, r.count, r.total_area_sqm, r.percentage
-                    );
-                    panel = panel.child(label::<Msg>(line).fg(THEME.accent));
-                }
-
-                // Totals
-                panel = panel.child(divider::<Msg>().variant(DividerVariant::Dotted));
-                panel = panel.child(
-                    row::<Msg>()
-                        .gap(1)
-                        .child(label::<Msg>("Walls:").fg(THEME.dim))
-                        .child(
-                            label::<Msg>(format!(
-                                "{} ({:.1} m²)",
-                                analysis.wall_count, analysis.total_wall_area
-                            ))
-                            .fg(THEME.text),
-                        ),
-                );
-                panel = panel.child(
-                    row::<Msg>()
-                        .gap(1)
-                        .child(label::<Msg>("Windows:").fg(THEME.dim))
-                        .child(
-                            label::<Msg>(format!(
-                                "{} ({:.1} m²)",
-                                analysis.window_count, analysis.total_window_area
-                            ))
-                            .fg(THEME.text),
-                        ),
-                );
-                panel = panel.child(
-                    row::<Msg>()
-                        .gap(1)
-                        .child(label::<Msg>("WWR:").fg(THEME.dim))
-                        .child(
-                            label::<Msg>(format!("{:.1}%", analysis.overall_wwr))
-                                .bold()
-                                .fg(THEME.primary),
-                        ),
-                );
-            } else if let Some(ref selected) = state.selected_ifc {
-                let file_name = Path::new(selected)
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or(selected);
-                panel = panel.child(
-                    row::<Msg>()
-                        .gap(1)
-                        .child(label::<Msg>("✓").fg(THEME.accent))
-                        .child(label::<Msg>(file_name.to_string()).fg(THEME.text)),
-                );
-                panel = panel.child(
-                    label::<Msg>("Extract JSON for analysis results").fg(THEME.dim),
-                );
-            }
-        }
-    }
-
-    panel = panel.child(divider::<Msg>().text("Preview"));
-
-    // Render each line of the braille canvas as a separate label
-    for line in &canvas_lines {
-        panel = panel.child(label::<Msg>(line.clone()).fg(THEME.accent));
-    }
-
-    panel.child(divider::<Msg>().text("Actions")).child(
-        row::<Msg>()
-            .gap(2)
-            .child(
-                button::<Msg>("Execute")
-                    .variant(ButtonVariant::Primary)
-                    .on_click({
-                        let id = state.active_node.clone();
-                        move || Msg::Execute(id.clone())
-                    }),
-            )
-            .child(
-                button::<Msg>("Help (?)")
-                    .variant(ButtonVariant::Secondary)
-                    .on_click(|| Msg::ToggleHelp),
-            ),
-    )
-}
-
-/// ─── Help panel ────────────────────────────────────
-fn help_panel() -> Flex<Msg> {
-    col::<Msg>()
-        .border(BorderStyle::Rounded)
-        .padding(Padding::uniform(1))
-        .gap(0)
-        .child(
-            row::<Msg>()
-                .child(label::<Msg>("◈").fg(THEME.dim))
-                .child(label::<Msg>(" Help").bold().fg(THEME.accent)),
-        )
-        .child(divider::<Msg>().variant(DividerVariant::Dotted))
-        .child(label::<Msg>(""))
-        .child(
-            row::<Msg>()
-                .gap(1)
-                .child(label::<Msg>("Tab").bold().fg(THEME.primary))
-                .child(label::<Msg>("Switch focus between panes")),
-        )
-        .child(
-            row::<Msg>()
-                .gap(1)
-                .child(label::<Msg>("↑ ↓").bold().fg(THEME.primary))
-                .child(label::<Msg>("Navigate tree items")),
-        )
-        .child(
-            row::<Msg>()
-                .gap(1)
-                .child(label::<Msg>("→  ").bold().fg(THEME.primary))
-                .child(label::<Msg>("Expand tree node")),
-        )
-        .child(
-            row::<Msg>()
-                .gap(1)
-                .child(label::<Msg>("←  ").bold().fg(THEME.primary))
-                .child(label::<Msg>("Collapse tree node")),
-        )
-        .child(
-            row::<Msg>()
-                .gap(1)
-                .child(label::<Msg>("⏎  ").bold().fg(THEME.primary))
-                .child(label::<Msg>("Open / execute item")),
-        )
-        .child(
-            row::<Msg>()
-                .gap(1)
-                .child(label::<Msg>("?  ").bold().fg(THEME.primary))
-                .child(label::<Msg>("Toggle this panel")),
-        )
-        .child(
-            row::<Msg>()
-                .gap(1)
-                .child(label::<Msg>("Esc").bold().fg(THEME.primary))
-                .child(label::<Msg>("Quit")),
-        )
-        .child(label::<Msg>(""))
-        .child(divider::<Msg>().text("Legend"))
-        .child(
-            row::<Msg>()
-                .gap(1)
-                .child(label::<Msg>("◆").fg(THEME.accent))
-                .child(label::<Msg>("Sources — geometry input drivers")),
-        )
-        .child(
-            row::<Msg>()
-                .gap(1)
-                .child(label::<Msg>("▸").fg(THEME.accent))
-                .child(label::<Msg>("Actions — operations on geometry")),
-        )
-        .child(
-            row::<Msg>()
-                .gap(1)
-                .child(label::<Msg>("⊞").fg(THEME.accent))
-                .child(label::<Msg>("Groups — analysis · extraction · reporting")),
-        )
-        .child(label::<Msg>(""))
-        .child(
-            button::<Msg>("Close Help")
-                .variant(ButtonVariant::Secondary)
-                .on_click(|| Msg::ToggleHelp),
-        )
-}
-
-/// ─── Status bar ────────────────────────────────────
-fn status_bar(state: &AppState) -> impl Widget<Msg> {
-    row::<Msg>()
-        .padding(Padding::new(0, 1, 0, 1))
-        .style(Style::default().bg(Color::Rgb(16, 18, 26)))
-        .child(label::<Msg>(state.status.clone()).fg(THEME.dim))
-        .child(spacer::<Msg>().fill())
-        .child(label::<Msg>("makit v0.1.0").fg(Color::Rgb(60, 62, 70)))
-        .child(label::<Msg>(" · ").fg(Color::Rgb(40, 42, 50)))
-        .child(label::<Msg>("rsille").fg(Color::Rgb(60, 62, 70)))
-}
-
-// ---------------------------------------------------------------------------
-// Canvas preview rendering
-// ---------------------------------------------------------------------------
-
-/// Render a braille canvas for the current context, return individual lines.
-fn render_canvas_lines(
-    active_node: &str,
-    angle: f64,
-    murb_results: &Option<MurbResults>,
-) -> Vec<String> {
-    let mut c = Canvas::new();
-    let mut extra_lines: Vec<String> = Vec::new();
-
-    if active_node.contains("murb") {
-        render_energy_bars(&mut c, murb_results, &mut extra_lines);
-    } else if active_node.contains("wall") {
-        render_walls_preview(&mut c);
-    } else if active_node.contains("revit") || active_node.contains("architect") {
-        render_isometric_building(&mut c);
-    } else if active_node.contains("floor") || active_node.contains("room") {
-        render_floor_plan(&mut c);
-    } else {
-        render_logo(&mut c, angle);
-    }
-
-    let mut buf = Vec::new();
-    c.print_on(&mut buf, false).unwrap_or_default();
-    let output = String::from_utf8(buf).unwrap_or_default();
-    let mut lines: Vec<String> = output.lines().map(|l| l.to_string()).collect();
-    lines.extend(extra_lines);
-    lines
-}
-
-/// Rotating hexagonal logo with inner counter-rotation and spokes.
-/// Uses direct line drawing for reliable braille-resolution visibility.
-fn render_logo(c: &mut Canvas, angle: f64) {
-    let cx = 20.0;
-    let cy = 16.0;
-    let r = 12.0;
-    let sides = 6;
-
-    // Outer hexagon
-    for i in 0..sides {
-        let a1 = angle + (i as f64) * std::f64::consts::TAU / sides as f64;
-        let a2 = angle + ((i + 1) as f64) * std::f64::consts::TAU / sides as f64;
-        c.line(
-            (cx + r * a1.cos(), cy + r * a1.sin()),
-            (cx + r * a2.cos(), cy + r * a2.sin()),
+        s.values
+            .entry(wwr())
+            .or_default()
+            .insert("unit".into(), "sqf".into());
+        assert_eq!(
+            s.option_value(&wwr(), "unit"),
+            Some(("sqf".to_string(), ValueSource::User))
         );
     }
 
-    // Inner hexagon (counter-rotating)
-    let r2 = r * 0.55;
-    for i in 0..sides {
-        let a1 = -angle + (i as f64) * std::f64::consts::TAU / sides as f64;
-        let a2 = -angle + ((i + 1) as f64) * std::f64::consts::TAU / sides as f64;
-        c.line(
-            (cx + r2 * a1.cos(), cy + r2 * a1.sin()),
-            (cx + r2 * a2.cos(), cy + r2 * a2.sin()),
-        );
+    #[test]
+    fn missing_required_lists_only_unset_required_options() {
+        let mut s = with_catalog();
+        assert_eq!(s.missing_required(&wwr()), vec!["input".to_string()]);
+        // An IFC without a JSON extraction does not satisfy `--input`.
+        s.ifc.loaded = Some("m/a.ifc".into());
+        assert_eq!(s.missing_required(&wwr()), vec!["input".to_string()]);
+        assert!(s.missing_required(&ifc()).is_empty());
+        s.ifc.json = Some("m/building-model.json".into());
+        assert!(s.missing_required(&wwr()).is_empty());
+        // Unknown tasks have nothing to ask for.
+        assert!(s
+            .missing_required(&NodeId::Action("nope".into()))
+            .is_empty());
     }
 
-    // Spokes from inner to outer vertices
-    for i in 0..sides {
-        let a = angle + (i as f64) * std::f64::consts::TAU / sides as f64;
-        c.line(
-            (cx + r2 * (-a).cos(), cy + r2 * (-a).sin()),
-            (cx + r * a.cos(), cy + r * a.sin()),
-        );
+    #[test]
+    fn resolved_options_hold_every_known_value() {
+        let mut s = with_catalog();
+        s.ifc.json = Some("m/building-model.json".into());
+        s.values
+            .entry(wwr())
+            .or_default()
+            .insert("output".into(), "out.json".into());
+        let got = s.resolved_options(&wwr());
+        let want: BTreeMap<String, String> = [
+            ("input", "m/building-model.json"),
+            ("output", "out.json"),
+            ("unit", "sqm"),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+        assert_eq!(got, want);
     }
-}
 
-/// Isometric wireframe building — default 10×8×3m box with internal divisions.
-fn render_isometric_building(c: &mut Canvas) {
-    let ox = 20.0;
-    let oy = 28.0;
+    // ─── Editor ─────────────────────────────────────────────────────────
 
-    // Main building volume (10m × 3m × 8m)
-    draw_isometric_box(c, ox, oy, 10.0, 6.0, 8.0);
+    #[test]
+    fn editor_starts_with_the_cursor_at_the_end() {
+        let e = Editor::new(ifc(), "file", "héllo", false);
+        assert_eq!(e.buffer, "héllo");
+        assert_eq!(e.cursor, 5);
+    }
 
-    // Internal floor division (at 3m height)
-    draw_isometric_box(c, ox, oy, 10.0, 3.0, 8.0);
+    #[test]
+    fn editor_edits_at_the_cursor_by_character() {
+        let mut e = Editor::new(ifc(), "file", "añb", false);
+        e.move_by(-1); // between ñ and b
+        e.insert('→');
+        assert_eq!(e.buffer, "añ→b");
+        assert_eq!(e.cursor, 3);
+        e.backspace();
+        assert_eq!(e.buffer, "añb");
+        e.backspace();
+        assert_eq!(e.buffer, "ab");
+        assert_eq!(e.cursor, 1);
+        e.delete();
+        assert_eq!(e.buffer, "a");
+        // Nothing left to the right, nothing happens.
+        e.delete();
+        assert_eq!(e.buffer, "a");
+        e.home();
+        e.backspace();
+        assert_eq!((e.buffer.as_str(), e.cursor), ("a", 0));
+        e.move_by(-3);
+        assert_eq!(e.cursor, 0);
+        e.move_by(9);
+        assert_eq!(e.cursor, 1);
+        e.home();
+        e.end();
+        assert_eq!(e.cursor, 1);
+        e.clear();
+        assert_eq!((e.buffer.as_str(), e.cursor), ("", 0));
+    }
 
-    // Roof parapet (thin box on top)
-    draw_isometric_box(c, ox, oy, 10.0, 7.0, 8.0);
-}
+    // ─── Preview data ───────────────────────────────────────────────────
 
-/// Wall orientation preview — building envelope with interior walls
-fn render_walls_preview(c: &mut Canvas) {
-    // Envelope
-    c.line((5.0, 28.0), (35.0, 28.0));
-    c.line((35.0, 28.0), (35.0, 4.0));
-    c.line((35.0, 4.0), (5.0, 4.0));
-    c.line((5.0, 4.0), (5.0, 28.0));
-    // Interior
-    c.line((20.0, 4.0), (20.0, 20.0));
-    c.line((5.0, 16.0), (20.0, 16.0));
-    // Cardinal arrows
-    draw_arrow(c, 20.0, 32.0, 20.0, 36.0);
-    draw_arrow(c, 40.0, 16.0, 44.0, 16.0);
-}
-
-/// Energy bar chart — uses real MURB results when available, falls back to
-/// static placeholder data otherwise. Adds summary text lines below the chart.
-fn render_energy_bars(c: &mut Canvas, results: &Option<MurbResults>, extra: &mut Vec<String>) {
-    let month_labels = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
-
-    match results {
-        Some(r) => {
-            // Data-driven bars from actual simulation results
-            let data = &r.monthly_heating_demand;
-            let max_val = data.iter().cloned().fold(0.0_f64, f64::max).max(1.0);
-            let chart_height = 28.0;
-
-            for (i, val) in data.iter().enumerate() {
-                let bar_h = ((val / max_val) * chart_height) as i32;
-                let x = (i as i32) * 3 + 2;
-                if bar_h > 0 {
-                    fill_rect(c, x, 0, 2, bar_h);
-                }
-            }
-
-            // Axes
-            c.line((0.0, 0.0), (40.0, 0.0));
-            c.line((0.0, 0.0), (0.0, 32.0));
-
-            // Month labels below chart
-            let label_line: String = month_labels.iter().map(|m| format!(" {} ", m)).collect();
-            extra.push(format!("  {}", label_line));
-
-            // Summary metrics
-            extra.push(String::new());
-            extra.push(format!("  TEDI  {:.1} kWh/m²", r.tedi_kwh_m2));
-            extra.push(format!("  TEUI  {:.1} kWh/m²", r.teui_kwh_m2));
-            extra.push(format!("  GHGI  {:.1} kgCO₂/m²", r.ghgi_kg_m2));
-        }
-        None => {
-            // Static placeholder bars
-            let months = [28, 24, 18, 10, 5, 2, 1, 2, 6, 14, 22, 26];
-            for (i, height) in months.iter().enumerate() {
-                let x = (i as i32) * 3 + 2;
-                fill_rect(c, x, 0, 2, *height);
-            }
-            c.line((0.0, 0.0), (40.0, 0.0));
-            c.line((0.0, 0.0), (0.0, 32.0));
-
-            let label_line: String = month_labels.iter().map(|m| format!(" {} ", m)).collect();
-            extra.push(format!("  {}", label_line));
-            extra.push(String::new());
-            extra.push("  No results — run murb-simulate".to_string());
+    fn analysis() -> WwrAnalysis {
+        WwrAnalysis {
+            orientations: Vec::new(),
+            total_wall_area: 10.0,
+            total_window_area: 2.0,
+            overall_wwr: 20.0,
+            wall_count: 1,
+            window_count: 1,
+            project_name: String::new(),
+            interior_walls_left_out: 0,
         }
     }
-}
 
-/// Floor plan preview — rooms with door openings
-fn render_floor_plan(c: &mut Canvas) {
-    draw_rect(c, 2.0, 2.0, 36.0, 28.0);
-    c.line((20.0, 2.0), (20.0, 22.0));
-    c.line((2.0, 18.0), (36.0, 18.0));
-    c.line((20.0, 24.0), (20.0, 30.0));
-}
+    #[test]
+    fn a_loaded_analysis_replaces_the_logo_on_ifc_nodes() {
+        let mut s = state();
+        s.tree.select(1); // source:ifc
+        assert_eq!(s.preview_kind(), PreviewKind::Logo);
+        assert!(s.preview_data().wwr.is_none());
 
-// ---------------------------------------------------------------------------
-// Entry point
-// ---------------------------------------------------------------------------
+        s.ifc.analysis = Some(analysis());
+        assert_eq!(s.preview_kind(), PreviewKind::Walls);
+        assert!(s.preview_data().wwr.is_some());
+        // A drawing of real data does not need animation ticks.
+        assert!(!s.needs_tick());
+    }
 
-/// Run the makit TUI.
-pub fn run() -> anyhow::Result<()> {
-    let app = App::new(AppState::new())
-        .on_key(KeyCode::Char('?'), || Msg::ToggleHelp)
-        .on_tick(Duration::from_millis(80), || Msg::Tick);
-
-    app.run(update, view)
-        .map_err(|e| anyhow::anyhow!("TUI error: {}", e))?;
-
-    Ok(())
+    #[test]
+    fn the_analysis_is_not_shown_for_unrelated_nodes() {
+        let mut s = state();
+        s.ifc.analysis = Some(analysis());
+        s.tree.select(2); // source:revit — the IFC analysis says nothing about it
+        assert_eq!(s.preview_kind(), PreviewKind::Building);
+        assert!(s.preview_data().wwr.is_none());
+        s.tree.select(0); // the Sources group keeps the logo
+        assert_eq!(s.preview_kind(), PreviewKind::Logo);
+    }
 }

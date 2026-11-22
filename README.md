@@ -1,59 +1,34 @@
-# ⬡ makit
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/makit-mark-dark.svg">
+    <img src="docs/brand/makit-mark-light.svg" alt="makit: a 2×2×2 kit of blocks with one block lifted out, the one being made" width="160">
+  </picture>
+</p>
+
+# makit
 
 **A multi-tool CLI & TUI for AEC workflows** — orchestrate Revit, Blender, IFC analysis, and MURB energy modelling from one terminal.
 
-```
-╔══════════════════════════════════════════════════╗
-║            makit canvas demo (rsille)            ║
-╚══════════════════════════════════════════════════╝
-
-▸ Isometric building:
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣄⡀⠀⠀
-⠀⠀⠀⠀⠀⠀⢀⠤⠒⣉⠤⡧⢌⣑⣢
-⠀⠀⠀⠀⠀⠀⢸⣛⣛⣤⡶⠷⢮⣭⣽
-⠀⠀⠀⠀⠀⠀⠸⣿⣉⠒⡗⢊⣡⡼⠟
-⠀⠀⠀⠀⠀⠀⠀⠀⠉⠛⠟⠋⠁⠀⠀
-
-▸ Floor plan:
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠜⡟⠄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⡖⠒⠒⠒⠒⠒⠒⠒⠒⡖⠒⠒⠒⠒⠒⠒⠒⠒⡆⠀⠀⠀
-⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀
-⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⡆⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀
-⠀⡗⠒⠒⠒⠒⠒⠒⠒⠒⡗⠒⠒⠒⠒⠒⠒⠒⠂⡇⣐⣤⡀
-⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⡇⠐⠉⠀
-⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀
-⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⡇⠀⠀⠀
-⠀⠓⠒⠒⠒⠒⠒⠒⠒⠒⠓⠒⠒⠒⠒⠒⠒⠒⠒⠃⠀⠀⠀
-
-▸ Energy (heating demand):
-⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⡇⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⡇⣿⣇⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢰⣶⠀⠀
-⡇⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣶⣾⣿⠀⠀
-⡇⣿⣿⣿⣶⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⠀⠀
-⡇⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⢰⣶⣿⣿⣿⠀⠀
-⡇⣿⣿⣿⣿⣷⣶⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⠀⠀
-⡇⣿⣿⣿⣿⣿⣿⣤⡄⠀⠀⠀⠀⣶⣾⣿⣿⣿⣿⠀⠀
-⣇⣿⣿⣿⣿⣿⣿⣿⣷⣶⣤⣴⣶⣿⣿⣿⣿⣿⣿⣀⡀
- J  F  M  A  M  J  J  A  S  O  N  D
-```
+<p align="center">
+  <img src="docs/media/makit-tui.gif" alt="The makit TUI: the hovering makit symbol, a Revit sample model loaded from the IFC picker with its wall directions, a WWR report in the Output pane, the MURB heating-demand chart, and the help overlay" width="900">
+</p>
+<p align="center"><sub>The TUI with a Revit sample model (<code>Ifc4_ARC.ifc</code>, not in the repo) and Toronto weather: load it in the IFC picker, run <code>wall-orientation-wwr</code>, read the MURB results.</sub></p>
 
 ---
 
-Built in Rust with [rsille](https://github.com/nidhoggfgg/rsille) for braille-rendered terminal graphics. Makit bridges the gap between BIM authoring tools and programmatic analysis — connect to live applications, extract building geometry, run cross-platform analytics, simulate energy performance, and visualize results, all without leaving the terminal.
+Built in Rust with [ratatui](https://ratatui.rs) for the interactive TUI and a dependency-free braille grid for terminal graphics. Makit bridges the gap between BIM authoring tools and programmatic analysis — connect to live applications, extract building geometry, run cross-platform analytics, simulate energy performance, and visualize results, all without leaving the terminal.
 
 ## Features
 
 | Feature | Description |
 |---------|-------------|
-| **Interactive TUI** | Tree explorer with real-time braille canvas preview and responsive layout |
+| **Interactive TUI** | ratatui tree explorer, option forms, an IFC picker that fills task inputs, braille previews that scale to the pane, Output pane for task logs, stop with `x`, mouse support |
 | **Live Revit Bridge** | Extract walls, floors, rooms via pyRevit HTTP; run orientation & WWR analysis |
-| **IFC Analysis** | Standalone wall orientation and Window-to-Wall Ratio analysis (no Revit required) |
-| **Blender Sync** | Receive live geometry from Blender over HTTP for TUI visualization |
-| **MURB Energy** | Monthly heat balance simulation — TEDI / TEUI / GHGI analysis via Python bridge |
+| **IFC Analysis** | Wall directions and window-to-wall ratio from IFC files, no Revit needed: a Python extractor (IfcOpenShell) reads walls, windows and curtain walls with the file's units, and the analysis counts exterior walls only |
+| **Blender Sync** | HTTP server that receives geometry from the Blender add-on (not drawn in the TUI yet) |
+| **MURB Energy** | Monthly heat balance (TEDI / TEUI / GHGI) through murb_energy_tool, with the glazing split by facing, typed or taken from an IFC model |
 | **Braille Canvas** | Floor plans, elevations, bar charts, and data sheets in braille characters |
-| **3D Logo** | Animated rotating hexagonal wireframe on the TUI home screen |
+| **3D Logo** | The makit symbol on the TUI home screen: a braille kit of blocks with one block hovering above its socket |
 | **Generic JSON Format** | Extract from any source into one schema, run the same analysis everywhere |
 
 ## Quick Start
@@ -76,12 +51,21 @@ cargo run -p makit
 
 | Key | Action |
 |-----|--------|
-| `↑ ↓` | Navigate the tree |
-| `→ ←` | Expand / collapse |
-| `Enter` | Open / execute |
-| `Tab` | Switch pane focus |
+| `↑ ↓` / `j k` | Move selection (`PgUp PgDn Home End` too) |
+| `→ ←` / `l h` | Expand / collapse (← on a child jumps to its parent) |
+| `Enter` | Open node · edit the focused option · load the highlighted IFC file |
+| `e` | Execute the focused source or action (asks for any required option that has no value yet) |
+| `x` | Stop the running task — only tasks that watch for it stop early (the Blender sync server does) |
+| `Tab` / `Shift-Tab` | Cycle focus: Explorer → IFC files → Output |
+| `o` | Toggle the Output pane (task `println!` output lands here) |
+| `c` | Clear Output (when focused) |
 | `?` | Toggle help overlay |
-| `Esc` | Quit |
+| `Esc` / `q` | Close help · quit |
+| Mouse | Wheel scrolls the pane under the cursor · click selects / opens |
+
+**Option values.** Expand a source or action to see its options. `Enter` on an option opens a one-line form (`Enter` saves, `Esc` cancels, `Ctrl-U` clears, an empty value restores the default); a leading `~` is expanded to your home directory. Values are kept for the session and passed to the task when you press `e`. The file loaded in the IFC picker fills `ifc --file`, `wall-orientation-wwr --input` and `murb-simulate --model` unless you type something else.
+
+**Previews.** Charts and drawings built from your data are titled plainly (`heating demand`, `wall area by orientation`); stock drawings are marked `· illustration`, and a chart with nothing to show stays empty (`· no results`). When the pane is too short for a readable drawing, the preview is left out.
 
 ### CLI Commands
 
@@ -92,8 +76,26 @@ makit list
 # Execute a specific action
 makit exec revit analysis revit-wall-orientations
 
-# Analyze an IFC file
+# Extract an IFC file to JSON beside it (Python with IfcOpenShell, see Development)
+.venv/bin/python pyrevit-extension/Makit.extension/lib/analyze_ifc.py model.ifc \
+  --extract-only --output model.json
+
+# Analyze an IFC file (reads its extraction)
 makit analyze examples/IFC/Building-Architecture.ifc
+
+# Run a MURB energy simulation (needs the murb repository on PYTHONPATH).
+# window-directions splits the glazing by facing: azimuth (degrees clockwise
+# from north, or N/NE/E/SE/S/SW/W/NW) and share in any unit. Without it, model
+# (an IFC file or its extraction) gives the split of its windows by wall facing;
+# with neither, 25% each way.
+PYTHONPATH=../murb makit exec murb analysis murb-simulate \
+  -o epw=weather.epw -o gfa=335.5 -o walls-ag=307.4 -o windows=182.8 -o roof=244.3 \
+  -o window-directions=SE:68,SW:20,NE:12
+
+# The same, taking the window split from the IFC model
+PYTHONPATH=../murb makit exec murb analysis murb-simulate \
+  -o epw=weather.epw -o gfa=335.5 -o walls-ag=307.4 -o windows=182.8 -o roof=244.3 \
+  -o model=path/to/model.ifc
 
 # Show help
 makit --help
@@ -166,45 +168,61 @@ makit/
 ├── crates/
 │   ├── makit-cli/           # Binary — clap CLI (list, exec, analyze, tui, status, init)
 │   ├── makit-core/          # Registry singleton, config (figment/YAML), model types
-│   ├── makit-geometry/      # Point, Line, Rectangle, Room, Floor + braille drawing + SDF
+│   ├── makit-geometry/      # Point, Line, Rectangle + Plotter/BrailleGrid drawing + SDF
 │   ├── makit-tools/         # Tool implementations (revit, blender, ifc, murb)
-│   └── makit-tui/           # rsille-native TUI (tree explorer, canvas viz, theme)
-├── pyrevit-extension/       # Python pyRevit extension (runs inside Revit)
+│   └── makit-tui/           # ratatui TUI (tree explorer, braille previews, output pane)
+├── pyrevit-extension/       # Python pyRevit extension (runs inside Revit) + IFC extractor
+│   └── tests/               # Extractor and analysis tests
 ├── scripts/
 │   ├── blender/             # Python Blender addon
-│   └── murb_runner.py       # Python bridge for MURB energy tool
-├── examples/IFC/            # Sample IFC files and analysis scripts
-└── docs/                    # Architecture documentation
+│   ├── murb_runner.py       # Python bridge for MURB energy tool
+│   └── tests/               # Runner tests
+├── examples/IFC/            # Sample IFC file, its extraction and analysis scripts
+└── docs/                    # Architecture docs, brand/ (the makit symbol), media/ (README GIF)
 ```
 
-### Tool Registry
+### Module Status
 
-Tools register **sources** (geometry input drivers) and **actions** (operations) at startup:
+Tools register **sources** (inputs and connections) and **actions** (operations) at startup; `makit list` shows them all. Where each one stands:
 
-<table>
-<tr><th>Source</th><th>Description</th></tr>
-<tr><td><code>revit</code></td><td>Autodesk Revit via pyRevit HTTP bridge (port 48884)</td></tr>
-<tr><td><code>blender</code></td><td>Blender live geometry sync (axum server)</td></tr>
-<tr><td><code>ifc</code></td><td>IFC file loader + IfcOpenShell extraction</td></tr>
-<tr><td><code>murb</code></td><td>MURB energy modelling (Python subprocess)</td></tr>
-<tr><td><code>rhino</code></td><td>Rhino 3D / Grasshopper integration</td></tr>
-</table>
+| Status | Meaning |
+|--------|---------|
+| **Working** | Runs end to end and was checked on real input |
+| **Needs app** | Implemented against another application's API; checked only when that application runs |
+| **Partial** | Works, with a gap noted |
+| **Placeholder** | Registered, but only prints a line (and reports success) |
 
 <table>
-<tr><th>Action</th><th>Category</th><th>Description</th></tr>
-<tr><td><code>revit-extract-walls</code></td><td>extraction</td><td>Extract wall elements from Revit</td></tr>
-<tr><td><code>revit-wall-orientations</code></td><td>analysis</td><td>Wall orientation + WWR analysis</td></tr>
-<tr><td><code>murb-simulate</code></td><td>analysis</td><td>Monthly energy simulation</td></tr>
-<tr><td><code>murb-report</code></td><td>reporting</td><td>TEDI / TEUI / GHGI report</td></tr>
-<tr><td><code>architect-render-demo</code></td><td>rendering</td><td>Architectural demo rendering</td></tr>
-<tr><td colspan="3"><em>12 actions total — run <code>makit list</code> to see all</em></td></tr>
+<tr><th>Module</th><th>Status</th><th>Notes</th></tr>
+<tr><td colspan="3"><b>Crates</b></td></tr>
+<tr><td><code>makit-cli</code></td><td>Partial</td><td><code>list</code>, <code>exec</code>, <code>analyze</code> and <code>tui</code> work. <code>status</code> and <code>init</code> only print a line.</td></tr>
+<tr><td><code>makit-core</code></td><td>Working</td><td>Registry, YAML config, task models and cancel tokens.</td></tr>
+<tr><td><code>makit-geometry</code></td><td>Working</td><td>Primitives, <code>Plotter</code> drawing, braille grid, recordings, SDF engine. No external dependencies.</td></tr>
+<tr><td><code>makit-tui</code></td><td>Working</td><td>Explorer, option forms, IFC picker, previews, Output pane, stop, mouse, terminal restore on signals.</td></tr>
+<tr><td colspan="3"><b>IFC</b></td></tr>
+<tr><td>IFC extractor (<code>analyze_ifc.py</code>, Python)</td><td>Working</td><td>Walls, windows and curtain walls with the file's units, outward facing, true north and exterior flags. Needs IfcOpenShell; run by hand.</td></tr>
+<tr><td><code>ifc</code> source</td><td>Placeholder</td><td>Prints "Loading IFC file". Loading happens in the TUI picker and <code>makit analyze</code>.</td></tr>
+<tr><td><code>wall-orientation-wwr</code></td><td>Partial</td><td>Direction table and WWR for exterior walls. Takes the extraction JSON; given an <code>.ifc</code> path it fails (the TUI picker passes the JSON).</td></tr>
+<tr><td colspan="3"><b>Energy</b></td></tr>
+<tr><td><code>murb-simulate</code></td><td>Working</td><td>Monthly TEDI / TEUI / GHGI through murb_energy_tool (put the murb repository on <code>PYTHONPATH</code>). Window directions typed or from an IFC model. Checked with Toronto TMYx weather.</td></tr>
+<tr><td><code>murb-report</code></td><td>Working</td><td>Prints a results JSON as a report.</td></tr>
+<tr><td><code>murb</code> source</td><td>Partial</td><td>Checks that murb_energy_tool imports, but reports success either way.</td></tr>
+<tr><td colspan="3"><b>Revit</b> (pyRevit HTTP on port 48884)</td></tr>
+<tr><td><code>revit-extract-walls</code>, <code>-floors</code>, <code>-rooms</code>, <code>revit-wall-orientations</code>, <code>revit-calculate-areas</code></td><td>Needs app</td><td>Call the pyRevit extension's endpoints. Without Revit they stop with a connection error.</td></tr>
+<tr><td><code>revit</code> source</td><td>Partial</td><td>Connection check; reports success even when Revit is not reachable.</td></tr>
+<tr><td><code>revit-find-clashes</code>, <code>revit-validate-standards</code></td><td>Placeholder</td><td>Print "Not yet implemented".</td></tr>
+<tr><td>pyRevit extension</td><td>Needs app</td><td>Runs inside Revit. Does not set <code>isExternal</code> yet, so Revit extractions count every wall.</td></tr>
+<tr><td colspan="3"><b>Blender, Rhino, rendering</b></td></tr>
+<tr><td><code>blender</code> source</td><td>Partial</td><td>Geometry sync server (<code>/health</code>, <code>/geometry</code>) that <code>x</code> stops cleanly. Received geometry is kept, but nothing draws it yet. The add-on (<code>scripts/blender/makit_connector.py</code>) was not checked here.</td></tr>
+<tr><td><code>rhino</code>, <code>rhino-import-revit</code>, <code>rhino-run-definition</code></td><td>Placeholder</td><td>Print a line only.</td></tr>
+<tr><td><code>architect-render-demo</code></td><td>Placeholder</td><td>Prints a line only.</td></tr>
 </table>
 
 ### Key Dependencies
 
 | Crate | Purpose |
 |-------|---------|
-| [rsille](https://github.com/nidhoggfgg/rsille) v3 | Braille canvas, TUI widgets, terminal rendering |
+| [ratatui](https://ratatui.rs) 0.29 + [crossterm](https://docs.rs/crossterm) 0.28 | TUI widgets, braille canvas, terminal backend |
 | [clap](https://docs.rs/clap) 4 | CLI argument parsing |
 | [figment](https://docs.rs/figment) | Config management (YAML + env) |
 | [reqwest](https://docs.rs/reqwest) | HTTP client for pyRevit bridge |
@@ -219,8 +237,15 @@ Tools register **sources** (geometry input drivers) and **actions** (operations)
 # Build
 cargo build
 
-# Run all 50 tests (5 registry, 18 geometry, 27 tools)
+# Run all 279 tests (10 core, 40 geometry, 47 tools, 182 tui)
 cargo test
+
+# Python IFC extractor: set up once, then run its 17 tests
+uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell
+.venv/bin/python -m unittest discover -s pyrevit-extension/tests
+
+# MURB runner tests (no extra packages)
+python3 -m unittest discover -s scripts/tests
 
 # Run the CLI
 cargo run -p makit -- --help
@@ -241,15 +266,20 @@ cargo clippy
 The TUI follows the **Elm architecture** pattern:
 
 ```
-State → view(state) → Widget tree → terminal render
-  ↑                                       |
-  └──── update(state, msg) ← user input ──┘
+AppState → view(frame, state) → ratatui Frame → terminal (stderr)
+   ↑                                                  |
+   └── update(state, msg) → Vec<Cmd> ← keymap ← input ┘
+                    │                         ↑
+                    └→ runtime: worker threads ┘ (TaskFinished, IfcLoaded, MurbLoaded, Output)
 ```
 
-- **`State`** — app data (active node, logo angle, analysis results, terminal width)
-- **`Msg`** — discrete events (`TreeFocused`, `TreeOpened`, `Tick`, `IfcFileSelected`)
-- **`update`** — pure reducer mapping state × message → new state
-- **`view`** — pure function mapping state → widget tree
+- **`AppState`** (`app.rs`) — plain data: tree, focus, running tasks, option values, the open option form, Output log, IFC picker, viewport
+- **`Msg` / `Cmd`** (`msg.rs`) — events in (keys, mouse, ticks, worker results) and side effects out (`RunTask`, `StopTask`, `LoadIfc`, `LoadMurb`, `Quit`)
+- **`update`** (`update.rs`) — pure: no I/O, no global registry; returns commands for the runtime. Option metadata comes from a `Catalog` (`options.rs`) copied out of the registry at startup
+- **`view`** (`view.rs`) — renders from state; shares `layout::compute` with mouse hit-testing
+- **`runtime`** (`runtime.rs`) — event loop; runs tasks and loads on named worker threads, hands each task a `CancelToken`, and expands `~` in typed values
+- The TUI draws on **stderr** and redirects **stdout** into the Output pane (`capture.rs`), so task handlers that `println!` never corrupt the screen. A task's result travels the same pipe as its output, so "✓ Success" always lands after the task's last line
+- `SIGTERM` / `SIGHUP` / `SIGINT` restore the terminal before the process dies (`signals.rs`). If the event loop cannot answer within half a second — the terminal window was closed, say — a watchdog thread ends the process anyway. Without a terminal on stdin and stderr the TUI refuses to start and says why
 
 ---
 

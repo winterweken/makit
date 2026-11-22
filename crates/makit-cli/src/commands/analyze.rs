@@ -25,9 +25,10 @@ pub fn run(file: &str, analysis_type: &str) -> Result<()> {
             None => {
                 anyhow::bail!(
                     "No extracted JSON found for {}.\n\
-                     Run the Python extractor first:\n\
-                     python3 pyrevit-extension/Makit.extension/lib/analyze_ifc.py {} --extract-only --output building-model.json",
-                    file, file
+                     Run the Python extractor first (it needs ifcopenshell):\n\
+                     {}",
+                    file,
+                    building_model::extraction_command(path)
                 );
             }
         }

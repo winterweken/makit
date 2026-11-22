@@ -1,9 +1,9 @@
-//! Signed Distance Field (SDF) primitives for braille canvas rendering.
+//! Signed Distance Field (SDF) primitives for braille-resolution rendering.
 //!
 //! Uses 2D SDF functions (inspired by Inigo Quilez) to render smooth
 //! shapes at braille resolution (2×4 dots per character cell).
 
-use canvas::Canvas;
+use crate::plot::Plotter;
 
 // ---------------------------------------------------------------------------
 // SDF Primitives
@@ -63,7 +63,8 @@ pub fn sdf_union(a: f64, b: f64) -> f64 {
 #[inline]
 pub fn sdf_smooth_union(a: f64, b: f64, k: f64) -> f64 {
     let h = (0.5 + 0.5 * (b - a) / k).clamp(0.0, 1.0);
-    a * (1.0 - h) + b * h - k * h * (1.0 - h)
+    // mix(b, a, h) — weights the *smaller* distance as h → 1 (IQ polynomial smin).
+    b * (1.0 - h) + a * h - k * h * (1.0 - h)
 }
 
 // ---------------------------------------------------------------------------
@@ -116,16 +117,16 @@ pub fn sdf_logo(px: f64, py: f64, angle: f64, outer_r: f64, inner_r: f64) -> f64
     sdf_smooth_union(sdf_smooth_union(outer, inner, 0.5), spokes, 0.3)
 }
 
-/// Render the SDF logo onto a braille canvas.
+/// Render the SDF logo onto any [`Plotter`].
 ///
 /// Samples the SDF at each braille dot position and sets dots where
 /// the distance is ≤ 0 (inside the shape).
 ///
-/// - `c`: Canvas to render onto
+/// - `c`: surface to render onto
 /// - `angle`: rotation angle in radians
 /// - `cx`, `cy`: center position on canvas
 /// - `outer_r`: outer hexagon radius
-pub fn render_sdf_logo(c: &mut Canvas, angle: f64, cx: f64, cy: f64, outer_r: f64) {
+pub fn render_sdf_logo<P: Plotter + ?Sized>(c: &mut P, angle: f64, cx: f64, cy: f64, outer_r: f64) {
     let inner_r = outer_r * 0.55;
     let extent = (outer_r + 3.0) as i32;
 
@@ -145,6 +146,7 @@ pub fn render_sdf_logo(c: &mut Canvas, angle: f64, cx: f64, cy: f64, outer_r: f6
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::braille::BrailleGrid;
 
     #[test]
     fn test_sdf_circle() {
@@ -165,6 +167,15 @@ mod tests {
     }
 
     #[test]
+    fn test_sdf_smooth_union_behaves_like_min() {
+        // Far apart: returns the smaller distance.
+        assert!((sdf_smooth_union(-1.0, 5.0, 0.5) - (-1.0)).abs() < 1e-9);
+        assert!((sdf_smooth_union(5.0, -1.0, 0.5) - (-1.0)).abs() < 1e-9);
+        // Close together: never larger than the plain union.
+        assert!(sdf_smooth_union(1.0, 1.1, 0.5) <= sdf_union(1.0, 1.1));
+    }
+
+    #[test]
     fn test_rotate_2d() {
         let (rx, ry) = rotate_2d(1.0, 0.0, std::f64::consts::FRAC_PI_2);
         assert!((rx - 0.0).abs() < 0.001);
@@ -182,14 +193,12 @@ mod tests {
 
     #[test]
     fn test_render_sdf_logo_produces_output() {
-        let mut c = Canvas::new();
+        let mut c = BrailleGrid::new();
         render_sdf_logo(&mut c, 0.0, 20.0, 16.0, 12.0);
 
-        let mut buf = Vec::new();
-        c.print_on(&mut buf, false).unwrap();
-        let output = String::from_utf8(buf).unwrap();
         // Should produce non-empty braille output
-        assert!(!output.trim().is_empty());
+        assert!(!c.is_empty());
+        assert!(!c.to_lines().is_empty());
     }
 
     #[test]
@@ -197,7 +206,7 @@ mod tests {
         use std::time::Instant;
 
         let start = Instant::now();
-        let mut c = Canvas::new();
+        let mut c = BrailleGrid::new();
         render_sdf_logo(&mut c, 0.5, 20.0, 16.0, 12.0);
         let elapsed = start.elapsed();
 
@@ -212,13 +221,13 @@ mod tests {
     fn test_sdf_ring() {
         let radius = 5.0;
         let thickness = 1.0;
-        
+
         // Point on the ring radius should be inside (distance ~ -thickness)
         assert!((sdf_ring(radius, 0.0, radius, thickness) - (-thickness)).abs() < 0.001);
-        
+
         // Point at origin should be outside (distance = radius - thickness)
         assert!((sdf_ring(0.0, 0.0, radius, thickness) - (radius - thickness)).abs() < 0.001);
-        
+
         // Point far away should be outside
         assert!(sdf_ring(20.0, 0.0, radius, thickness) > 0.0);
     }
@@ -227,10 +236,10 @@ mod tests {
     fn test_sdf_hex_ring() {
         let radius = 10.0;
         let thickness = 1.0;
-        
+
         // Point on the ring boundary
         assert!((sdf_hex_ring(0.0, radius, radius, thickness) - (-thickness)).abs() < 0.001);
-        
+
         // Origin is outside the ring shell
         assert!(sdf_hex_ring(0.0, 0.0, radius, thickness) > 0.0);
     }
