@@ -111,6 +111,13 @@ makit exec revit analysis revit-wall-orientations
 # Analyze an IFC file
 makit analyze examples/IFC/Building-Architecture.ifc
 
+# Run a MURB energy simulation (needs the murb repository on PYTHONPATH).
+# window-directions splits the glazing by facing: azimuth (degrees clockwise
+# from north, or N/NE/E/SE/S/SW/W/NW) and share in any unit; default 25% each way.
+PYTHONPATH=../murb makit exec murb analysis murb-simulate \
+  -o epw=weather.epw -o gfa=335.5 -o walls-ag=307.4 -o windows=182.8 -o roof=244.3 \
+  -o window-directions=SE:68,SW:20,NE:12
+
 # Show help
 makit --help
 ```
@@ -235,7 +242,7 @@ Tools register **sources** (geometry input drivers) and **actions** (operations)
 # Build
 cargo build
 
-# Run all 270 tests (10 core, 40 geometry, 38 tools, 182 tui)
+# Run all 274 tests (10 core, 40 geometry, 42 tools, 182 tui)
 cargo test
 
 # Python IFC extractor: set up once, then run its tests

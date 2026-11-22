@@ -137,6 +137,81 @@ fn default_window_groups() -> Vec<WindowGroupInput> {
     ]
 }
 
+/// Compass points accepted in `window-directions`, clockwise from north.
+const COMPASS: [(&str, f64); 8] = [
+    ("N", 0.0),
+    ("NE", 45.0),
+    ("E", 90.0),
+    ("SE", 135.0),
+    ("S", 180.0),
+    ("SW", 225.0),
+    ("W", 270.0),
+    ("NW", 315.0),
+];
+
+const WINDOW_DIRECTIONS_FORMAT: &str = "expected azimuth:share pairs separated by commas, \
+     e.g. S:60,W:40 or 143:0.67,233:0.33 (azimuth in degrees clockwise from north, \
+     or N, NE, E, SE, S, SW, W, NW; shares in any unit)";
+
+/// Parse `window-directions`: how the glazing is split between facings.
+///
+/// `S:60,W:40` puts 60% of the window area facing south and 40% west.
+/// Azimuths are degrees clockwise from north or compass points; shares may
+/// be in any unit (percentages, fractions, m² by facing) and are scaled to
+/// add up to 1. An empty value keeps the default of 25% each way.
+pub fn parse_window_directions(spec: &str) -> anyhow::Result<Vec<WindowGroupInput>> {
+    if spec.trim().is_empty() {
+        return Ok(default_window_groups());
+    }
+    let mut pairs = Vec::new();
+    for item in spec.split(',').map(str::trim).filter(|i| !i.is_empty()) {
+        let bad = || anyhow::anyhow!("bad window direction '{item}': {WINDOW_DIRECTIONS_FORMAT}");
+        let (facing, share) = item.split_once(':').ok_or_else(bad)?;
+        let facing = facing.trim();
+        let azimuth = match COMPASS
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case(facing))
+        {
+            Some(&(_, azimuth)) => azimuth,
+            None => facing
+                .parse::<f64>()
+                .ok()
+                .filter(|a| a.is_finite())
+                .ok_or_else(bad)?
+                .rem_euclid(360.0),
+        };
+        let share = share
+            .trim()
+            .parse::<f64>()
+            .ok()
+            .filter(|s| s.is_finite() && *s > 0.0)
+            .ok_or_else(bad)?;
+        pairs.push((azimuth, share));
+    }
+    if pairs.is_empty() {
+        anyhow::bail!("no window directions: {WINDOW_DIRECTIONS_FORMAT}");
+    }
+    let total: f64 = pairs.iter().map(|(_, share)| share).sum();
+    Ok(pairs
+        .into_iter()
+        .map(|(azimuth, share)| WindowGroupInput {
+            pct_window_area: share / total,
+            window_azimuth: azimuth,
+            shgc: default_shgc(),
+            shading: 0.0,
+        })
+        .collect())
+}
+
+/// `68% 143°, 20% 233°, 12% 53°`
+fn describe_window_groups(groups: &[WindowGroupInput]) -> String {
+    groups
+        .iter()
+        .map(|g| format!("{:.0}% {:.0}°", g.pct_window_area * 100.0, g.window_azimuth))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 // ---------------------------------------------------------------------------
 // Subprocess Bridge (M3-M5)
 // ---------------------------------------------------------------------------
@@ -277,8 +352,8 @@ pub fn format_report(results: &MurbResults) -> String {
 // Handler Bodies (M5, M6)
 // ---------------------------------------------------------------------------
 
-/// Handle `murb-simulate` — runs the full subprocess bridge.
-fn handle_simulate(ctx: &TaskContext) -> anyhow::Result<()> {
+/// The simulation input `murb-simulate` sends for `ctx`'s options.
+fn simulation_input(ctx: &TaskContext) -> anyhow::Result<MurbInput> {
     let input = MurbInput {
         epw_path: ctx.get_option("epw", ""),
         name: ctx.get_option("name", "makit_run"),
@@ -295,7 +370,7 @@ fn handle_simulate(ctx: &TaskContext) -> anyhow::Result<()> {
         cop_clg: ctx.get_option("cop-clg", "5.2").parse()?,
         cop_dhw: ctx.get_option("cop-dhw", "0.85").parse()?,
         hrv_efficiency: ctx.get_option("hrv", "0.55").parse()?,
-        window_groups: default_window_groups(),
+        window_groups: parse_window_directions(&ctx.get_option("window-directions", ""))?,
     };
 
     if input.epw_path.is_empty() {
@@ -304,11 +379,22 @@ fn handle_simulate(ctx: &TaskContext) -> anyhow::Result<()> {
     if input.gfa <= 0.0 {
         anyhow::bail!("--gfa must be a positive number (gross floor area in m²)");
     }
+    Ok(input)
+}
+
+/// Handle `murb-simulate` — runs the full subprocess bridge.
+fn handle_simulate(ctx: &TaskContext) -> anyhow::Result<()> {
+    let input = simulation_input(ctx)?;
 
     println!("Running MURB energy simulation...");
     println!("  EPW:      {}", input.epw_path);
     println!("  GFA:      {} m²", input.gfa);
     println!("  Province: {}", input.province);
+    println!(
+        "  Windows:  {} m² ({})",
+        input.area_windows,
+        describe_window_groups(&input.window_groups)
+    );
 
     let results = run_simulation(&input)?;
 
@@ -414,6 +500,13 @@ pub fn register_tasks(reg: &mut Registry) {
         Some("0"),
     )
     .add_option("windows", "Window area [m²]", "float", true, None)
+    .add_option(
+        "window-directions",
+        "Window share by facing, azimuth:share (e.g. S:60,W:40)",
+        "string",
+        false,
+        None,
+    )
     .add_option("roof", "Roof area [m²]", "float", true, None)
     .add_option(
         "u-walls",
@@ -474,6 +567,83 @@ pub fn register_tasks(reg: &mut Registry) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn facings(groups: &[WindowGroupInput]) -> Vec<(f64, f64)> {
+        groups
+            .iter()
+            .map(|g| {
+                let share = (g.pct_window_area * 10_000.0).round() / 10_000.0;
+                (g.window_azimuth, share)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn no_window_directions_means_a_quarter_each_way() {
+        let quarter = vec![(0.0, 0.25), (90.0, 0.25), (180.0, 0.25), (270.0, 0.25)];
+        assert_eq!(facings(&parse_window_directions("").unwrap()), quarter);
+        assert_eq!(facings(&parse_window_directions("  ").unwrap()), quarter);
+    }
+
+    #[test]
+    fn window_directions_take_compass_points_or_degrees_and_any_unit() {
+        assert_eq!(
+            facings(&parse_window_directions("S:60, w:40").unwrap()),
+            vec![(180.0, 0.6), (270.0, 0.4)]
+        );
+        // window areas by facing, straight from a model
+        assert_eq!(
+            facings(&parse_window_directions("143:123.4,233:37,53:22.4").unwrap()),
+            vec![(143.0, 0.6751), (233.0, 0.2024), (53.0, 0.1225)]
+        );
+        assert_eq!(
+            facings(&parse_window_directions("NE:1,se:1,SW:1,NW:1").unwrap()),
+            vec![(45.0, 0.25), (135.0, 0.25), (225.0, 0.25), (315.0, 0.25)]
+        );
+        assert_eq!(
+            facings(&parse_window_directions("450:1,-90:1").unwrap()),
+            vec![(90.0, 0.5), (270.0, 0.5)]
+        );
+        let group = &parse_window_directions("S:1").unwrap()[0];
+        assert_eq!((group.shgc, group.shading), (0.4, 0.0));
+    }
+
+    #[test]
+    fn bad_window_directions_say_what_is_expected() {
+        for spec in ["S", "Q:1", "S:-1", "S:0", "S:abc", ":1", "S:1,N", "S:inf"] {
+            let err = parse_window_directions(spec).unwrap_err().to_string();
+            assert!(err.contains("azimuth:share"), "{spec}: {err}");
+        }
+    }
+
+    #[test]
+    fn murb_simulate_sends_the_window_directions() {
+        let mut ctx = TaskContext::new();
+        for (key, value) in [
+            ("epw", "toronto.epw"),
+            ("gfa", "100"),
+            ("walls-ag", "50"),
+            ("windows", "10"),
+            ("roof", "40"),
+            ("window-directions", "SE:3,SW:1"),
+        ] {
+            ctx.options.insert(key.into(), value.into());
+        }
+        let input = simulation_input(&ctx).unwrap();
+        assert_eq!(
+            facings(&input.window_groups),
+            vec![(135.0, 0.75), (225.0, 0.25)]
+        );
+
+        let mut reg = Registry::default();
+        register_tasks(&mut reg);
+        let option = reg.actions["murb-simulate"]
+            .options
+            .iter()
+            .find(|o| o.name == "window-directions")
+            .expect("option registered");
+        assert!(!option.required);
+    }
 
     #[test]
     fn test_murb_input_serialization() {

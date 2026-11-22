@@ -57,7 +57,7 @@ This document uses **progressive disclosure**. Level 1 (this file) is loaded eve
 - `cargo run -p makit -- tui`: Launch the interactive TUI.
 - `cargo run -p makit -- list`: List all registered tools/sources/actions.
 - `cargo run -p makit --example canvas_demo`: Run the braille canvas demo.
-- `cargo test`: Run the full test suite across all crates (270 tests: 10 core, 40 geometry, 38 tools, 182 tui).
+- `cargo test`: Run the full test suite across all crates (274 tests: 10 core, 40 geometry, 42 tools, 182 tui).
 - `cargo fmt`: Enforce standard Rust formatting; required for all changes.
 - `cargo clippy`: Run lints; address all warnings before opening a PR.
 - `.venv/bin/python -m unittest discover -s pyrevit-extension/tests`: Python IFC extractor and analysis tests (13). They need `ifcopenshell`; set up `.venv` once with `uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell`.
@@ -99,7 +99,7 @@ This document uses **progressive disclosure**. Level 1 (this file) is loaded eve
 | TUI signals / shutdown | `crates/makit-tui/src/signals.rs`, `lib.rs` | The event loop may never see the signal flag (crossterm's poll spins once the tty is gone); the watchdog thread must stay able to end the process by itself |
 | Geometry / SDF / isometric | `crates/makit-geometry/src/` | SDF needs subpixel for braille; use line-based for TUI |
 | Registry / task wiring | `crates/makit-core/src/registry.rs` | Global singleton; `register_tasks()` called at startup |
-| MURB energy bridge | `scripts/murb_runner.py` + `crates/makit-tools/src/murb.rs` | Subprocess JSON IPC; needs `murb_energy_tool` on the Python path (stdlib-only, not pip-installable: set `PYTHONPATH` to the murb repo); its results are `Vec` lists, not numpy arrays; `murb-simulate` always sends 25% of the glazing each way (no window-direction option) |
+| MURB energy bridge | `scripts/murb_runner.py` + `crates/makit-tools/src/murb.rs` | Subprocess JSON IPC; needs `murb_energy_tool` on the Python path (stdlib-only, not pip-installable: set `PYTHONPATH` to the murb repo); its results are `Vec` lists, not numpy arrays; `murb-simulate --window-directions` (`azimuth:share` pairs, e.g. `S:60,W:40`) splits the glazing by facing; empty means 25% each way |
 
 ---
 
