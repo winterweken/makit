@@ -61,6 +61,7 @@ This document uses **progressive disclosure**. Level 1 (this file) is loaded eve
 - `cargo fmt`: Enforce standard Rust formatting; required for all changes.
 - `cargo clippy`: Run lints; address all warnings before opening a PR.
 - `.venv/bin/python -m unittest discover -s pyrevit-extension/tests`: Python IFC extractor tests (6). They need `ifcopenshell`; set up `.venv` once with `uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell`.
+- `python3 -m unittest discover -s scripts/tests`: MURB runner tests (2); they stand in for `murb_energy_tool`, so they need no extra packages.
 
 ## Coding Style & Naming Conventions
 - Use standard Rust style: snake_case for functions/variables, PascalCase for types, and doc comments (`///`) on public items.
@@ -98,7 +99,7 @@ This document uses **progressive disclosure**. Level 1 (this file) is loaded eve
 | TUI signals / shutdown | `crates/makit-tui/src/signals.rs`, `lib.rs` | The event loop may never see the signal flag (crossterm's poll spins once the tty is gone); the watchdog thread must stay able to end the process by itself |
 | Geometry / SDF / isometric | `crates/makit-geometry/src/` | SDF needs subpixel for braille; use line-based for TUI |
 | Registry / task wiring | `crates/makit-core/src/registry.rs` | Global singleton; `register_tasks()` called at startup |
-| MURB energy bridge | `scripts/murb_runner.py` + `crates/makit-tools/src/murb.rs` | Subprocess JSON IPC; needs `murb_energy_tool` Python package |
+| MURB energy bridge | `scripts/murb_runner.py` + `crates/makit-tools/src/murb.rs` | Subprocess JSON IPC; needs `murb_energy_tool` on the Python path (stdlib-only, not pip-installable: set `PYTHONPATH` to the murb repo); its results are `Vec` lists, not numpy arrays; `murb-simulate` always sends 25% of the glazing each way (no window-direction option) |
 
 ---
 
