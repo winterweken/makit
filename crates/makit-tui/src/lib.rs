@@ -10,6 +10,7 @@ pub mod capture;
 pub mod help;
 pub mod keymap;
 pub mod layout;
+pub mod logo;
 pub mod msg;
 pub mod node;
 pub mod options;

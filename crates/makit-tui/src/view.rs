@@ -15,6 +15,7 @@ use ratatui::Frame;
 use crate::app::{AppState, Editor, Focus, ValueSource};
 use crate::help::{self, HelpLine};
 use crate::layout::{self, AppLayout, IfcLayout};
+use crate::logo;
 use crate::node::{NodeId, PreviewKind};
 use crate::options::OptionSpec;
 use crate::preview;
@@ -113,8 +114,11 @@ fn file_name(path: &str) -> &str {
 fn render_header(frame: &mut Frame, area: Rect) {
     let bar = Style::new().bg(THEME.bar_bg);
     frame.render_widget(Block::new().style(bar), area);
+    let [cube_l, cube_r] = logo::header_icon();
     let left = Line::from(vec![
-        Span::styled(" ⬡", Style::new().fg(THEME.accent).bold()),
+        Span::raw(" "),
+        cube_l,
+        cube_r,
         Span::styled(HEADER_TITLE, Style::new().fg(THEME.primary).bold()),
     ]);
     let title_width = left.width();
@@ -490,13 +494,31 @@ fn render_preview(frame: &mut Frame, state: &AppState, kind: PreviewKind, area: 
     };
     let fit = preview::fit_bounds(bounds, area.width, area.height);
     let points = preview::expand_points(&rec.points, fit.scale);
+    // The logo is drawn in colour: the kit in slate, the lifted block in the
+    // theme's three colours. Other previews are one colour.
+    let toned = (kind == PreviewKind::Logo).then(|| logo::segments(state.logo_angle));
     let canvas = Canvas::default()
         .marker(Marker::Braille)
         .x_bounds(fit.x_bounds)
         .y_bounds(fit.y_bounds)
         .paint(|ctx| {
-            for &((x1, y1), (x2, y2)) in &rec.segments {
-                ctx.draw(&CanvasLine::new(x1, y1, x2, y2, THEME.accent));
+            if let Some(toned) = &toned {
+                // Kit first, so the hero block's edges win where they meet.
+                for &(((x1, y1), (x2, y2)), tone) in
+                    toned.iter().filter(|(_, t)| *t == logo::Tone::Kit)
+                {
+                    ctx.draw(&CanvasLine::new(x1, y1, x2, y2, tone.color()));
+                }
+                ctx.layer();
+                for &(((x1, y1), (x2, y2)), tone) in
+                    toned.iter().filter(|(_, t)| *t != logo::Tone::Kit)
+                {
+                    ctx.draw(&CanvasLine::new(x1, y1, x2, y2, tone.color()));
+                }
+            } else {
+                for &((x1, y1), (x2, y2)) in &rec.segments {
+                    ctx.draw(&CanvasLine::new(x1, y1, x2, y2, THEME.accent));
+                }
             }
             ctx.draw(&Points {
                 coords: &points,

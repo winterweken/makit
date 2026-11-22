@@ -8,6 +8,7 @@ use makit_geometry::{Plotter, Recording, Rectangle};
 use makit_tools::building_model::WwrAnalysis;
 use makit_tools::murb::MurbResults;
 
+use crate::logo;
 use crate::node::PreviewKind;
 
 /// Month initials for the energy chart.
@@ -39,8 +40,8 @@ pub struct PreviewData<'a> {
 }
 
 /// Logo geometry (centre and radius in dot units).
-const LOGO_CENTER: (f64, f64) = (20.0, 16.0);
-const LOGO_RADIUS: f64 = 12.0;
+const LOGO_CENTER: (f64, f64) = logo::CENTER;
+const LOGO_RADIUS: f64 = logo::RADIUS;
 
 /// Largest sub-dot expansion per axis when scaling filled shapes up.
 const MAX_FILL_EXPANSION: usize = 8;
@@ -98,7 +99,7 @@ pub fn caption(kind: PreviewKind, data: PreviewData) -> Vec<String> {
 }
 
 /// Bounds to fit for a recording. The logo uses fixed bounds so it does not
-/// "breathe" as it rotates.
+/// "breathe" as its block hovers.
 pub fn content_bounds(kind: PreviewKind, rec: &Recording) -> Option<Rectangle> {
     match kind {
         PreviewKind::Logo => Some(Rectangle::new(
@@ -169,26 +170,10 @@ pub fn expand_points(points: &[(f64, f64)], scale: f64) -> Vec<(f64, f64)> {
     out
 }
 
-/// Rotating hexagonal logo with inner counter-rotation and spokes.
+/// The makit symbol: a kit of blocks with the front-top block lifted out,
+/// hovering with `angle`. See [`logo`].
 fn draw_logo<P: Plotter + ?Sized>(c: &mut P, angle: f64) {
-    let (cx, cy) = LOGO_CENTER;
-    let r = LOGO_RADIUS;
-    let r2 = r * 0.55;
-    let sides = 6;
-    let vertex = |radius: f64, a: f64| (cx + radius * a.cos(), cy + radius * a.sin());
-    let step = std::f64::consts::TAU / sides as f64;
-
-    for i in 0..sides {
-        let a1 = angle + i as f64 * step;
-        let a2 = angle + (i + 1) as f64 * step;
-        c.line(vertex(r, a1), vertex(r, a2));
-
-        let b1 = -angle + i as f64 * step;
-        let b2 = -angle + (i + 1) as f64 * step;
-        c.line(vertex(r2, b1), vertex(r2, b2));
-
-        c.line(vertex(r2, -a1), vertex(r, a1));
-    }
+    logo::draw(c, angle);
 }
 
 /// Isometric wireframe building — 10×8 m footprint with a floor division and parapet.

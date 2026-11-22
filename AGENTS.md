@@ -44,7 +44,8 @@ This document uses **progressive disclosure**. Level 1 (this file) is loaded eve
   - `revit/` — Revit HTTP bridge (`client.rs` async reqwest, `models.rs` wall/floor/room types, `mod.rs` handlers)
   - `blender.rs` — Blender geometry sync server (axum, `Arc<RwLock>` shared state)
   - `ifc.rs`, `rhino.rs`, `analysis.rs`, `architect.rs` — other tool registrations
-- `crates/makit-tui/`: ratatui 0.29 + crossterm 0.28 TUI, Elm architecture: `app.rs` (AppState, option values, `Editor` form), `msg.rs` (Msg/Cmd), `update.rs` (pure), `view.rs`, `layout.rs` (shared by view + mouse hit-tests), `keymap.rs`, `runtime.rs` (event loop, worker threads, cancel tokens), `terminal.rs` (stderr backend, panic hook, terminal check), `capture.rs` (stdout → Output pane, task results in output order), `signals.rs` (restore the terminal on SIGTERM), `node.rs` (typed `NodeId`, `PreviewKind` routing, picker/results bindings), `options.rs` (option `Catalog` copied from the registry), `help.rs` (help text), `tree.rs`, `task.rs`, `preview.rs`.
+- `crates/makit-tui/`: ratatui 0.29 + crossterm 0.28 TUI, Elm architecture: `app.rs` (AppState, option values, `Editor` form), `msg.rs` (Msg/Cmd), `update.rs` (pure), `view.rs`, `layout.rs` (shared by view + mouse hit-tests), `keymap.rs`, `runtime.rs` (event loop, worker threads, cancel tokens), `terminal.rs` (stderr backend, panic hook, terminal check), `capture.rs` (stdout → Output pane, task results in output order), `signals.rs` (restore the terminal on SIGTERM), `node.rs` (typed `NodeId`, `PreviewKind` routing, picker/results bindings), `options.rs` (option `Catalog` copied from the registry), `help.rs` (help text), `logo.rs` (the makit symbol: header icon, braille preview, `mini`), `tree.rs`, `task.rs`, `preview.rs`.
+- `docs/brand/`: The makit symbol as SVG (marks for dark and light backgrounds, app icons) and notes on using it.
 - `examples/`: Canvas demo and sample IFC files; use these for reproducible tests.
 - `pyrevit-extension/`: Packaged pyRevit extension (Python scripts and startup hooks).
 - `scripts/`: `blender/` Python Blender addon; `murb_runner.py` Python-side energy bridge.
@@ -56,7 +57,7 @@ This document uses **progressive disclosure**. Level 1 (this file) is loaded eve
 - `cargo run -p makit -- tui`: Launch the interactive TUI.
 - `cargo run -p makit -- list`: List all registered tools/sources/actions.
 - `cargo run -p makit --example canvas_demo`: Run the braille canvas demo.
-- `cargo test`: Run the full test suite across all crates (255 tests: 10 core, 40 geometry, 28 tools, 177 tui).
+- `cargo test`: Run the full test suite across all crates (260 tests: 10 core, 40 geometry, 28 tools, 182 tui).
 - `cargo fmt`: Enforce standard Rust formatting; required for all changes.
 - `cargo clippy`: Run lints; address all warnings before opening a PR.
 
@@ -89,7 +90,7 @@ This document uses **progressive disclosure**. Level 1 (this file) is loaded eve
 | Revit bridge / extraction | `docs/WALL_ORIENTATION_ANALYSIS.md` | atan2 axis convention; pyRevit HTTP on port 48884 |
 | IFC parsing / analysis | `docs/IFC_SUPPORT.md` | IfcOpenShell import; storey filtering edge cases |
 | Bridge architecture / JSON schema | `docs/HYBRID_ARCHITECTURE.md` | 3-layer separation; generic format is platform-agnostic |
-| TUI canvas / preview rendering | `crates/makit-tui/src/preview.rs`, `node.rs` | Routing is `PreviewKind::for_node` (matches the task name, not option names); previews are drawn into a `Recording` and scaled by `fit_bounds` |
+| TUI canvas / preview rendering | `crates/makit-tui/src/preview.rs`, `node.rs` | Routing is `PreviewKind::for_node` (matches the task name, not option names); previews are drawn into a `Recording` and scaled by `fit_bounds`; the logo preview is coloured from `logo::segments` in `view.rs`, so change its shape in `logo.rs` |
 | TUI layout / mouse | `crates/makit-tui/src/layout.rs` | `view` and `keymap` must both use `layout::compute` so clicks hit what is drawn; on short screens `detail_rows` drops the preview whole and the picker may be absent (then it cannot take focus); list scroll offsets are set in one place, `sync_scroll` at the end of `update`, because the mouse hit-tests read them |
 | TUI option values / editor | `crates/makit-tui/src/options.rs`, `app.rs` (`option_value`), `update.rs` | A value resolves user → IFC picker → registered default; `update` reads the `Catalog`, never the registry; the editor and help are modal (checked first in `update` and `keymap`) |
 | TUI task results / stop | `crates/makit-tui/src/capture.rs`, `runtime.rs` | Results go through the stdout pipe (`Mailbox` + marker) so they cannot overtake output; long-running handlers must poll `ctx.cancel` to be stoppable |

@@ -1,4 +1,11 @@
-# ⬡ makit
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/makit-mark-dark.svg">
+    <img src="docs/brand/makit-mark-light.svg" alt="makit: a 2×2×2 kit of blocks with one block lifted out, the one being made" width="160">
+  </picture>
+</p>
+
+# makit
 
 **A multi-tool CLI & TUI for AEC workflows** — orchestrate Revit, Blender, IFC analysis, and MURB energy modelling from one terminal.
 
@@ -53,7 +60,7 @@ Built in Rust with [ratatui](https://ratatui.rs) for the interactive TUI and a d
 | **Blender Sync** | Receive live geometry from Blender over HTTP for TUI visualization |
 | **MURB Energy** | Monthly heat balance simulation — TEDI / TEUI / GHGI analysis via Python bridge |
 | **Braille Canvas** | Floor plans, elevations, bar charts, and data sheets in braille characters |
-| **3D Logo** | Animated rotating hexagonal wireframe on the TUI home screen |
+| **3D Logo** | The makit symbol on the TUI home screen: a braille kit of blocks with one block hovering above its socket |
 | **Generic JSON Format** | Extract from any source into one schema, run the same analysis everywhere |
 
 ## Quick Start
@@ -228,7 +235,7 @@ Tools register **sources** (geometry input drivers) and **actions** (operations)
 # Build
 cargo build
 
-# Run all 255 tests (10 core, 40 geometry, 28 tools, 177 tui)
+# Run all 260 tests (10 core, 40 geometry, 28 tools, 182 tui)
 cargo test
 
 # Run the CLI
