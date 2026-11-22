@@ -121,7 +121,8 @@ def analyze_wall_orientations(building_model):
             'wallCount': 0,
             'wallArea': 0.0,
             'windowCount': 0,
-            'windowArea': 0.0
+            'windowArea': 0.0,
+            'interiorWallsLeftOut': 0
         },
         'projectNorth': project_north,
         'units': building_model.units
@@ -143,6 +144,12 @@ def analyze_wall_orientations(building_model):
     wall_orientations = {}  # wall_id -> direction
 
     for wall in building_model.walls:
+        # Walls flagged interior, and their windows, are not part of the
+        # envelope; walls with no flag are counted
+        if wall.is_external is False:
+            stats['totals']['interiorWallsLeftOut'] += 1
+            continue
+
         # Calculate orientation
         invert = wall.is_curtain_wall
         direction = calculate_wall_orientation(wall, project_north, invert)

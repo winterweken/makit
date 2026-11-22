@@ -45,12 +45,70 @@ def get_ifc_property_value(element, pset_name, prop_name):
     return None
 
 
-def get_ifc_wall_orientation(wall):
+def get_wall_axis(wall):
     """
-    Extract wall orientation vector from IFC wall
+    A wall's start point and unit direction in plan, in file units, from its
+    placement: IFC runs a wall along its local X axis.
+
+    Returns:
+        ((x, y), (dx, dy)) or None
+    """
+    try:
+        matrix = ifcopenshell.util.placement.get_local_placement(wall.ObjectPlacement)
+    except Exception:
+        return None
+    dx, dy = matrix[0][0], matrix[1][0]
+    length = math.hypot(dx, dy)
+    if length == 0:
+        return None
+    return (matrix[0][3], matrix[1][3]), (dx / length, dy / length)
+
+def get_wall_midpoint(wall):
+    """Middle of a wall's axis in plan (its start point without a Length)."""
+    axis = get_wall_axis(wall)
+    if axis is None:
+        return None
+    (x, y), (dx, dy) = axis
+    length = 0
+    for quantity in get_element_quantities(wall):
+        if quantity.is_a('IfcQuantityLength') and quantity.Name == 'Length':
+            length = quantity.LengthValue
+    return x + dx * length / 2, y + dy * length / 2
+
+def get_is_external(element):
+    """
+    The element's IsExternal flag from its Pset_*Common property set:
+    True, False, or None when the file does not say.
+    """
+    for pset, props in ifcopenshell.util.element.get_psets(element).items():
+        if pset.endswith('Common') and 'IsExternal' in props:
+            return bool(props['IsExternal'])
+    return None
+
+def get_building_centre(walls):
+    """
+    Plan centre of the walls flagged IsExternal (of all walls if none are),
+    used to tell a wall's outer face from its inner one.
+    """
+    chosen = [w for w in walls if get_is_external(w)] or list(walls)
+    points = [p for p in (get_wall_midpoint(w) for w in chosen) if p is not None]
+    if not points:
+        return None
+    return (sum(p[0] for p in points) / len(points), sum(p[1] for p in points) / len(points))
+
+def get_ifc_wall_orientation(wall, centre=None):
+    """
+    Outward-facing normal of an IFC wall, in project coordinates
+
+    The wall runs along its placement's X axis, so its faces look along the
+    perpendicular. Which of the two is outside is not fixed by the local Y
+    axis (Revit exports both ways), so the normal is turned to point away
+    from `centre`, the middle of the building. Without a centre it is the
+    placement's +Y side.
 
     Args:
         wall: IFC wall element
+        centre: (x, y) plan centre of the building, in file units
 
     Returns:
         GeometricVector or None
@@ -58,24 +116,17 @@ def get_ifc_wall_orientation(wall):
     if not IFC_AVAILABLE:
         return None
 
-    try:
-        # Get wall placement
-        placement = ifcopenshell.util.placement.get_local_placement(wall.ObjectPlacement)
-
-        # For walls, the X-axis usually represents the orientation
-        # Extract the X-axis direction from the placement matrix
-        x_direction = [placement[0][0], placement[1][0], placement[2][0]]
-
-        # Normalize
-        length = math.sqrt(sum(d**2 for d in x_direction))
-        if length > 0:
-            x_direction = [d / length for d in x_direction]
-
-        return GeometricVector(x_direction[0], x_direction[1], x_direction[2])
-    except Exception as e:
-        print("Warning: Could not extract wall orientation: {}".format(str(e)))
+    axis = get_wall_axis(wall)
+    if axis is None:
+        print("Warning: Could not extract wall orientation: no placement")
         return None
-
+    _, (dx, dy) = axis
+    nx, ny = -dy, dx
+    if centre is not None:
+        mid = get_wall_midpoint(wall)
+        if (mid[0] - centre[0]) * nx + (mid[1] - centre[1]) * ny < 0:
+            nx, ny = -nx, -ny
+    return GeometricVector(nx, ny, 0.0)
 
 def get_ifc_wall_geometry(wall):
     """
@@ -220,7 +271,7 @@ def get_element_position(element):
     except:
         return None
 
-def extract_ifc_wall_to_generic(wall, ifc_file, area_unit='sqm'):
+def extract_ifc_wall_to_generic(wall, ifc_file, area_unit='sqm', centre=None):
     """
     Extract an IFC wall element and convert to GenericWall
     """
@@ -230,7 +281,7 @@ def extract_ifc_wall_to_generic(wall, ifc_file, area_unit='sqm'):
     )
 
     # Get orientation
-    orientation = get_ifc_wall_orientation(wall)
+    orientation = get_ifc_wall_orientation(wall, centre)
     if orientation:
         generic_wall.orientation = orientation
         
@@ -287,6 +338,9 @@ def extract_ifc_wall_to_generic(wall, ifc_file, area_unit='sqm'):
 
     # Check if curtain wall
     generic_wall.is_curtain_wall = 'CURTAIN' in (wall.ObjectType or '').upper()
+
+    # Exterior or interior, as the file flags it (None if it does not)
+    generic_wall.is_external = get_is_external(wall)
 
     # Store IFC-specific properties
     generic_wall.properties['ifcType'] = wall.is_a()
@@ -413,9 +467,12 @@ def extract_building_model_from_ifc(ifc_path, options=None):
         contexts = ifc_file.by_type('IfcGeometricRepresentationContext')
         for context in contexts:
             if hasattr(context, 'TrueNorth') and context.TrueNorth:
-                # Convert to radians
+                # TrueNorth is true north in project coordinates. The generic
+                # format wants the clockwise angle that turns project
+                # coordinates into true ones (analysis_engine.rotate_vector_2d):
+                # 0 when true north is the project's +Y.
                 north = context.TrueNorth.DirectionRatios
-                building_model.project_north = math.atan2(north[1], north[0])
+                building_model.project_north = math.atan2(-north[0], north[1])
                 break
     except:
         building_model.project_north = 0.0
@@ -423,6 +480,7 @@ def extract_building_model_from_ifc(ifc_path, options=None):
     # Extract walls
     wall_id_to_generic = {}
     walls = ifc_file.by_type('IfcWall')
+    centre = get_building_centre(walls)
 
     for wall in walls:
         try:
@@ -446,7 +504,7 @@ def extract_building_model_from_ifc(ifc_path, options=None):
                     continue
 
             # Extract wall
-            generic_wall = extract_ifc_wall_to_generic(wall, ifc_file, area_unit)
+            generic_wall = extract_ifc_wall_to_generic(wall, ifc_file, area_unit, centre)
             building_model.walls.append(generic_wall)
             wall_id_to_generic[wall.GlobalId] = generic_wall
 

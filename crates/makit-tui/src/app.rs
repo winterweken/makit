@@ -685,6 +685,7 @@ mod tests {
             wall_count: 1,
             window_count: 1,
             project_name: String::new(),
+            interior_walls_left_out: 0,
         }
     }
 

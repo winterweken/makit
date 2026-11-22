@@ -4,9 +4,19 @@
       "id": "1AQAupaRP1txwK1AGiN61V",
       "name": "house - outer wall - house right front",
       "orientation": {
-        "x": 2.525757381022231e-14,
-        "y": -1.0,
-        "z": 3.2836943041225645e-15
+        "x": 1.0,
+        "y": 2.525757381022231e-14,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 7100.000000000076,
+        "y": 4799.999999999934,
+        "z": -8.135714324453147e-12
+      },
+      "endPoint": {
+        "x": 7100.000000000122,
+        "y": 2999.9999999999627,
+        "z": -2.225064577032626e-12
       },
       "area": 6.3,
       "height": 0.0,
@@ -15,6 +25,7 @@
       "type": "solidwall",
       "workset": "",
       "isCurtainWall": false,
+      "isExternal": true,
       "level": "00 groundfloor",
       "windows": [],
       "properties": {
@@ -26,9 +37,19 @@
       "id": "3wdauVJT5Fx9drrREiDqA$",
       "name": "house - outer wall - house right back",
       "orientation": {
-        "x": -1.1657341758564144e-15,
-        "y": -1.0,
+        "x": 1.0,
+        "y": -1.1657341758564144e-15,
         "z": 0.0
+      },
+      "startPoint": {
+        "x": 8500.000000000087,
+        "y": 8999.999999999978,
+        "z": -2.961257905553794e-11
+      },
+      "endPoint": {
+        "x": 8500.000000000082,
+        "y": 4799.999999999911,
+        "z": -2.961257905553794e-11
       },
       "area": 8.9,
       "height": 0.0,
@@ -37,6 +58,7 @@
       "type": "solidwall",
       "workset": "",
       "isCurtainWall": false,
+      "isExternal": true,
       "level": "00 groundfloor",
       "windows": [],
       "properties": {
@@ -48,9 +70,19 @@
       "id": "0OfZwWc8j9QP5uX8xPTxDH",
       "name": "house - outer wall - house left",
       "orientation": {
-        "x": 1.3322676295501878e-15,
-        "y": 1.0,
+        "x": -1.0,
+        "y": 1.3322676295501878e-15,
         "z": 0.0
+      },
+      "startPoint": {
+        "x": 3100.0000000000164,
+        "y": 3000.000000000014,
+        "z": -3.623767952376511e-12
+      },
+      "endPoint": {
+        "x": 3100.0000000000246,
+        "y": 9000.000000000051,
+        "z": -3.623767952376511e-12
       },
       "area": 21.2,
       "height": 0.0,
@@ -59,6 +91,7 @@
       "type": "solidwall",
       "workset": "",
       "isCurtainWall": false,
+      "isExternal": true,
       "level": "00 groundfloor",
       "windows": [],
       "properties": {
@@ -70,9 +103,19 @@
       "id": "1uS5vfZPn9R8PlAaVd73on",
       "name": "plumbing wall",
       "orientation": {
-        "x": -1.2663699797266077e-15,
-        "y": -1.0,
+        "x": 1.0,
+        "y": -1.2663699797266077e-15,
         "z": 0.0
+      },
+      "startPoint": {
+        "x": 8400.000000000096,
+        "y": 8800.000000000093,
+        "z": 4.979767709301086e-11
+      },
+      "endPoint": {
+        "x": 8400.000000000091,
+        "y": 5000.000000000007,
+        "z": 4.979767709301086e-11
       },
       "area": 6.9,
       "height": 0.0,
@@ -81,6 +124,7 @@
       "type": "plumbingwall",
       "workset": "",
       "isCurtainWall": false,
+      "isExternal": false,
       "level": "00 groundfloor",
       "windows": [],
       "properties": {
@@ -90,11 +134,11 @@
     }
   ],
   "windows": [],
-  "projectNorth": 1.5707963267948966,
+  "projectNorth": -0.0,
   "units": "m",
   "metadata": {
+    "sourceFile": "Building-Architecture.ifc",
     "projectName": "ifc silly sample scene - project",
-    "description": "Demystifying IFC with a playful scene using diverse building elements and compositions.",
-    "sourceFile": "Building-Architecture.ifc"
+    "description": "Demystifying IFC with a playful scene using diverse building elements and compositions."
   }
 }

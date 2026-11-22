@@ -46,6 +46,10 @@ pub struct GenericWall {
     pub workset: String,
     #[serde(default, rename = "isCurtainWall")]
     pub is_curtain_wall: bool,
+    /// `Some(false)` for a wall the source flags as interior; such walls
+    /// are left out of the envelope analysis. `None` when not known.
+    #[serde(default, rename = "isExternal")]
+    pub is_external: Option<bool>,
     #[serde(default)]
     pub level: String,
     #[serde(default)]
@@ -113,6 +117,8 @@ pub struct WwrAnalysis {
     pub wall_count: usize,
     pub window_count: usize,
     pub project_name: String,
+    /// Walls flagged interior, left out of every figure above.
+    pub interior_walls_left_out: usize,
 }
 
 // ---------------------------------------------------------------------------
@@ -214,8 +220,25 @@ fn no_other_ifc_in(dir: &Path, name: &str) -> bool {
     })
 }
 
+/// A wall's outward normal on the true compass (+Y north, +X east).
+///
+/// The generic format stores the normal in project coordinates with
+/// `projectNorth`, the clockwise angle from project to true coordinates, and
+/// flags curtain walls, whose normal Revit reports pointing inward. This
+/// matches `analysis_engine.calculate_wall_orientation` on the Python side.
+fn true_normal(wall: &GenericWall, project_north: f64) -> [f64; 3] {
+    let Vec3 { x, y, z } = wall.orientation;
+    let (sin, cos) = project_north.sin_cos();
+    let (x, y) = (x * cos + y * sin, -x * sin + y * cos);
+    if wall.is_curtain_wall {
+        [-x, -y, z]
+    } else {
+        [x, y, z]
+    }
+}
+
 /// Convert generic walls to the WallData format used by analyze_orientations.
-fn to_wall_data(walls: &[GenericWall]) -> Vec<WallData> {
+fn to_wall_data(walls: &[GenericWall], project_north: f64) -> Vec<WallData> {
     walls
         .iter()
         .enumerate()
@@ -228,23 +251,33 @@ fn to_wall_data(walls: &[GenericWall]) -> Vec<WallData> {
             height_m: w.height,
             start_point: [0.0, 0.0, 0.0],
             end_point: [w.length / 1000.0, 0.0, 0.0],
-            normal: [w.orientation.x, w.orientation.y, w.orientation.z],
+            normal: true_normal(w, project_north),
         })
         .collect()
 }
 
 /// Run full WWR analysis on a building model.
 pub fn analyze_wwr(model: &BuildingModel) -> WwrAnalysis {
-    let wall_data = to_wall_data(&model.walls);
+    // The envelope: every wall not flagged interior. Walls with no flag
+    // count, as they did before sources recorded it.
+    let (walls, interior): (Vec<GenericWall>, Vec<GenericWall>) = model
+        .walls
+        .iter()
+        .cloned()
+        .partition(|w| w.is_external != Some(false));
+    let wall_data = to_wall_data(&walls, model.project_north);
     let orientations = analyze_orientations(&wall_data);
 
-    let total_wall_area: f64 = model.walls.iter().map(|w| w.area).sum();
+    let total_wall_area: f64 = walls.iter().map(|w| w.area).sum();
 
-    // Windows listed in a wall, plus top-level windows not already listed
-    // in one: the IFC extractor puts a hosted window in both lists.
-    let in_walls: Vec<&WallWindow> = model.walls.iter().flat_map(|w| &w.windows).collect();
-    let listed: std::collections::HashSet<&str> = in_walls
+    // Windows listed in an envelope wall, plus top-level windows not listed
+    // in any wall: the IFC extractor puts a hosted window in both lists, and
+    // a window in an interior wall is not part of the envelope either.
+    let in_walls: Vec<&WallWindow> = walls.iter().flat_map(|w| &w.windows).collect();
+    let listed: std::collections::HashSet<&str> = model
+        .walls
         .iter()
+        .flat_map(|w| &w.windows)
         .map(|win| win.id.as_str())
         .filter(|id| !id.is_empty())
         .collect();
@@ -275,9 +308,10 @@ pub fn analyze_wwr(model: &BuildingModel) -> WwrAnalysis {
         total_wall_area: ((total_wall_area * 10.0).round() / 10.0).abs(),
         total_window_area: ((total_window_area * 10.0).round() / 10.0).abs(),
         overall_wwr: ((overall_wwr * 10.0).round() / 10.0).abs(),
-        wall_count: model.walls.len(),
+        wall_count: walls.len(),
         window_count,
         project_name,
+        interior_walls_left_out: interior.len(),
     }
 }
 
@@ -308,6 +342,12 @@ pub fn print_wwr_report(analysis: &WwrAnalysis) {
         analysis.window_count, analysis.total_window_area
     );
     println!("  Overall WWR: {:.1}%", analysis.overall_wwr);
+    if analysis.interior_walls_left_out > 0 {
+        println!(
+            "  Interior walls left out: {}",
+            analysis.interior_walls_left_out
+        );
+    }
 }
 
 #[cfg(test)]
@@ -333,10 +373,20 @@ mod tests {
         }
         let model = load_model(path).unwrap();
         let result = analyze_wwr(&model);
-        assert_eq!(result.wall_count, 4);
-        assert!(result.total_wall_area > 40.0);
+        // The plumbing wall is flagged interior; the three house walls count.
+        assert_eq!(result.wall_count, 3);
+        assert_eq!(result.interior_walls_left_out, 1);
+        assert_eq!(result.total_wall_area, 36.4);
         assert_eq!(result.overall_wwr, 0.0); // No windows in sample
-        assert!(!result.orientations.is_empty());
+
+        // Measured from the wall solids: the house's right walls face east,
+        // its left wall west.
+        let facing: Vec<(&str, usize, f64)> = result
+            .orientations
+            .iter()
+            .map(|o| (o.direction.as_str(), o.count, o.total_area_sqm))
+            .collect();
+        assert_eq!(facing, vec![("East", 2, 15.2), ("West", 1, 21.2)]);
     }
 
     #[test]
@@ -370,6 +420,75 @@ mod tests {
         assert_eq!(result.window_count, 2);
         assert_eq!(result.total_window_area, 3.0);
         assert_eq!(result.overall_wwr, 30.0);
+    }
+
+    #[test]
+    fn walls_flagged_interior_and_their_windows_are_left_out() {
+        let model: BuildingModel = serde_json::from_value(serde_json::json!({
+            "walls": [
+                { "id": "out", "orientation": { "x": 0.0, "y": 1.0, "z": 0.0 }, "area": 10.0,
+                  "isExternal": true, "windows": [{ "id": "a", "area": 2.0 }] },
+                { "id": "in", "orientation": { "x": 0.0, "y": -1.0, "z": 0.0 }, "area": 5.0,
+                  "isExternal": false, "windows": [{ "id": "b", "area": 1.0 }] },
+                { "id": "unknown", "orientation": { "x": 1.0, "y": 0.0, "z": 0.0 }, "area": 4.0 }
+            ],
+            "windows": [
+                { "id": "a", "area": 2.0 },
+                { "id": "b", "area": 1.0 },
+                { "id": "loose", "area": 0.5 }
+            ]
+        }))
+        .unwrap();
+        let result = analyze_wwr(&model);
+        assert_eq!(result.wall_count, 2);
+        assert_eq!(result.total_wall_area, 14.0);
+        assert_eq!(result.window_count, 2);
+        assert_eq!(result.total_window_area, 2.5);
+        assert_eq!(result.interior_walls_left_out, 1);
+        let dirs: Vec<&str> = result
+            .orientations
+            .iter()
+            .map(|o| o.direction.as_str())
+            .collect();
+        assert_eq!(dirs, vec!["North", "East"]);
+    }
+
+    /// Direction of the only bucket for a one-wall model.
+    fn facing_of(model: serde_json::Value) -> String {
+        let model: BuildingModel = serde_json::from_value(model).unwrap();
+        let result = analyze_wwr(&model);
+        assert_eq!(result.orientations.len(), 1);
+        result.orientations[0].direction.clone()
+    }
+
+    #[test]
+    fn project_north_turns_walls_onto_the_true_compass() {
+        // The generic format's projectNorth is the clockwise angle from
+        // project to true coordinates (analysis_engine.rotate_vector_2d).
+        // At -90°, true north is the project's +X: a wall facing project
+        // east faces true north.
+        let wall = |x: f64, y: f64| {
+            serde_json::json!({
+                "walls": [{ "orientation": { "x": x, "y": y, "z": 0.0 }, "area": 10.0 }],
+                "projectNorth": -std::f64::consts::FRAC_PI_2
+            })
+        };
+        assert_eq!(facing_of(wall(1.0, 0.0)), "North");
+        assert_eq!(facing_of(wall(0.0, 1.0)), "West");
+    }
+
+    #[test]
+    fn a_curtain_wall_normal_is_reversed() {
+        // Revit reports a curtain wall's orientation pointing inward; the
+        // format flags it so analyses reverse it.
+        let facing = facing_of(serde_json::json!({
+            "walls": [{
+                "orientation": { "x": 0.0, "y": 1.0, "z": 0.0 },
+                "area": 10.0,
+                "isCurtainWall": true
+            }]
+        }));
+        assert_eq!(facing, "South");
     }
 
     /// A fresh, empty folder for one test.

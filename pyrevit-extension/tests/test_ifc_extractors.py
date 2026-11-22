@@ -98,6 +98,115 @@ class WindowAreaTest(unittest.TestCase):
         self.assertAlmostEqual(generic.area, 5.5)
 
 
+def place(f, origin, x_axis):
+    """A placement at `origin` (x, y) whose local X axis is `x_axis` (x, y)."""
+    return f.createIfcLocalPlacement(None, f.createIfcAxis2Placement3D(
+        f.createIfcCartesianPoint((float(origin[0]), float(origin[1]), 0.0)),
+        f.createIfcDirection((0.0, 0.0, 1.0)),
+        f.createIfcDirection((float(x_axis[0]), float(x_axis[1]), 0.0)),
+    ))
+
+
+def mark_external(f, element):
+    prop = f.createIfcPropertySingleValue("IsExternal", None, f.create_entity("IfcBoolean", True), None)
+    pset = f.createIfcPropertySet(ifcopenshell.guid.new(), None, "Pset_WallCommon", None, [prop])
+    f.createIfcRelDefinesByProperties(ifcopenshell.guid.new(), None, None, None, [element], pset)
+
+
+def square_house(true_north=None):
+    """Four 10 m exterior walls around (5, 5), in millimetres. The north and
+    west walls run "backwards", so their local +Y points into the house."""
+    f = new_file("MILLI")
+    if true_north is not None:
+        f.createIfcGeometricRepresentationContext(
+            None, "Model", 3, 1e-5,
+            f.createIfcAxis2Placement3D(f.createIfcCartesianPoint((0.0, 0.0, 0.0)), None, None),
+            f.createIfcDirection(true_north),
+        )
+    walls = {}
+    for name, origin, x_axis in [
+        ("south", (0, 0), (1, 0)),         # +Y = north: inward
+        ("east", (10000, 0), (0, 1)),      # +Y = west: inward
+        ("north", (10000, 10000), (-1, 0)),  # +Y = south: inward
+        ("west", (0, 10000), (0, -1)),     # +Y = east: inward
+    ]:
+        wall = f.createIfcWall(ifcopenshell.guid.new(), None, name, None, None, place(f, origin, x_axis), None, None, None)
+        add_quantities(f, wall, "Qto_WallBaseQuantities", lengths=[("Length", 10000.0), ("Height", 3000.0)])
+        mark_external(f, wall)
+        walls[name] = wall
+    # one wall whose local +Y does point outward: an extra east wall run the other way
+    wall = f.createIfcWall(ifcopenshell.guid.new(), None, "east2", None, None, place(f, (10000, 10000), (0, -1)), None, None, None)
+    add_quantities(f, wall, "Qto_WallBaseQuantities", lengths=[("Length", 10000.0), ("Height", 3000.0)])
+    mark_external(f, wall)
+    walls["east2"] = wall
+    return f, walls
+
+
+@unittest.skipIf(ifcopenshell is None, "needs ifcopenshell")
+class WallOrientationTest(unittest.TestCase):
+
+    def facing(self, model, name):
+        wall = next(w for w in model.walls if w.name == name)
+        return (round(wall.orientation.x, 6), round(wall.orientation.y, 6))
+
+    def test_each_wall_faces_out_of_the_house(self):
+        f, _ = square_house()
+        path = os.path.join(self.tmp, "square.ifc")
+        f.write(path)
+        model = ifc_extractors.extract_building_model_from_ifc(path)
+        self.assertEqual(self.facing(model, "south"), (0.0, -1.0))
+        self.assertEqual(self.facing(model, "east"), (1.0, 0.0))
+        self.assertEqual(self.facing(model, "north"), (0.0, 1.0))
+        self.assertEqual(self.facing(model, "west"), (-1.0, 0.0))
+        self.assertEqual(self.facing(model, "east2"), (1.0, 0.0))
+
+    def test_the_ifc_exterior_flag_is_kept(self):
+        f, _ = square_house()
+        inner = f.createIfcWall(ifcopenshell.guid.new(), None, "partition", None, None, place(f, (2000, 5000), (1, 0)), None, None, None)
+        prop = f.createIfcPropertySingleValue("IsExternal", None, f.create_entity("IfcBoolean", False), None)
+        pset = f.createIfcPropertySet(ifcopenshell.guid.new(), None, "Pset_WallCommon", None, [prop])
+        f.createIfcRelDefinesByProperties(ifcopenshell.guid.new(), None, None, None, [inner], pset)
+        unflagged = f.createIfcWall(ifcopenshell.guid.new(), None, "unflagged", None, None, place(f, (3000, 5000), (1, 0)), None, None, None)
+        for wall in (inner, unflagged):
+            add_quantities(f, wall, "Qto_WallBaseQuantities", lengths=[("Length", 2000.0), ("Height", 3000.0)])
+        path = os.path.join(self.tmp, "flags.ifc")
+        f.write(path)
+        walls = {w.name: w for w in ifc_extractors.extract_building_model_from_ifc(path).walls}
+        self.assertIs(walls["south"].is_external, True)
+        self.assertIs(walls["partition"].is_external, False)
+        self.assertIsNone(walls["unflagged"].is_external)
+
+    def test_an_unrotated_model_has_no_project_north_angle(self):
+        f, _ = square_house(true_north=(0.0, 1.0))
+        path = os.path.join(self.tmp, "unrotated.ifc")
+        f.write(path)
+        model = ifc_extractors.extract_building_model_from_ifc(path)
+        self.assertAlmostEqual(model.project_north, 0.0)
+
+    def test_true_north_rotates_the_compass(self):
+        # True north along project +X: the project's east wall faces north.
+        import analysis_engine
+        f, _ = square_house(true_north=(1.0, 0.0))
+        path = os.path.join(self.tmp, "rotated.ifc")
+        f.write(path)
+        model = ifc_extractors.extract_building_model_from_ifc(path)
+        east = next(w for w in model.walls if w.name == "east")
+        self.assertEqual(analysis_engine.calculate_wall_orientation(east, model.project_north), "North")
+        south = next(w for w in model.walls if w.name == "south")
+        self.assertEqual(analysis_engine.calculate_wall_orientation(south, model.project_north), "East")
+        # east2 runs the other way along the east side; it must face north too
+        east2 = next(w for w in model.walls if w.name == "east2")
+        self.assertEqual(analysis_engine.calculate_wall_orientation(east2, model.project_north), "North")
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.mkdtemp()
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp)
+
+
 @unittest.skipIf(ifcopenshell is None, "needs ifcopenshell")
 class SampleFileTest(unittest.TestCase):
 
@@ -107,6 +216,18 @@ class SampleFileTest(unittest.TestCase):
         self.assertEqual(len(model.walls), 4)
         self.assertAlmostEqual(sum(w.area for w in model.walls), 43.3, places=1)
         self.assertEqual(model.metadata["sourceFile"], "Building-Architecture.ifc")
+
+    def test_the_sample_house_walls_face_the_way_its_geometry_does(self):
+        # Outward normals measured from the wall solids: two walls on the
+        # east side of the house, one on the west.
+        import analysis_engine
+        path = os.path.join(ROOT, "examples", "IFC", "Building-Architecture.ifc")
+        model = ifc_extractors.extract_building_model_from_ifc(path)
+        facing = {w.name: analysis_engine.calculate_wall_orientation(w, model.project_north)
+                  for w in model.walls}
+        self.assertEqual(facing["house - outer wall - house right front"], "East")
+        self.assertEqual(facing["house - outer wall - house right back"], "East")
+        self.assertEqual(facing["house - outer wall - house left"], "West")
 
 
 if __name__ == "__main__":

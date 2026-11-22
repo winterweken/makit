@@ -235,7 +235,7 @@ Tools register **sources** (geometry input drivers) and **actions** (operations)
 # Build
 cargo build
 
-# Run all 267 tests (10 core, 40 geometry, 35 tools, 182 tui)
+# Run all 270 tests (10 core, 40 geometry, 38 tools, 182 tui)
 cargo test
 
 # Python IFC extractor: set up once, then run its tests

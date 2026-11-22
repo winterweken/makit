@@ -57,10 +57,10 @@ This document uses **progressive disclosure**. Level 1 (this file) is loaded eve
 - `cargo run -p makit -- tui`: Launch the interactive TUI.
 - `cargo run -p makit -- list`: List all registered tools/sources/actions.
 - `cargo run -p makit --example canvas_demo`: Run the braille canvas demo.
-- `cargo test`: Run the full test suite across all crates (267 tests: 10 core, 40 geometry, 35 tools, 182 tui).
+- `cargo test`: Run the full test suite across all crates (270 tests: 10 core, 40 geometry, 38 tools, 182 tui).
 - `cargo fmt`: Enforce standard Rust formatting; required for all changes.
 - `cargo clippy`: Run lints; address all warnings before opening a PR.
-- `.venv/bin/python -m unittest discover -s pyrevit-extension/tests`: Python IFC extractor tests (6). They need `ifcopenshell`; set up `.venv` once with `uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell`.
+- `.venv/bin/python -m unittest discover -s pyrevit-extension/tests`: Python IFC extractor and analysis tests (13). They need `ifcopenshell`; set up `.venv` once with `uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell`.
 - `python3 -m unittest discover -s scripts/tests`: MURB runner tests (2); they stand in for `murb_energy_tool`, so they need no extra packages.
 
 ## Coding Style & Naming Conventions
@@ -89,7 +89,7 @@ This document uses **progressive disclosure**. Level 1 (this file) is loaded eve
 
 | You want to change | Read first | Key trap |
 |--------------------|-----------|----------|
-| Revit bridge / extraction | `docs/WALL_ORIENTATION_ANALYSIS.md` | atan2 axis convention; pyRevit HTTP on port 48884 |
+| Revit bridge / extraction | `docs/WALL_ORIENTATION_ANALYSIS.md` | atan2 axis convention; pyRevit HTTP on port 48884; a wall's `orientation` is its outward normal in project coordinates and `projectNorth` turns it to true north (both Python and Rust apply it); an IFC wall's local X runs along the wall; walls with `isExternal: false` (and their windows) are left out of the analysis |
 | IFC parsing / analysis | `docs/IFC_SUPPORT.md` | IfcOpenShell import; storey filtering edge cases; scale quantities by the file's units (`get_unit_scales`), and Revit writes a bogus mm² `NetSideArea` before the real one |
 | Bridge architecture / JSON schema | `docs/HYBRID_ARCHITECTURE.md` | 3-layer separation; generic format is platform-agnostic |
 | TUI canvas / preview rendering | `crates/makit-tui/src/preview.rs`, `node.rs` | Routing is `PreviewKind::for_node` (matches the task name, not option names); previews are drawn into a `Recording` and scaled by `fit_bounds`; the logo preview is coloured from `logo::segments` in `view.rs`, so change its shape in `logo.rs` |

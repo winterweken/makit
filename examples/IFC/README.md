@@ -19,13 +19,13 @@ python3 analyze_ifc.py ../../../examples/IFC/Building-Architecture.ifc
 
 **Output:**
 ```
-Total Walls: 4
-Total Wall Area: 43.3 sq m
+Total Walls: 3
+Total Wall Area: 36.4 sq m
 Total Windows: 0
 Overall WWR: 0.0%
 
-EAST FACING: 1 walls, 21.2 sq m
-WEST FACING: 3 walls, 22.1 sq m
+EAST FACING: 2 walls, 15.2 sq m
+WEST FACING: 1 walls, 21.2 sq m
 ```
 
 ### 2. Extract to Generic Format
@@ -72,7 +72,8 @@ The `building-model.json` file is **platform-independent**:
     {
       "id": "1AQAupaRP1txwK1AGiN61V",
       "name": "house - outer wall - house right front",
-      "orientation": {"x": 0.0, "y": -1.0, "z": 0.0},
+      "orientation": {"x": 1.0, "y": 0.0, "z": 0.0},
+      "isExternal": true,
       "area": 6.3,
       "level": "00 groundfloor",
       "type": "solidwall",
@@ -106,9 +107,9 @@ The `Building-Architecture.ifc` file contains:
 - IFC4 format
 - Includes descriptions and metadata
 
-All walls are on "00 groundfloor" level with orientations:
-- 1 East-facing wall (21.2 sq m)
-- 3 West-facing walls (22.1 sq m)
+All walls are on "00 groundfloor" level. The analysis counts the three exterior walls; the plumbing wall is flagged interior (`IsExternal` false) and left out:
+- 2 East-facing walls (15.2 sq m): the house's right front and right back walls
+- 1 West-facing wall (21.2 sq m): the house's left wall
 
 ## What This Demonstrates
 

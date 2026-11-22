@@ -312,6 +312,7 @@ mod tests {
             wall_count: shares.len(),
             window_count: 2,
             project_name: String::new(),
+            interior_walls_left_out: 0,
         }
     }
 
