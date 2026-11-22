@@ -36,6 +36,17 @@ python3 analyze_ifc.py Building-Architecture.ifc \
   --output building-model.json
 ```
 
+`makit analyze`, `makit tui` and the `wall-orientation-wwr` action look for an
+IFC file's extraction beside it: first `<name>.json` (for `Ifc4_ARC.ifc`,
+`Ifc4_ARC.json`), then `building-model.json`. They use `building-model.json` only
+when its `metadata.sourceFile` names that IFC file, or, for older extractions
+without it, when no other `.ifc` file is in the folder. With several IFC files in
+one folder, extract each to its own `<name>.json`:
+
+```bash
+python3 analyze_ifc.py Ifc4_ARC.ifc --extract-only --output Ifc4_ARC.json
+```
+
 Creates a platform-agnostic JSON file that can be:
 - Analyzed without IFC tools
 - Version controlled
@@ -71,9 +82,15 @@ The `building-model.json` file is **platform-independent**:
     }
   ],
   "projectNorth": 0.0,
-  "units": "m"
+  "units": "m",
+  "metadata": {
+    "projectName": "ifc silly sample scene - project",
+    "sourceFile": "Building-Architecture.ifc"
+  }
 }
 ```
+
+`metadata.sourceFile` is the name of the IFC file the model was extracted from.
 
 **Key point**: This same format can come from:
 - IFC files (this example)

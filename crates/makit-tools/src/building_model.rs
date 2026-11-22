@@ -5,7 +5,7 @@
 //! which is converted to the `WallData.normal` field for analysis.
 
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::revit::models::{analyze_orientations, OrientationResult, WallData};
 
@@ -89,6 +89,14 @@ pub struct ModelMetadata {
     pub project_name: String,
     #[serde(default)]
     pub description: String,
+    /// File name of the IFC file this model was extracted from, if the
+    /// extractor recorded it.
+    #[serde(
+        default,
+        rename = "sourceFile",
+        skip_serializing_if = "String::is_empty"
+    )]
+    pub source_file: String,
 }
 
 // ---------------------------------------------------------------------------
@@ -118,29 +126,92 @@ pub fn load_model(path: &Path) -> anyhow::Result<BuildingModel> {
     Ok(model)
 }
 
-/// Try to find a `.json` companion for an `.ifc` file.
+/// What the IFC extractor writes when it is not told where to write.
+pub const SHARED_EXTRACTION: &str = "building-model.json";
+
+/// Find the JSON extraction of an `.ifc` file.
 ///
-/// Checks for `building-model.json` in the same directory,
-/// then `<filename>.json`.
-pub fn find_json_for_ifc(ifc_path: &Path) -> Option<std::path::PathBuf> {
-    let parent = ifc_path.parent().unwrap_or(Path::new("."));
+/// `<name>.json` beside the file is its own. The shared
+/// [`SHARED_EXTRACTION`] in the same folder is used only when it belongs to
+/// this file: its metadata names this file as `sourceFile`, or it names no
+/// source and no other IFC file sits in the folder. Otherwise one model's
+/// extraction would be reported for every IFC file beside it.
+pub fn find_json_for_ifc(ifc_path: &Path) -> Option<PathBuf> {
+    let parent = match ifc_path.parent() {
+        Some(dir) if !dir.as_os_str().is_empty() => dir,
+        _ => Path::new("."),
+    };
+    let name = ifc_path.file_name()?.to_string_lossy();
 
-    // Check for building-model.json in the same directory
-    let companion = parent.join("building-model.json");
-    if companion.exists() {
-        return Some(companion);
-    }
-
-    // Check for <name>.json
     if let Some(stem) = ifc_path.file_stem() {
-        let json_name = format!("{}.json", stem.to_string_lossy());
-        let companion = parent.join(json_name);
-        if companion.exists() {
-            return Some(companion);
+        let own = parent.join(format!("{}.json", stem.to_string_lossy()));
+        if own.exists() {
+            return Some(own);
         }
     }
 
-    None
+    let shared = parent.join(SHARED_EXTRACTION);
+    if !shared.exists() {
+        return None;
+    }
+    let belongs = match extraction_source(&shared) {
+        Some(source) => source.eq_ignore_ascii_case(&name),
+        None => no_other_ifc_in(parent, &name),
+    };
+    belongs.then_some(shared)
+}
+
+/// Where an `.ifc` file's own extraction belongs: `<name>.json` beside it,
+/// the first place [`find_json_for_ifc`] looks.
+pub fn extraction_path(ifc_path: &Path) -> PathBuf {
+    ifc_path.with_extension("json")
+}
+
+/// The shell command that extracts `ifc_path` to [`extraction_path`]. It
+/// needs Python with `ifcopenshell` and runs from the repository root.
+pub fn extraction_command(ifc_path: &Path) -> String {
+    format!(
+        "python3 pyrevit-extension/Makit.extension/lib/analyze_ifc.py {} --extract-only --output {}",
+        ifc_path.display(),
+        extraction_path(ifc_path).display()
+    )
+}
+
+/// The `sourceFile` an extraction names, if it names one. An extraction
+/// that cannot be read names none; loading it later reports why.
+fn extraction_source(json: &Path) -> Option<String> {
+    #[derive(Deserialize)]
+    struct Header {
+        #[serde(default)]
+        metadata: Option<Source>,
+    }
+    #[derive(Deserialize)]
+    struct Source {
+        #[serde(default, rename = "sourceFile")]
+        source_file: String,
+    }
+    let text = std::fs::read_to_string(json).ok()?;
+    let header: Header = serde_json::from_str(&text).ok()?;
+    Some(header.metadata?.source_file).filter(|s| !s.is_empty())
+}
+
+/// Whether `dir` holds no IFC file other than `name`. A folder that cannot
+/// be listed might, so it counts as holding one.
+fn no_other_ifc_in(dir: &Path, name: &str) -> bool {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return false;
+    };
+    entries.flatten().all(|entry| {
+        let path = entry.path();
+        let is_ifc = path
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("ifc"));
+        !is_ifc
+            || entry
+                .file_name()
+                .to_string_lossy()
+                .eq_ignore_ascii_case(name)
+    })
 }
 
 /// Convert generic walls to the WallData format used by analyze_orientations.
@@ -169,15 +240,21 @@ pub fn analyze_wwr(model: &BuildingModel) -> WwrAnalysis {
 
     let total_wall_area: f64 = model.walls.iter().map(|w| w.area).sum();
 
-    // Window area: from wall-embedded windows + top-level windows
-    let wall_window_area: f64 = model
-        .walls
+    // Windows listed in a wall, plus top-level windows not already listed
+    // in one: the IFC extractor puts a hosted window in both lists.
+    let in_walls: Vec<&WallWindow> = model.walls.iter().flat_map(|w| &w.windows).collect();
+    let listed: std::collections::HashSet<&str> = in_walls
         .iter()
-        .flat_map(|w| &w.windows)
-        .map(|win| win.area)
-        .sum();
-    let top_window_area: f64 = model.windows.iter().map(|w| w.area).sum();
-    let total_window_area = wall_window_area + top_window_area;
+        .map(|win| win.id.as_str())
+        .filter(|id| !id.is_empty())
+        .collect();
+    let loose: Vec<&GenericWindow> = model
+        .windows
+        .iter()
+        .filter(|win| win.id.is_empty() || !listed.contains(win.id.as_str()))
+        .collect();
+    let total_window_area: f64 = in_walls.iter().map(|win| win.area).sum::<f64>()
+        + loose.iter().map(|win| win.area).sum::<f64>();
 
     let overall_wwr = if total_wall_area > 0.0 {
         (total_window_area / total_wall_area) * 100.0
@@ -185,8 +262,7 @@ pub fn analyze_wwr(model: &BuildingModel) -> WwrAnalysis {
         0.0
     };
 
-    let window_count =
-        model.walls.iter().map(|w| w.windows.len()).sum::<usize>() + model.windows.len();
+    let window_count = in_walls.len() + loose.len();
 
     let project_name = model
         .metadata
@@ -271,5 +347,126 @@ mod tests {
         }
         let json_path = find_json_for_ifc(ifc_path);
         assert!(json_path.is_some());
+    }
+
+    #[test]
+    fn a_window_listed_in_its_wall_and_in_the_model_counts_once() {
+        // The IFC extractor lists a hosted window both in its wall and in
+        // the model's window list.
+        let model: BuildingModel = serde_json::from_value(serde_json::json!({
+            "walls": [{
+                "id": "wall",
+                "orientation": { "x": 0.0, "y": -1.0, "z": 0.0 },
+                "area": 10.0,
+                "windows": [{ "id": "hosted", "area": 2.0 }]
+            }],
+            "windows": [
+                { "id": "hosted", "area": 2.0, "hostId": "wall" },
+                { "id": "loose", "area": 1.0 }
+            ]
+        }))
+        .unwrap();
+        let result = analyze_wwr(&model);
+        assert_eq!(result.window_count, 2);
+        assert_eq!(result.total_window_area, 3.0);
+        assert_eq!(result.overall_wwr, 30.0);
+    }
+
+    /// A fresh, empty folder for one test.
+    fn folder(test: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("makit-{}-{test}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn touch(path: &Path) {
+        std::fs::write(path, "ISO-10303-21;").unwrap();
+    }
+
+    /// An extraction whose metadata names `source`, or nothing at all.
+    fn extraction(path: &Path, source: Option<&str>) {
+        let metadata = match source {
+            Some(name) => serde_json::json!({ "projectName": "p", "sourceFile": name }),
+            None => serde_json::json!({ "projectName": "p" }),
+        };
+        let model = serde_json::json!({ "walls": [], "metadata": metadata });
+        std::fs::write(path, model.to_string()).unwrap();
+    }
+
+    #[test]
+    fn a_shared_extraction_is_not_given_to_another_ifc_in_its_folder() {
+        let dir = folder("shared");
+        touch(&dir.join("a.ifc"));
+        touch(&dir.join("b.ifc"));
+        extraction(&dir.join("building-model.json"), Some("a.ifc"));
+
+        assert_eq!(
+            find_json_for_ifc(&dir.join("a.ifc")),
+            Some(dir.join("building-model.json"))
+        );
+        assert_eq!(find_json_for_ifc(&dir.join("b.ifc")), None);
+    }
+
+    #[test]
+    fn the_per_file_extraction_wins_over_the_shared_one() {
+        let dir = folder("per-file");
+        touch(&dir.join("a.ifc"));
+        touch(&dir.join("b.ifc"));
+        extraction(&dir.join("building-model.json"), Some("a.ifc"));
+        extraction(&dir.join("b.json"), None);
+
+        assert_eq!(
+            find_json_for_ifc(&dir.join("b.ifc")),
+            Some(dir.join("b.json"))
+        );
+    }
+
+    #[test]
+    fn an_extraction_that_names_no_source_belongs_only_to_a_lone_ifc() {
+        let dir = folder("unnamed");
+        touch(&dir.join("a.ifc"));
+        extraction(&dir.join("building-model.json"), None);
+        assert_eq!(
+            find_json_for_ifc(&dir.join("a.ifc")),
+            Some(dir.join("building-model.json"))
+        );
+
+        // A second file makes it impossible to tell whose it is.
+        touch(&dir.join("b.ifc"));
+        assert_eq!(find_json_for_ifc(&dir.join("a.ifc")), None);
+        assert_eq!(find_json_for_ifc(&dir.join("b.ifc")), None);
+    }
+
+    #[test]
+    fn an_extraction_written_where_expected_is_found() {
+        let dir = folder("expected");
+        let ifc = dir.join("Model.IFC");
+        touch(&ifc);
+        touch(&dir.join("other.ifc"));
+        let expected = extraction_path(&ifc);
+        assert_eq!(expected, dir.join("Model.json"));
+
+        extraction(&expected, None);
+        assert_eq!(find_json_for_ifc(&ifc), Some(expected));
+    }
+
+    #[test]
+    fn the_extraction_command_writes_beside_the_ifc() {
+        let command = extraction_command(Path::new("examples/IFC/Ifc4_ARC.ifc"));
+        assert!(command.contains("analyze_ifc.py examples/IFC/Ifc4_ARC.ifc"));
+        assert!(command.ends_with("--extract-only --output examples/IFC/Ifc4_ARC.json"));
+    }
+
+    #[test]
+    fn the_example_extraction_belongs_to_its_ifc_alone() {
+        let dir = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples/IFC"));
+        assert_eq!(
+            find_json_for_ifc(&dir.join("Building-Architecture.ifc")),
+            Some(dir.join("building-model.json"))
+        );
+        // Any other IFC file dropped into the examples folder, such as a
+        // local download, must not borrow it.
+        assert_eq!(find_json_for_ifc(&dir.join("Other-Model.ifc")), None);
     }
 }

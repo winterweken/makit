@@ -5,12 +5,14 @@ try:
     import ifcopenshell
     import ifcopenshell.util.element
     import ifcopenshell.util.placement
+    import ifcopenshell.util.unit
     IFC_AVAILABLE = True
 except ImportError:
     IFC_AVAILABLE = False
     print("Warning: ifcopenshell not available. Install with: pip install ifcopenshell")
 
 import math
+import os
 from geometry_models import (
     GeometricVector, GenericWall, GenericWindow, BuildingModel
 )
@@ -138,40 +140,59 @@ def get_ifc_wall_geometry(wall):
     except:
         return None, None
 
+def get_unit_scales(ifc_file):
+    """
+    Metres per length unit and square metres per area unit of an IFC file
+    (0.001 and 1.0 for a file in millimetres with areas in square metres)
+    """
+    try:
+        return (
+            ifcopenshell.util.unit.calculate_unit_scale(ifc_file, 'LENGTHUNIT'),
+            ifcopenshell.util.unit.calculate_unit_scale(ifc_file, 'AREAUNIT'),
+        )
+    except Exception:
+        return 1.0, 1.0
+
+def get_element_quantities(element):
+    """Every quantity in an element's quantity sets"""
+    for rel in element.IsDefinedBy:
+        if rel.is_a('IfcRelDefinesByProperties'):
+            prop_def = rel.RelatingPropertyDefinition
+            if prop_def.is_a('IfcElementQuantity'):
+                for quantity in prop_def.Quantities:
+                    yield quantity
+
 def get_ifc_wall_area(wall, ifc_file):
     """
-    Calculate wall area from IFC wall
+    Calculate wall side area from IFC wall, in square metres
     """
     if not IFC_AVAILABLE:
         return 0.0
 
     try:
-        # Try to get area from quantities first (most accurate)
-        for rel in wall.IsDefinedBy:
-            if rel.is_a('IfcRelDefinesByProperties'):
-                prop_def = rel.RelatingPropertyDefinition
-                if prop_def.is_a('IfcElementQuantity'):
-                    for quantity in prop_def.Quantities:
-                        if quantity.is_a('IfcQuantityArea'):
-                            if 'NetSideArea' in quantity.Name or 'GrossSideArea' in quantity.Name:
-                                return quantity.AreaValue
-
-        # Fallback: Calculate from dimensions (Height * Length)
+        length_scale, area_scale = get_unit_scales(ifc_file)
         height = 0
         length = 0
-        
-        # Get dimensions
-        for rel in wall.IsDefinedBy:
-            if rel.is_a('IfcRelDefinesByProperties'):
-                prop_def = rel.RelatingPropertyDefinition
-                if prop_def.is_a('IfcElementQuantity'):
-                    for q in prop_def.Quantities:
-                        if q.is_a('IfcQuantityLength'):
-                            if 'Height' in q.Name:
-                                height = q.LengthValue
-                            elif 'Length' in q.Name:
-                                length = q.LengthValue
-                                
+        side_areas = []
+        for quantity in get_element_quantities(wall):
+            if quantity.is_a('IfcQuantityLength'):
+                if 'Height' in quantity.Name:
+                    height = quantity.LengthValue * length_scale
+                elif 'Length' in quantity.Name:
+                    length = quantity.LengthValue * length_scale
+            elif quantity.is_a('IfcQuantityArea'):
+                if 'NetSideArea' in quantity.Name or 'GrossSideArea' in quantity.Name:
+                    side_areas.append(quantity.AreaValue * area_scale)
+
+        # A side can be no larger than height x length. This rules out the
+        # extra NetSideArea that Revit's exporter writes in squared length
+        # units (mm2 in a millimetre file) ahead of the real one.
+        if height > 0 and length > 0:
+            side_areas = [a for a in side_areas if a <= height * length * 1.01]
+
+        # Quantities first (most accurate), then Height * Length
+        if side_areas:
+            return side_areas[0]
         if height > 0 and length > 0:
             return height * length
 
@@ -283,6 +304,7 @@ def extract_ifc_window_to_generic(window, ifc_file, area_unit='sqm'):
         id=window.GlobalId,
         name=window.Name or ""
     )
+    length_scale, area_scale = get_unit_scales(ifc_file)
     
     # Get Position
     pos = get_element_position(window)
@@ -314,7 +336,7 @@ def extract_ifc_window_to_generic(window, ifc_file, area_unit='sqm'):
                             elif 'Width' in quantity.Name:
                                 generic_window.width = quantity.LengthValue
                         elif quantity.is_a('IfcQuantityArea'):
-                            area_sqm = quantity.AreaValue
+                            area_sqm = quantity.AreaValue * area_scale
                             if area_unit == 'sqm':
                                 generic_window.area = round(area_sqm, 1)
                             else:
@@ -324,7 +346,7 @@ def extract_ifc_window_to_generic(window, ifc_file, area_unit='sqm'):
 
     # Calculate area if not found
     if generic_window.area == 0 and generic_window.height > 0 and generic_window.width > 0:
-        area_sqm = generic_window.height * generic_window.width
+        area_sqm = generic_window.height * generic_window.width * length_scale ** 2
         if area_unit == 'sqm':
             generic_window.area = round(area_sqm, 1)
         else:
@@ -377,6 +399,8 @@ def extract_building_model_from_ifc(ifc_path, options=None):
     # Create building model
     building_model = BuildingModel()
     building_model.units = 'm' if area_unit == 'sqm' else 'ft'
+    # Lets makit tell whose extraction a shared building-model.json is
+    building_model.metadata['sourceFile'] = os.path.basename(ifc_path)
 
     # Get project info
     project = ifc_file.by_type('IfcProject')[0] if ifc_file.by_type('IfcProject') else None

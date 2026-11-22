@@ -94,6 +94,7 @@
   "units": "m",
   "metadata": {
     "projectName": "ifc silly sample scene - project",
-    "description": "Demystifying IFC with a playful scene using diverse building elements and compositions."
+    "description": "Demystifying IFC with a playful scene using diverse building elements and compositions.",
+    "sourceFile": "Building-Architecture.ifc"
   }
 }

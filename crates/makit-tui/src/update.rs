@@ -13,6 +13,7 @@ use crate::layout;
 use crate::msg::{Cmd, EditKey, IfcOutcome, Msg, Pane};
 use crate::node::NodeId;
 use crate::options::OptionSpec;
+use makit_tools::building_model;
 
 /// Logo rotation per tick (radians).
 const LOGO_STEP: f64 = 0.04;
@@ -496,7 +497,8 @@ fn ifc_loaded(state: &mut AppState, path: String, result: Result<IfcOutcome, Str
             state.ifc.json = Some(json);
         }
         Ok(IfcOutcome::NeedsExtraction) => {
-            state.status = format!("◆ Selected: {path} (extract JSON first for analysis)");
+            let json = building_model::extraction_path(Path::new(&path));
+            state.status = format!("◆ {path} is not extracted yet (no {})", json.display());
         }
         Err(err) => {
             state.status = format!("✗ Error loading {path}: {err}");
@@ -887,15 +889,15 @@ mod tests {
         assert_eq!(s.ifc.error.as_deref(), Some("bad json"));
         assert!(s.ifc.json.is_none());
 
-        s.ifc.loading = Some("y.ifc".into());
+        s.ifc.loading = Some("m/y.ifc".into());
         update(
             &mut s,
             Msg::IfcLoaded {
-                path: "y.ifc".into(),
+                path: "m/y.ifc".into(),
                 result: Ok(IfcOutcome::NeedsExtraction),
             },
         );
-        assert!(s.status.contains("extract JSON first"));
+        assert_eq!(s.status, "◆ m/y.ifc is not extracted yet (no m/y.json)");
         assert!(s.ifc.error.is_none());
     }
 

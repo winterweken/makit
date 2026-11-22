@@ -57,9 +57,10 @@ This document uses **progressive disclosure**. Level 1 (this file) is loaded eve
 - `cargo run -p makit -- tui`: Launch the interactive TUI.
 - `cargo run -p makit -- list`: List all registered tools/sources/actions.
 - `cargo run -p makit --example canvas_demo`: Run the braille canvas demo.
-- `cargo test`: Run the full test suite across all crates (260 tests: 10 core, 40 geometry, 28 tools, 182 tui).
+- `cargo test`: Run the full test suite across all crates (267 tests: 10 core, 40 geometry, 35 tools, 182 tui).
 - `cargo fmt`: Enforce standard Rust formatting; required for all changes.
 - `cargo clippy`: Run lints; address all warnings before opening a PR.
+- `.venv/bin/python -m unittest discover -s pyrevit-extension/tests`: Python IFC extractor tests (6). They need `ifcopenshell`; set up `.venv` once with `uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell`.
 
 ## Coding Style & Naming Conventions
 - Use standard Rust style: snake_case for functions/variables, PascalCase for types, and doc comments (`///`) on public items.
@@ -88,7 +89,7 @@ This document uses **progressive disclosure**. Level 1 (this file) is loaded eve
 | You want to change | Read first | Key trap |
 |--------------------|-----------|----------|
 | Revit bridge / extraction | `docs/WALL_ORIENTATION_ANALYSIS.md` | atan2 axis convention; pyRevit HTTP on port 48884 |
-| IFC parsing / analysis | `docs/IFC_SUPPORT.md` | IfcOpenShell import; storey filtering edge cases |
+| IFC parsing / analysis | `docs/IFC_SUPPORT.md` | IfcOpenShell import; storey filtering edge cases; scale quantities by the file's units (`get_unit_scales`), and Revit writes a bogus mm² `NetSideArea` before the real one |
 | Bridge architecture / JSON schema | `docs/HYBRID_ARCHITECTURE.md` | 3-layer separation; generic format is platform-agnostic |
 | TUI canvas / preview rendering | `crates/makit-tui/src/preview.rs`, `node.rs` | Routing is `PreviewKind::for_node` (matches the task name, not option names); previews are drawn into a `Recording` and scaled by `fit_bounds`; the logo preview is coloured from `logo::segments` in `view.rs`, so change its shape in `logo.rs` |
 | TUI layout / mouse | `crates/makit-tui/src/layout.rs` | `view` and `keymap` must both use `layout::compute` so clicks hit what is drawn; on short screens `detail_rows` drops the preview whole and the picker may be absent (then it cannot take focus); list scroll offsets are set in one place, `sync_scroll` at the end of `update`, because the mouse hit-tests read them |

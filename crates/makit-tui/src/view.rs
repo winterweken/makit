@@ -20,6 +20,7 @@ use crate::node::{NodeId, PreviewKind};
 use crate::options::OptionSpec;
 use crate::preview;
 use crate::theme::THEME;
+use makit_tools::building_model;
 
 /// Braille spinner frames for running work.
 const SPINNER: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -472,13 +473,17 @@ fn render_ifc_details(frame: &mut Frame, state: &AppState, area: Rect) {
                 Line::from(vec![Span::styled("✗ ", Style::new().fg(THEME.error)), name]),
                 Line::from(error.clone()).fg(THEME.error),
             ],
-            None => vec![
-                Line::from(vec![
-                    Span::styled("✓ ", Style::new().fg(THEME.success)),
-                    name,
-                ]),
-                Line::from("Extract JSON for analysis results").fg(THEME.dim),
-            ],
+            None => {
+                let json = building_model::extraction_path(Path::new(loaded));
+                vec![
+                    Line::from(vec![Span::styled("◆ ", Style::new().fg(THEME.dim)), name]),
+                    Line::from(format!(
+                        "Not extracted yet: no {} beside it",
+                        file_name(&json.to_string_lossy())
+                    ))
+                    .fg(THEME.dim),
+                ]
+            }
         };
         frame.render_widget(Paragraph::new(lines), area);
     }
@@ -1284,7 +1289,7 @@ mod tests {
             .iter()
             .any(|l| l.contains("missing field `walls` at line 3")));
         assert!(!lines.iter().any(|l| l.contains("✓")));
-        assert!(!lines.iter().any(|l| l.contains("Extract JSON")));
+        assert!(!lines.iter().any(|l| l.contains("Not extracted")));
     }
 
     #[test]
@@ -1293,10 +1298,16 @@ mod tests {
         s.tree.select(1);
         s.ifc.loaded = Some(s.ifc.files[0].clone());
         let lines = text(&render(&s));
+        // The detail line does not claim success for a file with no results.
         assert!(lines
             .iter()
-            .any(|l| l.contains("✓ Building-Architecture.ifc")));
-        assert!(lines.iter().any(|l| l.contains("Extract JSON")));
+            .any(|l| l.contains("◆ Building-Architecture.ifc")));
+        assert!(!lines
+            .iter()
+            .any(|l| l.contains("✓ Building-Architecture.ifc") && !l.contains("│✓")));
+        assert!(lines
+            .iter()
+            .any(|l| l.contains("Not extracted yet: no Building-Architecture.json")));
     }
 
     // ─── Honest previews ────────────────────────────────────────────────

@@ -235,8 +235,12 @@ Tools register **sources** (geometry input drivers) and **actions** (operations)
 # Build
 cargo build
 
-# Run all 260 tests (10 core, 40 geometry, 28 tools, 182 tui)
+# Run all 267 tests (10 core, 40 geometry, 35 tools, 182 tui)
 cargo test
+
+# Python IFC extractor: set up once, then run its tests
+uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell
+.venv/bin/python -m unittest discover -s pyrevit-extension/tests
 
 # Run the CLI
 cargo run -p makit -- --help
