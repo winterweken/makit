@@ -23,5 +23,3 @@ tokio = { workspace = true }
 name = "canvas_demo"
 path = "examples/canvas_demo.rs"
 
-[dev-dependencies]
-canvas = { workspace = true }

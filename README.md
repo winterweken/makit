@@ -4,7 +4,7 @@
 
 ```
 ╔══════════════════════════════════════════════════╗
-║            makit canvas demo (rsille)            ║
+║                makit canvas demo                 ║
 ╚══════════════════════════════════════════════════╝
 
 ▸ Isometric building:
@@ -41,13 +41,13 @@
 
 ---
 
-Built in Rust with [rsille](https://github.com/nidhoggfgg/rsille) for braille-rendered terminal graphics. Makit bridges the gap between BIM authoring tools and programmatic analysis — connect to live applications, extract building geometry, run cross-platform analytics, simulate energy performance, and visualize results, all without leaving the terminal.
+Built in Rust with [ratatui](https://ratatui.rs) for the interactive TUI and a dependency-free braille grid for terminal graphics. Makit bridges the gap between BIM authoring tools and programmatic analysis — connect to live applications, extract building geometry, run cross-platform analytics, simulate energy performance, and visualize results, all without leaving the terminal.
 
 ## Features
 
 | Feature | Description |
 |---------|-------------|
-| **Interactive TUI** | Tree explorer with real-time braille canvas preview and responsive layout |
+| **Interactive TUI** | ratatui tree explorer, braille previews that scale to the pane, Output pane for task logs, mouse support |
 | **Live Revit Bridge** | Extract walls, floors, rooms via pyRevit HTTP; run orientation & WWR analysis |
 | **IFC Analysis** | Standalone wall orientation and Window-to-Wall Ratio analysis (no Revit required) |
 | **Blender Sync** | Receive live geometry from Blender over HTTP for TUI visualization |
@@ -76,12 +76,16 @@ cargo run -p makit
 
 | Key | Action |
 |-----|--------|
-| `↑ ↓` | Navigate the tree |
-| `→ ←` | Expand / collapse |
-| `Enter` | Open / execute |
-| `Tab` | Switch pane focus |
+| `↑ ↓` / `j k` | Move selection (`PgUp PgDn Home End` too) |
+| `→ ←` / `l h` | Expand / collapse (← on a child jumps to its parent) |
+| `Enter` | Open node · load the highlighted IFC file |
+| `e` | Execute the focused source or action |
+| `Tab` / `Shift-Tab` | Cycle focus: Explorer → IFC files → Output |
+| `o` | Toggle the Output pane (task `println!` output lands here) |
+| `c` | Clear Output (when focused) |
 | `?` | Toggle help overlay |
-| `Esc` | Quit |
+| `Esc` / `q` | Close help · quit |
+| Mouse | Wheel scrolls the pane under the cursor · click selects / opens |
 
 ### CLI Commands
 
@@ -166,9 +170,9 @@ makit/
 ├── crates/
 │   ├── makit-cli/           # Binary — clap CLI (list, exec, analyze, tui, status, init)
 │   ├── makit-core/          # Registry singleton, config (figment/YAML), model types
-│   ├── makit-geometry/      # Point, Line, Rectangle, Room, Floor + braille drawing + SDF
+│   ├── makit-geometry/      # Point, Line, Rectangle + Plotter/BrailleGrid drawing + SDF
 │   ├── makit-tools/         # Tool implementations (revit, blender, ifc, murb)
-│   └── makit-tui/           # rsille-native TUI (tree explorer, canvas viz, theme)
+│   └── makit-tui/           # ratatui TUI (tree explorer, braille previews, output pane)
 ├── pyrevit-extension/       # Python pyRevit extension (runs inside Revit)
 ├── scripts/
 │   ├── blender/             # Python Blender addon
@@ -204,7 +208,7 @@ Tools register **sources** (geometry input drivers) and **actions** (operations)
 
 | Crate | Purpose |
 |-------|---------|
-| [rsille](https://github.com/nidhoggfgg/rsille) v3 | Braille canvas, TUI widgets, terminal rendering |
+| [ratatui](https://ratatui.rs) 0.29 + [crossterm](https://docs.rs/crossterm) 0.28 | TUI widgets, braille canvas, terminal backend |
 | [clap](https://docs.rs/clap) 4 | CLI argument parsing |
 | [figment](https://docs.rs/figment) | Config management (YAML + env) |
 | [reqwest](https://docs.rs/reqwest) | HTTP client for pyRevit bridge |
@@ -219,7 +223,7 @@ Tools register **sources** (geometry input drivers) and **actions** (operations)
 # Build
 cargo build
 
-# Run all 50 tests (5 registry, 18 geometry, 27 tools)
+# Run all 157 tests (8 core, 40 geometry, 27 tools, 82 tui)
 cargo test
 
 # Run the CLI
@@ -241,15 +245,19 @@ cargo clippy
 The TUI follows the **Elm architecture** pattern:
 
 ```
-State → view(state) → Widget tree → terminal render
-  ↑                                       |
-  └──── update(state, msg) ← user input ──┘
+AppState → view(frame, state) → ratatui Frame → terminal (stderr)
+   ↑                                                  |
+   └── update(state, msg) → Vec<Cmd> ← keymap ← input ┘
+                    │                         ↑
+                    └→ runtime: worker threads ┘ (TaskFinished, IfcLoaded, Output)
 ```
 
-- **`State`** — app data (active node, logo angle, analysis results, terminal width)
-- **`Msg`** — discrete events (`TreeFocused`, `TreeOpened`, `Tick`, `IfcFileSelected`)
-- **`update`** — pure reducer mapping state × message → new state
-- **`view`** — pure function mapping state → widget tree
+- **`AppState`** (`app.rs`) — plain data: tree, focus, running tasks, Output log, IFC picker, viewport
+- **`Msg` / `Cmd`** (`msg.rs`) — events in (keys, mouse, ticks, worker results) and side effects out (`RunTask`, `LoadIfc`, `Quit`)
+- **`update`** (`update.rs`) — pure: no I/O, no global registry; returns commands for the runtime
+- **`view`** (`view.rs`) — renders from state; shares `layout::compute` with mouse hit-testing
+- **`runtime`** (`runtime.rs`) — event loop; runs tasks and IFC loads on named worker threads
+- The TUI draws on **stderr** and redirects **stdout** into the Output pane (`capture.rs`), so task handlers that `println!` never corrupt the screen
 
 ---
 
