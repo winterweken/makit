@@ -14,7 +14,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
-use makit_core::models::TaskContext;
+use makit_core::models::{CancelToken, TaskContext};
 use makit_core::registry::Registry;
 
 // ---------------------------------------------------------------------------
@@ -95,19 +95,16 @@ async fn handle_get_geometry(State(state): State<SyncState>) -> impl IntoRespons
     }
 }
 
-/// Start the Blender sync server on the given port.
-pub async fn start_server(port: u16) -> anyhow::Result<()> {
+/// How often the server checks whether it was asked to stop.
+const CANCEL_POLL: std::time::Duration = std::time::Duration::from_millis(100);
+
+/// Start the Blender sync server on the given port. Runs until `cancel` is
+/// set (or the process is interrupted).
+pub async fn start_server(port: u16, cancel: CancelToken) -> anyhow::Result<()> {
     let state = SyncState::default();
     let app = build_router(state);
 
     let addr = format!("0.0.0.0:{}", port);
-    println!("Starting Blender sync server on http://localhost:{}", port);
-    println!("  POST /geometry — send mesh data from Blender");
-    println!("  GET  /geometry — retrieve current mesh");
-    println!("  GET  /health   — check server status");
-    println!();
-    println!("Press Ctrl+C to stop.");
-
     let listener = tokio::net::TcpListener::bind(&addr).await.map_err(|e| {
         if e.kind() == std::io::ErrorKind::AddrInUse {
             anyhow::anyhow!(
@@ -120,7 +117,21 @@ pub async fn start_server(port: u16) -> anyhow::Result<()> {
         }
     })?;
 
-    axum::serve(listener, app).await?;
+    println!("Blender sync server listening on http://localhost:{}", port);
+    println!("  POST /geometry — send mesh data from Blender");
+    println!("  GET  /geometry — retrieve current mesh");
+    println!("  GET  /health   — check server status");
+    println!();
+    println!("Stop with Ctrl+C, or x in the TUI.");
+
+    axum::serve(listener, app)
+        .with_graceful_shutdown(async move {
+            while !cancel.is_cancelled() {
+                tokio::time::sleep(CANCEL_POLL).await;
+            }
+        })
+        .await?;
+    println!("Blender sync server stopped.");
     Ok(())
 }
 
@@ -142,7 +153,7 @@ fn handle_blender(ctx: &TaskContext) -> anyhow::Result<()> {
     let port: u16 = ctx.get_option("port", "8085").parse()?;
 
     let rt = tokio::runtime::Runtime::new()?;
-    rt.block_on(start_server(port))?;
+    rt.block_on(start_server(port, ctx.cancel.clone()))?;
     Ok(())
 }
 
@@ -179,6 +190,30 @@ mod tests {
     fn test_router_builds() {
         let state = SyncState::default();
         let _router = build_router(state);
+    }
+
+    /// A free localhost port (released again before the server binds it).
+    fn free_port() -> u16 {
+        std::net::TcpListener::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port()
+    }
+
+    #[tokio::test]
+    async fn server_stops_when_cancelled() {
+        let cancel = CancelToken::new();
+        let server = tokio::spawn(start_server(free_port(), cancel.clone()));
+        tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+        assert!(!server.is_finished(), "server should keep running");
+
+        cancel.cancel();
+        let result = tokio::time::timeout(std::time::Duration::from_secs(3), server)
+            .await
+            .expect("server should stop soon after cancel")
+            .unwrap();
+        assert!(result.is_ok());
     }
 
     // -----------------------------------------------------------------------

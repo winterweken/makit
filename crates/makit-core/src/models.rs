@@ -1,10 +1,35 @@
 //! Task and tool type definitions for the makit registry.
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 /// Handler function for executing a task.
 pub type TaskHandler = Arc<dyn Fn(&TaskContext) -> anyhow::Result<()> + Send + Sync>;
+
+/// A shared flag asking a running task to stop.
+///
+/// Long-running handlers (servers, simulations) should poll
+/// [`CancelToken::is_cancelled`] and return when it is set. Clones share the
+/// same flag.
+#[derive(Debug, Clone, Default)]
+pub struct CancelToken(Arc<AtomicBool>);
+
+impl CancelToken {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Ask the task holding this token to stop.
+    pub fn cancel(&self) {
+        self.0.store(true, Ordering::SeqCst);
+    }
+
+    /// Whether a stop has been requested.
+    pub fn is_cancelled(&self) -> bool {
+        self.0.load(Ordering::SeqCst)
+    }
+}
 
 /// Execution context passed to task handlers.
 #[derive(Debug, Clone)]
@@ -14,6 +39,8 @@ pub struct TaskContext {
     pub task: String,
     pub options: HashMap<String, String>,
     pub args: Vec<String>,
+    /// Set by the caller to ask a long-running handler to stop.
+    pub cancel: CancelToken,
 }
 
 impl TaskContext {
@@ -24,6 +51,7 @@ impl TaskContext {
             task: String::new(),
             options: HashMap::new(),
             args: Vec::new(),
+            cancel: CancelToken::new(),
         }
     }
 
@@ -188,5 +216,29 @@ impl Action {
             default: default.map(|s| s.to_string()),
         });
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cancel_token_is_shared_between_clones() {
+        let token = CancelToken::new();
+        let clone = token.clone();
+        assert!(!token.is_cancelled());
+        clone.cancel();
+        assert!(token.is_cancelled());
+    }
+
+    #[test]
+    fn new_context_is_not_cancelled() {
+        let ctx = TaskContext::new();
+        assert!(!ctx.cancel.is_cancelled());
+        // A clone of the context observes the same token.
+        let copy = ctx.clone();
+        ctx.cancel.cancel();
+        assert!(copy.cancel.is_cancelled());
     }
 }

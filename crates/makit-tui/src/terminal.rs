@@ -23,6 +23,22 @@ pub type Tui = Terminal<CrosstermBackend<Stderr>>;
 /// Name prefix for background threads spawned by the TUI.
 pub const WORKER_THREAD_PREFIX: &str = "makit-worker-";
 
+/// Refuse to start without a terminal: the UI is drawn on stderr and keys
+/// are read from stdin. (stdout may go anywhere; it is captured anyway.)
+pub fn ensure_interactive(stdin_is_terminal: bool, stderr_is_terminal: bool) -> anyhow::Result<()> {
+    let problem = match (stdin_is_terminal, stderr_is_terminal) {
+        (true, true) => return Ok(()),
+        (false, true) => "stdin is not a terminal",
+        (true, false) => "stderr is not a terminal",
+        (false, false) => "stdin and stderr are not terminals",
+    };
+    anyhow::bail!(
+        "the makit TUI needs an interactive terminal, but {problem}.\n\
+         Run `makit tui` directly in a terminal, or use `makit list` and \
+         `makit exec` in scripts and pipelines."
+    )
+}
+
 /// Enter raw mode + alternate screen with mouse capture, and install a panic
 /// hook that restores the terminal before the panic message is printed.
 pub fn init() -> io::Result<Tui> {
@@ -71,4 +87,28 @@ fn is_worker_thread() -> bool {
     thread::current()
         .name()
         .is_some_and(|name| name.starts_with(WORKER_THREAD_PREFIX))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_real_terminal_is_accepted() {
+        assert!(ensure_interactive(true, true).is_ok());
+    }
+
+    #[test]
+    fn redirected_streams_are_refused_with_a_reason() {
+        let err = ensure_interactive(false, true).unwrap_err().to_string();
+        assert!(err.contains("stdin is not a terminal"), "{err}");
+        // The message says what to do instead.
+        assert!(err.contains("makit list"), "{err}");
+
+        let err = ensure_interactive(true, false).unwrap_err().to_string();
+        assert!(err.contains("stderr is not a terminal"), "{err}");
+
+        let err = ensure_interactive(false, false).unwrap_err().to_string();
+        assert!(err.contains("stdin and stderr are not terminals"), "{err}");
+    }
 }

@@ -8,9 +8,11 @@ use std::path::Path;
 
 use ratatui::layout::Rect;
 
-use crate::app::{AppState, Focus, RunningTask};
+use crate::app::{AppState, Editor, Focus, RunningTask, ValueSource};
 use crate::layout;
-use crate::msg::{Cmd, IfcOutcome, Msg, Pane};
+use crate::msg::{Cmd, EditKey, IfcOutcome, Msg, Pane};
+use crate::node::NodeId;
+use crate::options::OptionSpec;
 
 /// Logo rotation per tick (radians).
 const LOGO_STEP: f64 = 0.04;
@@ -18,8 +20,53 @@ const LOGO_STEP: f64 = 0.04;
 const OUTPUT_WHEEL_LINES: isize = 3;
 
 /// Apply `msg` to `state`, returning any side effects to perform.
+///
+/// The option editor and the help overlay are modal: while one is open it
+/// takes the keys, and only messages from the outside world (worker
+/// results, resize, ticks) reach the rest of the app.
 pub fn update(state: &mut AppState, msg: Msg) -> Vec<Cmd> {
-    let cmds = match msg {
+    let cmds = if state.editor.is_some() {
+        match msg {
+            Msg::Edit(key) => edit(state, key),
+            Msg::Quit => quit(state),
+            msg if is_background(&msg) => apply(state, msg),
+            _ => Vec::new(),
+        }
+    } else if state.show_help {
+        match msg {
+            Msg::Up => scroll_help(state, -1),
+            Msg::Down => scroll_help(state, 1),
+            Msg::PageUp => scroll_help(state, -help_page(state)),
+            Msg::PageDown => scroll_help(state, help_page(state)),
+            Msg::Home => scroll_help(state, isize::MIN),
+            Msg::End => scroll_help(state, isize::MAX),
+            Msg::ToggleHelp | Msg::Escape => close_help(state),
+            Msg::Quit => quit(state),
+            msg if is_background(&msg) => apply(state, msg),
+            _ => Vec::new(),
+        }
+    } else {
+        apply(state, msg)
+    };
+    normalize_focus(state);
+    cmds
+}
+
+/// Messages from the outside world rather than from a key or click.
+fn is_background(msg: &Msg) -> bool {
+    matches!(
+        msg,
+        Msg::Resize { .. }
+            | Msg::Tick
+            | Msg::Output(_)
+            | Msg::TaskFinished { .. }
+            | Msg::IfcLoaded { .. }
+            | Msg::MurbLoaded(_)
+    )
+}
+
+fn apply(state: &mut AppState, msg: Msg) -> Vec<Cmd> {
+    match msg {
         Msg::Up => navigate(state, -1),
         Msg::Down => navigate(state, 1),
         Msg::PageUp => {
@@ -48,6 +95,9 @@ pub fn update(state: &mut AppState, msg: Msg) -> Vec<Cmd> {
         }
         Msg::Activate => activate(state),
         Msg::Execute => execute(state),
+        Msg::StopTask => stop(state),
+        // No editor is open (checked in `update`).
+        Msg::Edit(_) => Vec::new(),
         Msg::FocusNext => cycle_focus(state, 1),
         Msg::FocusPrev => cycle_focus(state, -1),
         Msg::ToggleOutput => {
@@ -63,24 +113,18 @@ pub fn update(state: &mut AppState, msg: Msg) -> Vec<Cmd> {
             Vec::new()
         }
         Msg::ToggleHelp => {
-            state.show_help = !state.show_help;
+            state.show_help = true;
+            state.help_scroll = 0;
             Vec::new()
         }
-        Msg::Escape => {
-            if state.show_help {
-                state.show_help = false;
-                Vec::new()
-            } else {
-                quit(state)
-            }
-        }
-        Msg::Quit => quit(state),
+        Msg::Escape | Msg::Quit => quit(state),
         Msg::Scroll { pane, delta } => scroll(state, pane, delta),
         Msg::Click { pane, row } => click(state, pane, row),
         Msg::Resize { width, height } => {
             state.viewport = Rect::new(0, 0, width, height);
             scroll_tree(state);
             scroll_ifc(state);
+            scroll_help(state, 0);
             Vec::new()
         }
         Msg::Tick => {
@@ -96,23 +140,40 @@ pub fn update(state: &mut AppState, msg: Msg) -> Vec<Cmd> {
             }
             Vec::new()
         }
-        Msg::TaskFinished { id, result } => {
-            state.tasks.remove(&id);
-            state.status = match result {
-                Ok(msg) => format!("✓ {msg}"),
-                Err(err) => format!("✗ {err}"),
-            };
-            let line = format!("── {}", state.status);
-            state.push_log(line);
-            Vec::new()
-        }
+        Msg::TaskFinished { id, result } => task_finished(state, id, result),
         Msg::IfcLoaded { path, result } => {
             ifc_loaded(state, path, result);
             Vec::new()
         }
-    };
-    normalize_focus(state);
-    cmds
+        Msg::MurbLoaded(results) => {
+            // An unreadable file leaves the results already shown in place.
+            if let Some(results) = results {
+                state.murb_results = Some(results);
+            }
+            Vec::new()
+        }
+    }
+}
+
+fn close_help(state: &mut AppState) -> Vec<Cmd> {
+    state.show_help = false;
+    state.help_scroll = 0;
+    Vec::new()
+}
+
+/// Rows a page key moves the help by.
+fn help_page(state: &AppState) -> isize {
+    let rows = layout::bordered_inner(layout::help_rect(state.viewport)).height;
+    rows.saturating_sub(1).max(1) as isize
+}
+
+fn scroll_help(state: &mut AppState, delta: isize) -> Vec<Cmd> {
+    let max = usize::from(layout::help_max_scroll(state.viewport));
+    let target = usize::from(state.help_scroll)
+        .saturating_add_signed(delta)
+        .min(max);
+    state.help_scroll = target as u16;
+    Vec::new()
 }
 
 fn quit(state: &mut AppState) -> Vec<Cmd> {
@@ -176,6 +237,13 @@ fn page_size(state: &AppState) -> isize {
 fn activate(state: &mut AppState) -> Vec<Cmd> {
     match state.focus {
         Focus::Tree => {
+            let option = state.active_node().and_then(|node| {
+                let opt = node.opt_name()?.to_string();
+                Some((node.task_node()?, opt))
+            });
+            if let Some((task, opt)) = option {
+                return edit_option(state, task, opt);
+            }
             if let Some(node) = state.active_node() {
                 state.status = format!("▸ Opened: {}", node.display_name());
                 state.opened = Some(node);
@@ -189,23 +257,223 @@ fn activate(state: &mut AppState) -> Vec<Cmd> {
     }
 }
 
+/// `task --opt`, for status messages.
+fn option_label(task: &NodeId, opt: &str) -> String {
+    format!("{} --{opt}", task.display_name())
+}
+
+/// Enter on an option row: flip a flag, or open the form on its value.
+fn edit_option(state: &mut AppState, task: NodeId, opt: String) -> Vec<Cmd> {
+    let label = option_label(&task, &opt);
+    let current = state.option_value(&task, &opt).map(|(value, _)| value);
+    let is_flag = state
+        .catalog
+        .spec(&task, &opt)
+        .is_some_and(OptionSpec::is_flag);
+    if is_flag {
+        let value = if current.as_deref() == Some("true") {
+            "false"
+        } else {
+            "true"
+        };
+        state
+            .values
+            .entry(task)
+            .or_default()
+            .insert(opt, value.to_string());
+        state.status = format!("✎ Set {label} = {value}");
+        return Vec::new();
+    }
+    state.status = format!("✎ Editing {label} — ⏎ save · Esc cancel");
+    state.editor = Some(Editor::new(
+        task,
+        opt,
+        current.as_deref().unwrap_or(""),
+        false,
+    ));
+    Vec::new()
+}
+
+/// A key press in the option form.
+fn edit(state: &mut AppState, key: EditKey) -> Vec<Cmd> {
+    let Some(editor) = state.editor.as_mut() else {
+        return Vec::new();
+    };
+    match key {
+        EditKey::Char(c) => editor.insert(c),
+        EditKey::Backspace => editor.backspace(),
+        EditKey::Delete => editor.delete(),
+        EditKey::Left => editor.move_by(-1),
+        EditKey::Right => editor.move_by(1),
+        EditKey::Home => editor.home(),
+        EditKey::End => editor.end(),
+        EditKey::Clear => editor.clear(),
+        EditKey::Submit => return submit(state),
+        EditKey::Cancel => {
+            state.status = if editor.run_after {
+                format!("Cancelled — {} not run", editor.task.display_name())
+            } else {
+                format!(
+                    "Cancelled — {} unchanged",
+                    option_label(&editor.task, &editor.opt)
+                )
+            };
+            state.editor = None;
+        }
+    }
+    Vec::new()
+}
+
+/// Accept the form's value; run the task if that is what it was for.
+fn submit(state: &mut AppState) -> Vec<Cmd> {
+    let Some(editor) = state.editor.take() else {
+        return Vec::new();
+    };
+    let Editor {
+        task,
+        opt,
+        buffer,
+        run_after,
+        ..
+    } = editor;
+    let label = option_label(&task, &opt);
+    let value = buffer.trim();
+
+    if value.is_empty() {
+        if let Some(values) = state.values.get_mut(&task) {
+            values.remove(&opt);
+        }
+        state.status = match state.option_value(&task, &opt) {
+            _ if run_after => format!("✗ {label} is required — not run"),
+            Some((value, ValueSource::Default)) => {
+                format!("✎ Cleared {label} — back to the default, {value}")
+            }
+            Some((value, _)) => format!("✎ Cleared {label} — using {value}"),
+            None => format!("✎ Cleared {label}"),
+        };
+        return Vec::new();
+    }
+
+    // Accepting a default or picked value as it stands is not an override.
+    let inherited = matches!(
+        state.option_value(&task, &opt),
+        Some((current, source)) if source != ValueSource::User && current == value
+    );
+    if inherited {
+        state.status = format!("✎ {label} = {value} (unchanged)");
+    } else {
+        state
+            .values
+            .entry(task.clone())
+            .or_default()
+            .insert(opt, value.to_string());
+        state.status = format!("✎ Set {label} = {value}");
+    }
+    if run_after {
+        run_or_prompt(state, task)
+    } else {
+        Vec::new()
+    }
+}
+
 fn execute(state: &mut AppState) -> Vec<Cmd> {
     let Some(node) = state.active_node() else {
         return Vec::new();
     };
-    let Some(name) = node.task_name().map(str::to_owned) else {
+    let Some(task) = node.task_node() else {
         state.status = format!(
             "✗ '{}' is not executable — select a source or action",
             node.display_name()
         );
         return Vec::new();
     };
+    run_or_prompt(state, task)
+}
+
+/// Run `task` with its current option values, or ask for the first
+/// required option that has none.
+fn run_or_prompt(state: &mut AppState, task: NodeId) -> Vec<Cmd> {
+    let name = task.display_name().to_string();
+    if let Some(opt) = state.missing_required(&task).into_iter().next() {
+        state.status = format!("✎ {name} needs --{opt} — type a value · ⏎ run · Esc cancel");
+        state.editor = Some(Editor::new(task, opt, "", true));
+        return Vec::new();
+    }
+    let options = state.resolved_options(&task);
     let id = state.next_task_id;
     state.next_task_id += 1;
-    state.tasks.insert(id, RunningTask { name: name.clone() });
+    let mut running = RunningTask::new(task.clone());
+    running.results = task
+        .results_option()
+        .and_then(|opt| options.get(opt).cloned());
+    state.tasks.insert(id, running);
     state.status = format!("▸ Executing: {name}");
-    state.push_log(format!("── ▸ Executing {name}"));
-    vec![Cmd::RunTask { id, node }]
+    let given: String = options
+        .iter()
+        .map(|(key, value)| format!(" --{key} {value}"))
+        .collect();
+    state.push_log(format!("── ▸ Executing {name}{given}"));
+    vec![Cmd::RunTask {
+        id,
+        node: task,
+        options,
+    }]
+}
+
+/// Ask the focused task — or the only one running — to stop.
+fn stop(state: &mut AppState) -> Vec<Cmd> {
+    if state.tasks.is_empty() {
+        state.status = "Nothing is running".to_string();
+        return Vec::new();
+    }
+    let focused = state.active_node().and_then(|node| node.task_node());
+    let mut ids: Vec<u64> = state
+        .tasks
+        .iter()
+        .filter(|(_, task)| Some(&task.node) == focused.as_ref())
+        .map(|(id, _)| *id)
+        .collect();
+    if ids.is_empty() {
+        if state.tasks.len() > 1 {
+            state.status = format!(
+                "{} tasks are running — focus one in the Explorer, then x",
+                state.tasks.len()
+            );
+            return Vec::new();
+        }
+        ids.extend(state.tasks.keys());
+    }
+    let mut cmds = Vec::new();
+    for id in ids {
+        let Some(task) = state.tasks.get_mut(&id) else {
+            continue;
+        };
+        if !task.stopping {
+            task.stopping = true;
+            cmds.push(Cmd::StopTask { id });
+        }
+        state.status = format!("■ Stopping {}…", task.name);
+    }
+    cmds
+}
+
+fn task_finished(state: &mut AppState, id: u64, result: Result<String, String>) -> Vec<Cmd> {
+    let task = state.tasks.remove(&id);
+    let stopped = task.as_ref().filter(|task| task.stopping);
+    let mut cmds = Vec::new();
+    state.status = match (&result, stopped) {
+        (Ok(_), Some(task)) => format!("■ Stopped: {}", task.name),
+        (Ok(msg), None) => format!("✓ {msg}"),
+        (Err(err), _) => format!("✗ {err}"),
+    };
+    if result.is_ok() && stopped.is_none() {
+        if let Some(path) = task.and_then(|task| task.results) {
+            cmds.push(Cmd::LoadMurb { path });
+        }
+    }
+    let line = format!("── {}", state.status);
+    state.push_log(line);
+    cmds
 }
 
 fn load_ifc(state: &mut AppState, index: usize) -> Vec<Cmd> {
@@ -223,21 +491,24 @@ fn ifc_loaded(state: &mut AppState, path: String, result: Result<IfcOutcome, Str
         return;
     }
     state.ifc.loading = None;
+    state.ifc.analysis = None;
+    state.ifc.json = None;
+    state.ifc.error = None;
     match result {
-        Ok(IfcOutcome::Analysis(analysis)) => {
+        Ok(IfcOutcome::Analysis { analysis, json }) => {
             state.status = format!(
                 "◆ {} walls, WWR {:.1}% — {}",
                 analysis.wall_count, analysis.overall_wwr, path
             );
             state.ifc.analysis = Some(analysis);
+            state.ifc.json = Some(json);
         }
         Ok(IfcOutcome::NeedsExtraction) => {
             state.status = format!("◆ Selected: {path} (extract JSON first for analysis)");
-            state.ifc.analysis = None;
         }
         Err(err) => {
             state.status = format!("✗ Error loading {path}: {err}");
-            state.ifc.analysis = None;
+            state.ifc.error = Some(err);
         }
     }
     state.ifc.loaded = Some(path);
@@ -356,30 +627,96 @@ fn file_name(path: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::app::InitialData;
+    use crate::app::{InitialData, ValueSource};
+    use crate::msg::EditKey;
     use crate::node::NodeId;
+    use crate::options::{Catalog, OptionSpec};
     use crate::tree::TreeNode;
     use makit_tools::building_model;
+    use std::collections::BTreeMap;
 
     /// Rows: 0 sources, 1 source:ifc, 2 source:revit, 3 actions, 4 cat:energy
     fn state() -> AppState {
+        let spec = |name: &str, kind: &str, required: bool, default: Option<&str>| OptionSpec {
+            name: name.into(),
+            description: format!("{name} description"),
+            kind: kind.into(),
+            required,
+            default: default.map(str::to_string),
+        };
+        let mut catalog = Catalog::default();
+        catalog.insert(
+            NodeId::Source("ifc".into()),
+            vec![spec("file", "string", true, None)],
+        );
+        catalog.insert(NodeId::Source("revit".into()), Vec::new());
+        catalog.insert(
+            NodeId::Action("murb-simulate".into()),
+            vec![
+                spec("epw", "string", true, None),
+                spec("cop", "float", false, Some("0.85")),
+                spec("verbose", "bool", false, None),
+                spec("output", "string", false, Some("murb_results.json")),
+            ],
+        );
         AppState::new(InitialData {
             tree: vec![
                 TreeNode::new("sources", "Sources")
                     .child(
                         TreeNode::new("source:ifc", "◆ ifc")
-                            .child(TreeNode::new("source:ifc:opt:path", "--path")),
+                            .child(TreeNode::new("source:ifc:opt:file", "--file")),
                     )
                     .child(TreeNode::new("source:revit", "◆ revit")),
                 TreeNode::new("actions", "Actions").child(
-                    TreeNode::new("cat:energy", "⊞ energy")
-                        .child(TreeNode::new("action:murb-simulate", "▸ murb")),
+                    TreeNode::new("cat:energy", "⊞ energy").child(
+                        TreeNode::new("action:murb-simulate", "▸ murb")
+                            .child(TreeNode::new("action:murb-simulate:opt:epw", "--epw"))
+                            .child(TreeNode::new("action:murb-simulate:opt:cop", "--cop"))
+                            .child(TreeNode::new(
+                                "action:murb-simulate:opt:verbose",
+                                "--verbose",
+                            )),
+                    ),
                 ),
             ],
             ifc_files: vec!["examples/IFC/a.ifc".into(), "examples/IFC/b.ifc".into()],
             murb_results: None,
+            catalog,
             viewport: Rect::new(0, 0, 120, 40),
         })
+    }
+
+    fn murb() -> NodeId {
+        NodeId::Action("murb-simulate".into())
+    }
+
+    /// Expand the energy category and the murb action, then select `id`.
+    fn select(s: &mut AppState, id: &str) {
+        for parent in ["cat:energy", "action:murb-simulate"] {
+            let row = s.tree.rows().iter().position(|r| r.id == parent).unwrap();
+            s.tree.select(row);
+            s.tree.expand();
+        }
+        let row = s
+            .tree
+            .rows()
+            .iter()
+            .position(|r| r.id == id)
+            .unwrap_or_else(|| panic!("no row {id}"));
+        s.tree.select(row);
+    }
+
+    fn type_text(s: &mut AppState, text: &str) {
+        for c in text.chars() {
+            update(s, Msg::Edit(EditKey::Char(c)));
+        }
+    }
+
+    fn opts(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
     }
 
     fn sample_analysis() -> building_model::WwrAnalysis {
@@ -426,7 +763,8 @@ mod tests {
             cmds,
             vec![Cmd::RunTask {
                 id: 1,
-                node: NodeId::Source("revit".into())
+                node: NodeId::Source("revit".into()),
+                options: BTreeMap::new(),
             }]
         );
         assert_eq!(s.status, "▸ Executing: revit");
@@ -523,12 +861,20 @@ mod tests {
             &mut s,
             Msg::IfcLoaded {
                 path: "examples/IFC/b.ifc".into(),
-                result: Ok(IfcOutcome::Analysis(analysis)),
+                result: Ok(IfcOutcome::Analysis {
+                    analysis,
+                    json: "examples/IFC/building-model.json".into(),
+                }),
             },
         );
         assert!(s.ifc.loading.is_none());
         assert_eq!(s.ifc.loaded.as_deref(), Some("examples/IFC/b.ifc"));
         assert!(s.ifc.analysis.is_some());
+        assert_eq!(
+            s.ifc.json.as_deref(),
+            Some("examples/IFC/building-model.json")
+        );
+        assert!(s.ifc.error.is_none());
         assert!(s.status.starts_with(&format!("◆ {walls} walls, WWR")));
     }
 
@@ -546,6 +892,9 @@ mod tests {
         );
         assert!(s.ifc.analysis.is_none());
         assert_eq!(s.status, "✗ Error loading x.ifc: bad json");
+        // The detail pane must be able to show what went wrong.
+        assert_eq!(s.ifc.error.as_deref(), Some("bad json"));
+        assert!(s.ifc.json.is_none());
 
         s.ifc.loading = Some("y.ifc".into());
         update(
@@ -556,6 +905,7 @@ mod tests {
             },
         );
         assert!(s.status.contains("extract JSON first"));
+        assert!(s.ifc.error.is_none());
     }
 
     #[test]
@@ -674,5 +1024,357 @@ mod tests {
         update(&mut s, Msg::Tick);
         assert!(s.logo_angle > 0.0);
         assert_eq!(s.frame, 1);
+    }
+
+    // ─── Option values and the editor ───────────────────────────────────
+
+    #[test]
+    fn execute_prompts_for_a_missing_required_option() {
+        let mut s = state();
+        select(&mut s, "action:murb-simulate");
+        assert!(update(&mut s, Msg::Execute).is_empty());
+        let editor = s.editor.as_ref().expect("editor opens");
+        assert_eq!(editor.task, murb());
+        assert_eq!(editor.opt, "epw");
+        assert!(editor.run_after);
+        assert!(s.status.contains("needs --epw"), "{}", s.status);
+        assert!(s.tasks.is_empty());
+    }
+
+    #[test]
+    fn submitting_the_prompt_runs_the_task_with_the_value() {
+        let mut s = state();
+        select(&mut s, "action:murb-simulate");
+        update(&mut s, Msg::Execute);
+        type_text(&mut s, "/w/van.epw");
+        let cmds = update(&mut s, Msg::Edit(EditKey::Submit));
+        assert_eq!(
+            cmds,
+            vec![Cmd::RunTask {
+                id: 1,
+                node: murb(),
+                options: opts(&[
+                    ("cop", "0.85"),
+                    ("epw", "/w/van.epw"),
+                    ("output", "murb_results.json"),
+                ]),
+            }]
+        );
+        assert!(s.editor.is_none());
+        assert_eq!(s.tasks.len(), 1);
+        // The value is remembered for the next run.
+        assert!(matches!(
+            update(&mut s, Msg::Execute)[..],
+            [Cmd::RunTask { id: 2, .. }]
+        ));
+    }
+
+    #[test]
+    fn empty_answer_to_a_required_prompt_does_not_run() {
+        let mut s = state();
+        select(&mut s, "action:murb-simulate");
+        update(&mut s, Msg::Execute);
+        type_text(&mut s, "   ");
+        assert!(update(&mut s, Msg::Edit(EditKey::Submit)).is_empty());
+        assert!(s.editor.is_none());
+        assert!(s.tasks.is_empty());
+        assert!(s.status.contains("required"), "{}", s.status);
+    }
+
+    #[test]
+    fn enter_on_an_option_edits_and_stores_its_value() {
+        let mut s = state();
+        select(&mut s, "action:murb-simulate:opt:cop");
+        assert!(update(&mut s, Msg::Activate).is_empty());
+        let editor = s.editor.as_ref().expect("editor opens");
+        assert_eq!((editor.opt.as_str(), editor.run_after), ("cop", false));
+        // The current (default) value is offered for editing.
+        assert_eq!(editor.buffer, "0.85");
+
+        update(&mut s, Msg::Edit(EditKey::Clear));
+        type_text(&mut s, "3.1");
+        assert!(update(&mut s, Msg::Edit(EditKey::Submit)).is_empty());
+        assert_eq!(
+            s.option_value(&murb(), "cop"),
+            Some(("3.1".to_string(), ValueSource::User))
+        );
+        assert_eq!(s.status, "✎ Set murb-simulate --cop = 3.1");
+        // Enter on an option no longer "opens" it like a group.
+        assert!(s.opened.is_none());
+    }
+
+    #[test]
+    fn clearing_a_value_restores_the_default() {
+        let mut s = state();
+        s.values
+            .entry(murb())
+            .or_default()
+            .insert("cop".into(), "3.1".into());
+        select(&mut s, "action:murb-simulate:opt:cop");
+        update(&mut s, Msg::Activate);
+        update(&mut s, Msg::Edit(EditKey::Clear));
+        update(&mut s, Msg::Edit(EditKey::Submit));
+        assert_eq!(
+            s.option_value(&murb(), "cop"),
+            Some(("0.85".to_string(), ValueSource::Default))
+        );
+        assert!(s.status.contains("Cleared"), "{}", s.status);
+    }
+
+    #[test]
+    fn cancelling_the_edit_keeps_the_old_value() {
+        let mut s = state();
+        select(&mut s, "action:murb-simulate:opt:epw");
+        update(&mut s, Msg::Activate);
+        type_text(&mut s, "/tmp/x.epw");
+        assert!(update(&mut s, Msg::Edit(EditKey::Cancel)).is_empty());
+        assert!(s.editor.is_none());
+        assert_eq!(s.option_value(&murb(), "epw"), None);
+    }
+
+    #[test]
+    fn enter_on_a_flag_toggles_it_without_an_editor() {
+        let mut s = state();
+        select(&mut s, "action:murb-simulate:opt:verbose");
+        update(&mut s, Msg::Activate);
+        assert!(s.editor.is_none());
+        assert_eq!(
+            s.option_value(&murb(), "verbose"),
+            Some(("true".to_string(), ValueSource::User))
+        );
+        update(&mut s, Msg::Activate);
+        assert_eq!(
+            s.option_value(&murb(), "verbose"),
+            Some(("false".to_string(), ValueSource::User))
+        );
+    }
+
+    #[test]
+    fn execute_on_an_option_runs_its_task_without_forcing_the_option() {
+        let mut s = state();
+        s.values
+            .entry(murb())
+            .or_default()
+            .insert("epw".into(), "/w.epw".into());
+        select(&mut s, "action:murb-simulate:opt:verbose");
+        let cmds = update(&mut s, Msg::Execute);
+        let [Cmd::RunTask { node, options, .. }] = &cmds[..] else {
+            panic!("expected one RunTask, got {cmds:?}");
+        };
+        assert_eq!(node, &murb());
+        assert!(!options.contains_key("verbose"));
+        assert_eq!(options.get("epw").map(String::as_str), Some("/w.epw"));
+    }
+
+    #[test]
+    fn the_picked_ifc_file_fills_the_ifc_option() {
+        let mut s = state();
+        s.tree.select(1); // source:ifc
+        s.ifc.loaded = Some("examples/IFC/a.ifc".into());
+        assert_eq!(
+            s.option_value(&NodeId::Source("ifc".into()), "file"),
+            Some(("examples/IFC/a.ifc".to_string(), ValueSource::Picker))
+        );
+        let cmds = update(&mut s, Msg::Execute);
+        assert_eq!(
+            cmds,
+            vec![Cmd::RunTask {
+                id: 1,
+                node: NodeId::Source("ifc".into()),
+                options: opts(&[("file", "examples/IFC/a.ifc")]),
+            }]
+        );
+        assert!(s.editor.is_none());
+
+        // A typed value beats the picker.
+        s.values
+            .entry(NodeId::Source("ifc".into()))
+            .or_default()
+            .insert("file".into(), "/other.ifc".into());
+        assert_eq!(
+            s.option_value(&NodeId::Source("ifc".into()), "file"),
+            Some(("/other.ifc".to_string(), ValueSource::User))
+        );
+    }
+
+    #[test]
+    fn navigation_is_ignored_while_editing() {
+        let mut s = state();
+        select(&mut s, "action:murb-simulate:opt:epw");
+        let before = s.tree.selected();
+        update(&mut s, Msg::Activate);
+        update(&mut s, Msg::Down);
+        update(&mut s, Msg::Execute);
+        assert_eq!(s.tree.selected(), before);
+        assert!(s.editor.is_some());
+        assert!(s.tasks.is_empty());
+    }
+
+    // ─── Stopping tasks ─────────────────────────────────────────────────
+
+    #[test]
+    fn stop_marks_the_focused_task_and_reports_it_stopped() {
+        let mut s = state();
+        s.tree.select(2); // source:revit
+        update(&mut s, Msg::Execute);
+        let cmds = update(&mut s, Msg::StopTask);
+        assert_eq!(cmds, vec![Cmd::StopTask { id: 1 }]);
+        assert!(s.tasks[&1].stopping);
+        assert_eq!(s.status, "■ Stopping revit…");
+        // Asking again does not send a second stop.
+        assert!(update(&mut s, Msg::StopTask).is_empty());
+
+        update(
+            &mut s,
+            Msg::TaskFinished {
+                id: 1,
+                result: Ok("Success: revit".into()),
+            },
+        );
+        assert_eq!(s.status, "■ Stopped: revit");
+        assert!(s.tasks.is_empty());
+    }
+
+    #[test]
+    fn stop_reaches_the_only_running_task_from_anywhere() {
+        let mut s = state();
+        s.tree.select(2);
+        update(&mut s, Msg::Execute);
+        s.tree.select(0); // the Sources group
+        assert_eq!(update(&mut s, Msg::StopTask), vec![Cmd::StopTask { id: 1 }]);
+    }
+
+    #[test]
+    fn stop_with_several_tasks_elsewhere_asks_for_focus() {
+        let mut s = state();
+        s.tree.select(2);
+        update(&mut s, Msg::Execute);
+        s.ifc.loaded = Some("a.ifc".into());
+        s.tree.select(1);
+        update(&mut s, Msg::Execute);
+        s.tree.select(0);
+        assert!(update(&mut s, Msg::StopTask).is_empty());
+        assert!(s.status.contains("focus"), "{}", s.status);
+        // Focusing one of them stops just that one.
+        s.tree.select(1);
+        assert_eq!(update(&mut s, Msg::StopTask), vec![Cmd::StopTask { id: 2 }]);
+    }
+
+    #[test]
+    fn stop_with_nothing_running_says_so() {
+        let mut s = state();
+        assert!(update(&mut s, Msg::StopTask).is_empty());
+        assert_eq!(s.status, "Nothing is running");
+    }
+
+    // ─── MURB results ───────────────────────────────────────────────────
+
+    #[test]
+    fn a_successful_simulation_reloads_its_results() {
+        let mut s = state();
+        s.values
+            .entry(murb())
+            .or_default()
+            .insert("epw".into(), "/w.epw".into());
+        select(&mut s, "action:murb-simulate");
+        update(&mut s, Msg::Execute);
+        let cmds = update(
+            &mut s,
+            Msg::TaskFinished {
+                id: 1,
+                result: Ok("Success: murb-simulate".into()),
+            },
+        );
+        assert_eq!(
+            cmds,
+            vec![Cmd::LoadMurb {
+                path: "murb_results.json".into()
+            }]
+        );
+    }
+
+    #[test]
+    fn a_failed_simulation_does_not_reload_results() {
+        let mut s = state();
+        s.values
+            .entry(murb())
+            .or_default()
+            .insert("epw".into(), "/w.epw".into());
+        select(&mut s, "action:murb-simulate");
+        update(&mut s, Msg::Execute);
+        let cmds = update(
+            &mut s,
+            Msg::TaskFinished {
+                id: 1,
+                result: Err("Error: murb-simulate: no python".into()),
+            },
+        );
+        assert!(cmds.is_empty());
+    }
+
+    #[test]
+    fn loaded_results_replace_the_old_ones_but_a_miss_keeps_them() {
+        let mut s = state();
+        let results = makit_tools::murb::MurbResults {
+            name: "run".into(),
+            monthly_heating_demand: vec![1.0; 12],
+            monthly_cooling_demand: vec![0.0; 12],
+            monthly_heating_consumption: vec![1.0; 12],
+            monthly_cooling_consumption: vec![0.0; 12],
+            monthly_total_consumption: vec![1.0; 12],
+            monthly_ghg_emissions: vec![0.1; 12],
+            tedi_kwh_m2: 12.0,
+            teui_kwh_m2: 34.0,
+            ghgi_kg_m2: 5.0,
+            gfa: 100.0,
+            weather_file: "x.epw".into(),
+        };
+        update(&mut s, Msg::MurbLoaded(Some(results)));
+        assert_eq!(s.murb_results.as_ref().map(|r| r.tedi_kwh_m2), Some(12.0));
+        update(&mut s, Msg::MurbLoaded(None));
+        assert!(s.murb_results.is_some());
+    }
+
+    // ─── Help scrolling ─────────────────────────────────────────────────
+
+    #[test]
+    fn help_scrolls_within_its_content_on_a_short_terminal() {
+        let mut s = state();
+        update(
+            &mut s,
+            Msg::Resize {
+                width: 40,
+                height: 10,
+            },
+        );
+        let selected = s.tree.selected();
+        update(&mut s, Msg::ToggleHelp);
+        let max = layout::help_max_scroll(s.viewport);
+        assert!(max > 0);
+        update(&mut s, Msg::Down);
+        update(&mut s, Msg::Down);
+        assert_eq!(s.help_scroll, 2);
+        update(&mut s, Msg::End);
+        assert_eq!(s.help_scroll, max);
+        update(&mut s, Msg::Down);
+        assert_eq!(s.help_scroll, max);
+        update(&mut s, Msg::Home);
+        assert_eq!(s.help_scroll, 0);
+        // The tree behind the overlay did not move.
+        assert_eq!(s.tree.selected(), selected);
+
+        // Reopening starts from the top.
+        update(&mut s, Msg::Down);
+        update(&mut s, Msg::ToggleHelp);
+        update(&mut s, Msg::ToggleHelp);
+        assert_eq!(s.help_scroll, 0);
+    }
+
+    #[test]
+    fn help_does_not_scroll_when_it_fits() {
+        let mut s = state();
+        update(&mut s, Msg::ToggleHelp);
+        update(&mut s, Msg::Down);
+        assert_eq!(s.help_scroll, 0);
     }
 }

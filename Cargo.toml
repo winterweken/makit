@@ -48,6 +48,8 @@ thiserror = "2"
 
 # Terminal
 crossterm = { version = "0.28", features = ["event-stream"] }
+# Already in the tree through crossterm; used to restore the terminal on SIGTERM.
+signal-hook = "0.3"
 
 # Testing
 tower = { version = "0.5", features = ["util"] }

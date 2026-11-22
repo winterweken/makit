@@ -78,14 +78,19 @@ cargo run -p makit
 |-----|--------|
 | `↑ ↓` / `j k` | Move selection (`PgUp PgDn Home End` too) |
 | `→ ←` / `l h` | Expand / collapse (← on a child jumps to its parent) |
-| `Enter` | Open node · load the highlighted IFC file |
-| `e` | Execute the focused source or action |
+| `Enter` | Open node · edit the focused option · load the highlighted IFC file |
+| `e` | Execute the focused source or action (asks for any required option that has no value yet) |
+| `x` | Stop the running task — only tasks that watch for it stop early (the Blender sync server does) |
 | `Tab` / `Shift-Tab` | Cycle focus: Explorer → IFC files → Output |
 | `o` | Toggle the Output pane (task `println!` output lands here) |
 | `c` | Clear Output (when focused) |
 | `?` | Toggle help overlay |
 | `Esc` / `q` | Close help · quit |
 | Mouse | Wheel scrolls the pane under the cursor · click selects / opens |
+
+**Option values.** Expand a source or action to see its options. `Enter` on an option opens a one-line form (`Enter` saves, `Esc` cancels, `Ctrl-U` clears, an empty value restores the default); a leading `~` is expanded to your home directory. Values are kept for the session and passed to the task when you press `e`. The file loaded in the IFC picker fills `ifc --file` and `wall-orientation-wwr --input` unless you type something else.
+
+**Previews.** Charts and drawings built from your data are titled plainly (`heating demand`, `wall area by orientation`); stock drawings are marked `· illustration`, and a chart with nothing to show stays empty (`· no results`). When the pane is too short for a readable drawing, the preview is left out.
 
 ### CLI Commands
 
@@ -223,7 +228,7 @@ Tools register **sources** (geometry input drivers) and **actions** (operations)
 # Build
 cargo build
 
-# Run all 157 tests (8 core, 40 geometry, 27 tools, 82 tui)
+# Run all 250 tests (10 core, 40 geometry, 28 tools, 172 tui)
 cargo test
 
 # Run the CLI
@@ -249,15 +254,16 @@ AppState → view(frame, state) → ratatui Frame → terminal (stderr)
    ↑                                                  |
    └── update(state, msg) → Vec<Cmd> ← keymap ← input ┘
                     │                         ↑
-                    └→ runtime: worker threads ┘ (TaskFinished, IfcLoaded, Output)
+                    └→ runtime: worker threads ┘ (TaskFinished, IfcLoaded, MurbLoaded, Output)
 ```
 
-- **`AppState`** (`app.rs`) — plain data: tree, focus, running tasks, Output log, IFC picker, viewport
-- **`Msg` / `Cmd`** (`msg.rs`) — events in (keys, mouse, ticks, worker results) and side effects out (`RunTask`, `LoadIfc`, `Quit`)
-- **`update`** (`update.rs`) — pure: no I/O, no global registry; returns commands for the runtime
+- **`AppState`** (`app.rs`) — plain data: tree, focus, running tasks, option values, the open option form, Output log, IFC picker, viewport
+- **`Msg` / `Cmd`** (`msg.rs`) — events in (keys, mouse, ticks, worker results) and side effects out (`RunTask`, `StopTask`, `LoadIfc`, `LoadMurb`, `Quit`)
+- **`update`** (`update.rs`) — pure: no I/O, no global registry; returns commands for the runtime. Option metadata comes from a `Catalog` (`options.rs`) copied out of the registry at startup
 - **`view`** (`view.rs`) — renders from state; shares `layout::compute` with mouse hit-testing
-- **`runtime`** (`runtime.rs`) — event loop; runs tasks and IFC loads on named worker threads
-- The TUI draws on **stderr** and redirects **stdout** into the Output pane (`capture.rs`), so task handlers that `println!` never corrupt the screen
+- **`runtime`** (`runtime.rs`) — event loop; runs tasks and loads on named worker threads, hands each task a `CancelToken`, and expands `~` in typed values
+- The TUI draws on **stderr** and redirects **stdout** into the Output pane (`capture.rs`), so task handlers that `println!` never corrupt the screen. A task's result travels the same pipe as its output, so "✓ Success" always lands after the task's last line
+- `SIGTERM` / `SIGHUP` / `SIGINT` restore the terminal before the process dies (`signals.rs`). If the event loop cannot answer within half a second — the terminal window was closed, say — a watchdog thread ends the process anyway. Without a terminal on stdin and stderr the TUI refuses to start and says why
 
 ---
 

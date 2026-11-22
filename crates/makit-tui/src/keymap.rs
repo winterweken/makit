@@ -7,7 +7,7 @@ use ratatui::layout::Position;
 
 use crate::app::AppState;
 use crate::layout::{self, AppLayout};
-use crate::msg::{Msg, Pane};
+use crate::msg::{EditKey, Msg, Pane};
 
 /// Map any terminal event to a message, if it means something.
 pub fn map_event(state: &AppState, event: &Event) -> Option<Msg> {
@@ -31,9 +31,19 @@ pub fn map_key(state: &AppState, key: &KeyEvent) -> Option<Msg> {
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
         return Some(Msg::Quit);
     }
+    if state.editor.is_some() {
+        // The option form is modal and takes every printable key as text.
+        return map_edit_key(key).map(Msg::Edit);
+    }
     if state.show_help {
-        // The help overlay is modal.
+        // The help overlay is modal: it scrolls and closes, nothing else.
         return match key.code {
+            KeyCode::Up | KeyCode::Char('k') => Some(Msg::Up),
+            KeyCode::Down | KeyCode::Char('j') => Some(Msg::Down),
+            KeyCode::PageUp => Some(Msg::PageUp),
+            KeyCode::PageDown => Some(Msg::PageDown),
+            KeyCode::Home | KeyCode::Char('g') => Some(Msg::Home),
+            KeyCode::End | KeyCode::Char('G') => Some(Msg::End),
             KeyCode::Esc | KeyCode::Char('?') => Some(Msg::ToggleHelp),
             KeyCode::Char('q') => Some(Msg::Quit),
             _ => None,
@@ -50,6 +60,7 @@ pub fn map_key(state: &AppState, key: &KeyEvent) -> Option<Msg> {
         KeyCode::Left | KeyCode::Char('h') => Msg::Collapse,
         KeyCode::Enter => Msg::Activate,
         KeyCode::Char('e') => Msg::Execute,
+        KeyCode::Char('x') => Msg::StopTask,
         KeyCode::Tab => Msg::FocusNext,
         KeyCode::BackTab => Msg::FocusPrev,
         KeyCode::Char('o') => Msg::ToggleOutput,
@@ -62,11 +73,39 @@ pub fn map_key(state: &AppState, key: &KeyEvent) -> Option<Msg> {
     Some(msg)
 }
 
+/// Map a key press in the option form.
+fn map_edit_key(key: &KeyEvent) -> Option<EditKey> {
+    let chord = key
+        .modifiers
+        .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT);
+    let edit = match key.code {
+        KeyCode::Enter => EditKey::Submit,
+        KeyCode::Esc => EditKey::Cancel,
+        KeyCode::Backspace => EditKey::Backspace,
+        KeyCode::Delete => EditKey::Delete,
+        KeyCode::Left => EditKey::Left,
+        KeyCode::Right => EditKey::Right,
+        KeyCode::Home => EditKey::Home,
+        KeyCode::End => EditKey::End,
+        KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => EditKey::Clear,
+        KeyCode::Char(c) if !chord => EditKey::Char(c),
+        _ => return None,
+    };
+    Some(edit)
+}
+
 /// Map a mouse event using the same layout the view draws.
 pub fn map_mouse(state: &AppState, mouse: &MouseEvent) -> Option<Msg> {
+    if state.editor.is_some() {
+        return None;
+    }
     if state.show_help {
-        return matches!(mouse.kind, MouseEventKind::Down(MouseButton::Left))
-            .then_some(Msg::ToggleHelp);
+        return match mouse.kind {
+            MouseEventKind::ScrollUp => Some(Msg::Up),
+            MouseEventKind::ScrollDown => Some(Msg::Down),
+            MouseEventKind::Down(MouseButton::Left) => Some(Msg::ToggleHelp),
+            _ => None,
+        };
     }
     let layout = layout::compute(state.viewport, state);
     let pane = layout.pane_at(mouse.column, mouse.row)?;
@@ -107,7 +146,9 @@ fn row_at(state: &AppState, layout: &AppLayout, pane: Pane, x: u16, y: u16) -> O
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::app::InitialData;
+    use crate::app::{Editor, InitialData};
+    use crate::msg::EditKey;
+    use crate::node::NodeId;
     use crate::tree::TreeNode;
     use crossterm::event::KeyEventState;
     use ratatui::layout::Rect;
@@ -120,6 +161,7 @@ mod tests {
             ifc_files: vec!["a.ifc".into(), "b.ifc".into()],
             murb_results: None,
             viewport: Rect::new(0, 0, 120, 40),
+            ..InitialData::default()
         })
     }
 
@@ -180,7 +222,8 @@ mod tests {
     fn help_overlay_is_modal() {
         let mut s = state();
         s.show_help = true;
-        assert!(map_key(&s, &key(KeyCode::Down)).is_none());
+        assert!(map_key(&s, &key(KeyCode::Char('e'))).is_none());
+        assert!(map_key(&s, &key(KeyCode::Tab)).is_none());
         assert!(matches!(
             map_key(&s, &key(KeyCode::Esc)),
             Some(Msg::ToggleHelp)
@@ -290,5 +333,97 @@ mod tests {
         // Header is not a pane.
         let ev = mouse(MouseEventKind::ScrollDown, 2, 0);
         assert!(map_mouse(&s, &ev).is_none());
+    }
+
+    fn editing() -> AppState {
+        let mut s = state();
+        s.editor = Some(Editor::new(NodeId::Source("ifc".into()), "file", "", false));
+        s
+    }
+
+    #[test]
+    fn the_editor_captures_typing() {
+        let s = editing();
+        // Letters that are shortcuts elsewhere are just text here.
+        for c in ['q', 'e', 'x', '?', 'j', ' ', 'É'] {
+            assert!(
+                matches!(map_key(&s, &key(KeyCode::Char(c))), Some(Msg::Edit(EditKey::Char(got))) if got == c),
+                "{c:?}"
+            );
+        }
+        let shifted = KeyEvent::new(KeyCode::Char('A'), KeyModifiers::SHIFT);
+        assert!(matches!(
+            map_key(&s, &shifted),
+            Some(Msg::Edit(EditKey::Char('A')))
+        ));
+    }
+
+    #[test]
+    fn the_editor_has_its_own_editing_keys() {
+        let s = editing();
+        let edit = |code| match map_key(&s, &key(code)) {
+            Some(Msg::Edit(k)) => k,
+            other => panic!("unexpected {other:?}"),
+        };
+        assert_eq!(edit(KeyCode::Enter), EditKey::Submit);
+        assert_eq!(edit(KeyCode::Esc), EditKey::Cancel);
+        assert_eq!(edit(KeyCode::Backspace), EditKey::Backspace);
+        assert_eq!(edit(KeyCode::Delete), EditKey::Delete);
+        assert_eq!(edit(KeyCode::Left), EditKey::Left);
+        assert_eq!(edit(KeyCode::Right), EditKey::Right);
+        assert_eq!(edit(KeyCode::Home), EditKey::Home);
+        assert_eq!(edit(KeyCode::End), EditKey::End);
+        let ctrl = |c| KeyEvent::new(KeyCode::Char(c), KeyModifiers::CONTROL);
+        assert!(matches!(
+            map_key(&s, &ctrl('u')),
+            Some(Msg::Edit(EditKey::Clear))
+        ));
+        // Other control chords are not inserted as text.
+        assert!(map_key(&s, &ctrl('w')).is_none());
+        assert!(map_key(&s, &key(KeyCode::Tab)).is_none());
+        // Ctrl-C still quits.
+        assert!(matches!(map_key(&s, &ctrl('c')), Some(Msg::Quit)));
+    }
+
+    #[test]
+    fn the_editor_ignores_the_mouse() {
+        let s = editing();
+        let click = mouse(MouseEventKind::Down(MouseButton::Left), 5, 5);
+        assert!(map_mouse(&s, &click).is_none());
+        assert!(map_mouse(&s, &mouse(MouseEventKind::ScrollDown, 5, 5)).is_none());
+    }
+
+    #[test]
+    fn x_stops_the_running_task() {
+        let s = state();
+        assert!(matches!(
+            map_key(&s, &key(KeyCode::Char('x'))),
+            Some(Msg::StopTask)
+        ));
+    }
+
+    #[test]
+    fn help_can_be_scrolled() {
+        let mut s = state();
+        s.show_help = true;
+        assert!(matches!(map_key(&s, &key(KeyCode::Down)), Some(Msg::Down)));
+        assert!(matches!(
+            map_key(&s, &key(KeyCode::Char('k'))),
+            Some(Msg::Up)
+        ));
+        assert!(matches!(
+            map_key(&s, &key(KeyCode::PageDown)),
+            Some(Msg::PageDown)
+        ));
+        assert!(matches!(map_key(&s, &key(KeyCode::Home)), Some(Msg::Home)));
+        assert!(matches!(map_key(&s, &key(KeyCode::End)), Some(Msg::End)));
+        assert!(matches!(
+            map_mouse(&s, &mouse(MouseEventKind::ScrollDown, 5, 5)),
+            Some(Msg::Down)
+        ));
+        assert!(matches!(
+            map_mouse(&s, &mouse(MouseEventKind::ScrollUp, 5, 5)),
+            Some(Msg::Up)
+        ));
     }
 }

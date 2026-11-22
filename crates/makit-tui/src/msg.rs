@@ -1,6 +1,9 @@
 //! Messages (inputs to `update`) and commands (side effects requested by it).
 
+use std::collections::BTreeMap;
+
 use makit_tools::building_model::WwrAnalysis;
+use makit_tools::murb::MurbResults;
 
 use crate::node::NodeId;
 
@@ -18,9 +21,31 @@ pub enum Pane {
 #[derive(Debug, Clone)]
 pub enum IfcOutcome {
     /// The JSON extraction was found and analysed.
-    Analysis(WwrAnalysis),
+    Analysis {
+        analysis: WwrAnalysis,
+        /// Path of the JSON extraction the analysis came from.
+        json: String,
+    },
     /// No JSON extraction exists next to the IFC file yet.
     NeedsExtraction,
+}
+
+/// A key press while the option editor is open.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EditKey {
+    Char(char),
+    Backspace,
+    Delete,
+    Left,
+    Right,
+    Home,
+    End,
+    /// Empty the field.
+    Clear,
+    /// Accept the value.
+    Submit,
+    /// Close the editor, keeping the old value.
+    Cancel,
 }
 
 /// Everything that can happen to the app.
@@ -35,10 +60,16 @@ pub enum Msg {
     End,
     Expand,
     Collapse,
-    /// Enter: open/toggle a tree node, or load the highlighted IFC file.
+    /// Enter: open/toggle a tree node, edit an option, or load the
+    /// highlighted IFC file.
     Activate,
-    /// Run the task for the node under the explorer cursor.
+    /// Run the task for the node under the explorer cursor, asking for any
+    /// required option that has no value yet.
     Execute,
+    /// Ask the focused (or only) running task to stop.
+    StopTask,
+    /// A key press in the option editor.
+    Edit(EditKey),
     FocusNext,
     FocusPrev,
     ToggleOutput,
@@ -72,15 +103,26 @@ pub enum Msg {
         path: String,
         result: Result<IfcOutcome, String>,
     },
+    /// Simulation results re-read from disk (`None` if unreadable).
+    MurbLoaded(Option<MurbResults>),
 }
 
 /// Side effects `update` asks the runtime to perform.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Cmd {
-    /// Resolve `node` against the registry and run it on a worker thread.
-    RunTask { id: u64, node: NodeId },
+    /// Resolve the task `node` against the registry and run it on a worker
+    /// thread with `options` laid over the registered defaults.
+    RunTask {
+        id: u64,
+        node: NodeId,
+        options: BTreeMap<String, String>,
+    },
+    /// Ask a running task to stop (only tasks that watch for it will).
+    StopTask { id: u64 },
     /// Load and analyse an IFC selection on a worker thread.
     LoadIfc { path: String },
+    /// Re-read simulation results from `path` on a worker thread.
+    LoadMurb { path: String },
     /// Exit the event loop.
     Quit,
 }
