@@ -79,10 +79,11 @@ def get_wall_midpoint(wall):
 def get_is_external(element):
     """
     The element's IsExternal flag from its Pset_*Common property set:
-    True, False, or None when the file does not say.
+    True, False, or None when the file does not say (no property, or one
+    left without a value).
     """
     for pset, props in ifcopenshell.util.element.get_psets(element).items():
-        if pset.endswith('Common') and 'IsExternal' in props:
+        if pset.endswith('Common') and props.get('IsExternal') is not None:
             return bool(props['IsExternal'])
     return None
 
@@ -214,9 +215,54 @@ def get_element_quantities(element):
                 for quantity in prop_def.Quantities:
                     yield quantity
 
+def get_opening_area(wall, ifc_file):
+    """
+    Square metres of the windows and doors that fill openings in a wall,
+    from their Area quantity or else their overall height and width
+    """
+    length_scale, area_scale = get_unit_scales(ifc_file)
+    total = 0.0
+    for voids in getattr(wall, 'HasOpenings', None) or []:
+        for fills in voids.RelatedOpeningElement.HasFillings or []:
+            element = fills.RelatedBuildingElement
+            area = 0.0
+            for quantity in get_element_quantities(element):
+                if quantity.is_a('IfcQuantityArea') and 'Area' in quantity.Name:
+                    area = quantity.AreaValue * area_scale
+                    break
+            if not area:
+                height = getattr(element, 'OverallHeight', None) or 0
+                width = getattr(element, 'OverallWidth', None) or 0
+                area = height * width * length_scale ** 2
+            total += area
+    return total
+
+def get_side_area_from_geometry(element):
+    """
+    One side of an element measured from its geometry, in square metres:
+    half the vertical surface facing the most common direction. Openings
+    are already cut out of the geometry. None without geometry.
+    """
+    try:
+        triangles = get_triangles(element)
+    except Exception:
+        return None
+    weights = {}
+    for n, area, _ in triangles:
+        if abs(n[2]) > 0.1:
+            continue
+        key = (round(n[0], 2), round(n[1], 2))
+        if key[0] < 0 or (key[0] == 0 and key[1] < 0):
+            key = (-key[0], -key[1])
+        weights[key] = weights.get(key, 0.0) + area
+    if not weights:
+        return None
+    return max(weights.values()) / 2.0
+
 def get_ifc_wall_area(wall, ifc_file):
     """
-    Calculate wall side area from IFC wall, in square metres
+    A wall's opaque side area in square metres: net of the windows and
+    doors in it, which the analyses add back as window area
     """
     if not IFC_AVAILABLE:
         return 0.0
@@ -225,7 +271,8 @@ def get_ifc_wall_area(wall, ifc_file):
         length_scale, area_scale = get_unit_scales(ifc_file)
         height = 0
         length = 0
-        side_areas = []
+        net = []
+        gross = []
         for quantity in get_element_quantities(wall):
             if quantity.is_a('IfcQuantityLength'):
                 if 'Height' in quantity.Name:
@@ -233,28 +280,30 @@ def get_ifc_wall_area(wall, ifc_file):
                 elif 'Length' in quantity.Name:
                     length = quantity.LengthValue * length_scale
             elif quantity.is_a('IfcQuantityArea'):
-                if 'NetSideArea' in quantity.Name or 'GrossSideArea' in quantity.Name:
-                    side_areas.append(quantity.AreaValue * area_scale)
+                if 'NetSideArea' in quantity.Name:
+                    net.append(quantity.AreaValue * area_scale)
+                elif 'GrossSideArea' in quantity.Name:
+                    gross.append(quantity.AreaValue * area_scale)
 
         # A side can be no larger than height x length. This rules out the
         # extra NetSideArea that Revit's exporter writes in squared length
         # units (mm2 in a millimetre file) ahead of the real one.
         if height > 0 and length > 0:
-            side_areas = [a for a in side_areas if a <= height * length * 1.01]
+            net = [a for a in net if a <= height * length * 1.01]
+            gross = [a for a in gross if a <= height * length * 1.01]
 
-        # Quantities first (most accurate), then Height * Length
-        if side_areas:
-            return side_areas[0]
+        if net:
+            return net[0]
+        # A gross side, or height x length, still includes the openings
+        if gross:
+            return max(gross[0] - get_opening_area(wall, ifc_file), 0.0)
         if height > 0 and length > 0:
-            return height * length
-
-        # Ultimate fallback: Geometry bounding box
-        settings = ifcopenshell.geom.settings()
-        shape = ifcopenshell.geom.create_shape(settings, wall)
-        # Approximate side area from bounding box
-        # This fixes the hardcoded 10.0
-        return 5.0 # Better than 10 but still a placeholder if everything else fails
-                   # Ideally we'd sum face areas, but that requires numpy/trimesh
+            return max(height * length - get_opening_area(wall, ifc_file), 0.0)
+        # No quantities: measure the geometry, openings already cut out
+        measured = get_side_area_from_geometry(wall)
+        if measured is not None:
+            return measured
+        print("Warning: no area for wall {}: no quantities or geometry".format(wall.GlobalId))
 
     except Exception as e:
         print("Warning: Could not calculate wall area: {}".format(str(e)))

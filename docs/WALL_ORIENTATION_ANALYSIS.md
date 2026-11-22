@@ -166,7 +166,8 @@ The generic building model format is JSON-based and platform-agnostic:
 - `orientation` is the wall's **outward-facing normal** in project coordinates (+Y project north, +X project east), not the direction the wall runs in.
 - `projectNorth` is the clockwise angle, in radians, that turns project coordinates into true ones (`analysis_engine.rotate_vector_2d`); it is 0 when project north is true north.
 - `isCurtainWall` walls have their normal reversed before classification (see Curtain Walls below).
-- `isExternal` is `true` for an envelope wall and `false` for an interior one. Walls flagged `false`, and the windows in them, are left out of the analysis; walls without the field are counted. The IFC extractor copies it from `Pset_WallCommon.IsExternal`; the Revit extractor does not set it yet.
+- `area` is the wall's opaque area, net of the windows and doors in it; the analyses add the window area back (WWR = window / (wall + window)). The IFC extractor takes `NetSideArea`; with only `GrossSideArea` or height × length it subtracts the windows and doors that fill the wall's openings; with no quantities it measures the geometry, which has the openings cut out.
+- `isExternal` is `true` for an envelope wall and `false` for an interior one. Walls flagged `false`, and the windows in them, are left out of the analysis; walls without the field are counted. The IFC extractor copies it from `Pset_WallCommon.IsExternal` (a property left without a value counts as not known); the Revit extractor does not set it yet.
 
 The Python `analysis_engine` and the Rust `building_model::analyze_wwr` both apply these rules.
 

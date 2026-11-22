@@ -82,6 +82,54 @@ class WallAreaTest(unittest.TestCase):
         self.assertAlmostEqual(ifc_extractors.get_ifc_wall_area(wall, f), 6.3)
 
 
+def window_in(f, wall, area):
+    """A window of `area` square metres filling an opening in `wall`."""
+    opening = f.createIfcOpeningElement(ifcopenshell.guid.new(), None, "opening", None, None, None, None, None, None)
+    f.createIfcRelVoidsElement(ifcopenshell.guid.new(), None, None, None, wall, opening)
+    window = new_window(f, areas=[("Area", area)])
+    f.createIfcRelFillsElement(ifcopenshell.guid.new(), None, None, None, opening, window)
+    return window
+
+
+@unittest.skipIf(ifcopenshell is None, "needs ifcopenshell")
+class NetWallAreaTest(unittest.TestCase):
+    """A wall's area is its opaque area: the analyses add the windows back."""
+
+    def test_a_gross_side_area_loses_its_windows(self):
+        f = new_file(None)
+        wall = new_wall(f, lengths=[("Height", 3.0), ("Length", 10.0)], areas=[("GrossSideArea", 30.0)])
+        window_in(f, wall, 6.0)
+        self.assertAlmostEqual(ifc_extractors.get_ifc_wall_area(wall, f), 24.0)
+
+    def test_height_times_length_loses_its_windows(self):
+        f = new_file(None)
+        wall = new_wall(f, lengths=[("Height", 3.0), ("Length", 10.0)])
+        window_in(f, wall, 6.0)
+        self.assertAlmostEqual(ifc_extractors.get_ifc_wall_area(wall, f), 24.0)
+
+    def test_net_side_area_is_preferred_to_gross(self):
+        f = new_file(None)
+        wall = new_wall(
+            f,
+            lengths=[("Height", 3.0), ("Length", 10.0)],
+            areas=[("GrossSideArea", 30.0), ("NetSideArea", 24.0)],
+        )
+        window_in(f, wall, 6.0)
+        self.assertAlmostEqual(ifc_extractors.get_ifc_wall_area(wall, f), 24.0)
+
+    def test_a_wall_without_quantities_is_measured_from_its_geometry(self):
+        import ifcopenshell.api.context
+        import ifcopenshell.api.geometry
+        f = new_file(None)
+        model = ifcopenshell.api.context.add_context(f, context_type="Model")
+        body = ifcopenshell.api.context.add_context(
+            f, context_type="Model", context_identifier="Body", target_view="MODEL_VIEW", parent=model)
+        wall = f.createIfcWall(ifcopenshell.guid.new(), None, "w", None, None, place(f, (0, 0), (1, 0)), None, None, None)
+        rep = ifcopenshell.api.geometry.add_wall_representation(f, context=body, length=4.0, height=3.0, thickness=0.2)
+        ifcopenshell.api.geometry.assign_representation(f, product=wall, representation=rep)
+        self.assertAlmostEqual(ifc_extractors.get_ifc_wall_area(wall, f), 12.0)
+
+
 @unittest.skipIf(ifcopenshell is None, "needs ifcopenshell")
 class WindowAreaTest(unittest.TestCase):
 
@@ -175,6 +223,18 @@ class WallOrientationTest(unittest.TestCase):
         self.assertIs(walls["south"].is_external, True)
         self.assertIs(walls["partition"].is_external, False)
         self.assertIsNone(walls["unflagged"].is_external)
+
+    def test_an_unset_exterior_flag_is_unknown(self):
+        f, walls = square_house()
+        blank = f.createIfcWall(ifcopenshell.guid.new(), None, "blank", None, None, place(f, (2000, 5000), (1, 0)), None, None, None)
+        add_quantities(f, blank, "Qto_WallBaseQuantities", lengths=[("Length", 2000.0), ("Height", 3000.0)])
+        prop = f.createIfcPropertySingleValue("IsExternal", None, None, None)
+        pset = f.createIfcPropertySet(ifcopenshell.guid.new(), None, "Pset_WallCommon", None, [prop])
+        f.createIfcRelDefinesByProperties(ifcopenshell.guid.new(), None, None, None, [blank], pset)
+        path = os.path.join(self.tmp, "unset.ifc")
+        f.write(path)
+        extracted = {w.name: w for w in ifc_extractors.extract_building_model_from_ifc(path).walls}
+        self.assertIsNone(extracted["blank"].is_external)
 
     def test_an_unrotated_model_has_no_project_north_angle(self):
         f, _ = square_house(true_north=(0.0, 1.0))

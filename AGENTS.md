@@ -60,7 +60,7 @@ This document uses **progressive disclosure**. Level 1 (this file) is loaded eve
 - `cargo test`: Run the full test suite across all crates (279 tests: 10 core, 40 geometry, 47 tools, 182 tui).
 - `cargo fmt`: Enforce standard Rust formatting; required for all changes.
 - `cargo clippy`: Run lints; address all warnings before opening a PR.
-- `.venv/bin/python -m unittest discover -s pyrevit-extension/tests`: Python IFC extractor and analysis tests (17). They need `ifcopenshell`; set up `.venv` once with `uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell`.
+- `.venv/bin/python -m unittest discover -s pyrevit-extension/tests`: Python IFC extractor and analysis tests (22). They need `ifcopenshell`; set up `.venv` once with `uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell`.
 - `python3 -m unittest discover -s scripts/tests`: MURB runner tests (2); they stand in for `murb_energy_tool`, so they need no extra packages.
 
 ## Coding Style & Naming Conventions

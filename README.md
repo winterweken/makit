@@ -240,7 +240,7 @@ cargo build
 # Run all 279 tests (10 core, 40 geometry, 47 tools, 182 tui)
 cargo test
 
-# Python IFC extractor: set up once, then run its 17 tests
+# Python IFC extractor: set up once, then run its 22 tests
 uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell
 .venv/bin/python -m unittest discover -s pyrevit-extension/tests
 
