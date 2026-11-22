@@ -1,14 +1,19 @@
-//! Drawing utilities using rsille's braille canvas.
+//! Drawing utilities for any [`Plotter`] surface.
 //!
-//! Provides functions for drawing geometry primitives on a braille canvas,
-//! including lines, walls (thick lines as filled polygons), and scanline
-//! polygon fill.
+//! Provides functions for drawing geometry primitives on a braille-resolution
+//! surface, including lines, walls (thick lines as filled polygons), and
+//! scanline polygon fill.
 
+use crate::plot::Plotter;
 use crate::types::{get_bounds, scale_point, Line, Point, Rectangle};
-use canvas::Canvas;
 
 /// Draw a set of lines on a canvas, auto-scaled to fit.
-pub fn draw_lines(canvas: &mut Canvas, lines: &[Line], canvas_width: i32, canvas_height: i32) {
+pub fn draw_lines<P: Plotter + ?Sized>(
+    canvas: &mut P,
+    lines: &[Line],
+    canvas_width: i32,
+    canvas_height: i32,
+) {
     if lines.is_empty() {
         return;
     }
@@ -23,8 +28,8 @@ pub fn draw_lines(canvas: &mut Canvas, lines: &[Line], canvas_width: i32, canvas
 }
 
 /// Draw a wall as a filled polygon with thickness.
-pub fn draw_wall(
-    canvas: &mut Canvas,
+pub fn draw_wall<P: Plotter + ?Sized>(
+    canvas: &mut P,
     line: &Line,
     thickness: f64,
     bounds: &Rectangle,
@@ -64,8 +69,8 @@ pub fn draw_wall(
 }
 
 /// Draw a line with thickness — uses wall polygon for thick, single line for thin.
-pub fn draw_thick_line(
-    canvas: &mut Canvas,
+pub fn draw_thick_line<P: Plotter + ?Sized>(
+    canvas: &mut P,
     line: &Line,
     thickness: f64,
     bounds: &Rectangle,
@@ -84,7 +89,7 @@ pub fn draw_thick_line(
 /// Fill a polygon using scanline algorithm.
 ///
 /// Points should be in canvas pixel coordinates (integer).
-pub fn fill_polygon(canvas: &mut Canvas, points: &[(i32, i32)]) {
+pub fn fill_polygon<P: Plotter + ?Sized>(canvas: &mut P, points: &[(i32, i32)]) {
     if points.len() < 3 {
         return;
     }
@@ -123,7 +128,7 @@ pub fn fill_polygon(canvas: &mut Canvas, points: &[(i32, i32)]) {
 }
 
 /// Draw a rectangle outline on the canvas.
-pub fn draw_rect(canvas: &mut Canvas, x: f64, y: f64, w: f64, h: f64) {
+pub fn draw_rect<P: Plotter + ?Sized>(canvas: &mut P, x: f64, y: f64, w: f64, h: f64) {
     canvas.line((x, y), (x + w, y));
     canvas.line((x + w, y), (x + w, y + h));
     canvas.line((x + w, y + h), (x, y + h));
@@ -131,7 +136,7 @@ pub fn draw_rect(canvas: &mut Canvas, x: f64, y: f64, w: f64, h: f64) {
 }
 
 /// Fill a rectangle on the canvas.
-pub fn fill_rect(canvas: &mut Canvas, x: i32, y: i32, w: i32, h: i32) {
+pub fn fill_rect<P: Plotter + ?Sized>(canvas: &mut P, x: i32, y: i32, w: i32, h: i32) {
     for dy in 0..=h {
         for dx in 0..=w {
             canvas.set((x + dx) as f64, (y + dy) as f64);
@@ -140,7 +145,7 @@ pub fn fill_rect(canvas: &mut Canvas, x: i32, y: i32, w: i32, h: i32) {
 }
 
 /// Draw an arrow from (x0,y0) to (x1,y1).
-pub fn draw_arrow(canvas: &mut Canvas, x0: f64, y0: f64, x1: f64, y1: f64) {
+pub fn draw_arrow<P: Plotter + ?Sized>(canvas: &mut P, x0: f64, y0: f64, x1: f64, y1: f64) {
     canvas.line((x0, y0), (x1, y1));
 
     let dx = x1 - x0;
@@ -187,10 +192,17 @@ pub fn isometric_project(x: f64, y: f64, z: f64) -> (f64, f64) {
 
 /// Draw an isometric wireframe box on the canvas.
 ///
-/// - `c`: Canvas to render onto
+/// - `c`: surface to render onto
 /// - `ox`, `oy`: screen-space offset for positioning
 /// - `w`, `h`, `d`: box dimensions in world units (width, height, depth)
-pub fn draw_isometric_box(c: &mut Canvas, ox: f64, oy: f64, w: f64, h: f64, d: f64) {
+pub fn draw_isometric_box<P: Plotter + ?Sized>(
+    c: &mut P,
+    ox: f64,
+    oy: f64,
+    w: f64,
+    h: f64,
+    d: f64,
+) {
     // 8 corners of the box
     let corners = [
         (0.0, 0.0, 0.0),
@@ -238,41 +250,36 @@ pub fn draw_isometric_box(c: &mut Canvas, ox: f64, oy: f64, w: f64, h: f64, d: f
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::braille::BrailleGrid;
 
     #[test]
     fn test_fill_polygon_triangle() {
-        let mut c = Canvas::new();
+        let mut c = BrailleGrid::new();
         let points = [(0, 0), (10, 0), (5, 10)];
         fill_polygon(&mut c, &points);
-        // Canvas should have some pixels set - just verify no panic
-        let (w, h) = c.get_size();
-        assert!(w > 0);
-        assert!(h > 0);
+        // Grid should have some dots set
+        assert!(!c.is_empty());
     }
 
     #[test]
     fn test_draw_lines_empty() {
-        let mut c = Canvas::new();
+        let mut c = BrailleGrid::new();
         draw_lines(&mut c, &[], 40, 20);
         // Should not panic
     }
 
     #[test]
     fn test_draw_rect() {
-        let mut c = Canvas::new();
+        let mut c = BrailleGrid::new();
         draw_rect(&mut c, 0.0, 0.0, 10.0, 5.0);
-        let (w, h) = c.get_size();
-        assert!(w > 0);
-        assert!(h > 0);
+        assert!(!c.is_empty());
     }
 
     #[test]
     fn test_draw_arrow() {
-        let mut c = Canvas::new();
+        let mut c = BrailleGrid::new();
         draw_arrow(&mut c, 0.0, 0.0, 20.0, 10.0);
-        let (w, h) = c.get_size();
-        assert!(w > 0);
-        assert!(h > 0);
+        assert!(!c.is_empty());
     }
 
     #[test]
@@ -293,36 +300,30 @@ mod tests {
 
     #[test]
     fn test_draw_isometric_box() {
-        let mut c = Canvas::new();
+        let mut c = BrailleGrid::new();
         draw_isometric_box(&mut c, 20.0, 20.0, 10.0, 8.0, 6.0);
-        let (w, h) = c.get_size();
-        assert!(w > 0);
-        assert!(h > 0);
+        assert!(!c.is_empty());
     }
     #[test]
     fn test_draw_wall() {
-        let mut c = Canvas::new();
+        let mut c = BrailleGrid::new();
         let line = Line::new(Point::new(0.0, 0.0), Point::new(10.0, 0.0));
         let bounds = Rectangle::new(-5.0, -5.0, 20.0, 10.0);
         draw_wall(&mut c, &line, 2.0, &bounds, 40, 20);
-        let (w, h) = c.get_size();
-        assert!(w > 0);
-        assert!(h > 0);
+        assert!(!c.is_empty());
     }
 
     #[test]
     fn test_draw_thick_line() {
-        let mut c = Canvas::new();
+        let mut c = BrailleGrid::new();
         let line = Line::new(Point::new(0.0, 0.0), Point::new(10.0, 10.0));
         let bounds = Rectangle::new(-5.0, -5.0, 20.0, 20.0);
-        
+
         // Test thin line
         draw_thick_line(&mut c, &line, 0.2, &bounds, 40, 20);
-        
+
         // Test thick wall
         draw_thick_line(&mut c, &line, 2.0, &bounds, 40, 20);
-        let (w, h) = c.get_size();
-        assert!(w > 0);
-        assert!(h > 0);
+        assert!(!c.is_empty());
     }
 }

@@ -56,6 +56,12 @@ import tempfile
 from pathlib import Path
 
 
+def floats(values):
+    """Monthly results as plain floats. murb_energy_tool returns its own Vec
+    (a list) since it dropped numpy; older versions returned numpy arrays."""
+    return [float(v) for v in values]
+
+
 def main():
     # Read JSON input from stdin
     try:
@@ -134,12 +140,12 @@ def main():
 
     # Extract results from the Run object
     gfa = float(run.gfa)
-    monthly_heating = run.heating_demand.tolist()
-    monthly_cooling = run.cooling_demand.tolist()
-    monthly_htg_consumption = run.heating_consumption.tolist()
-    monthly_clg_consumption = run.cooling_consumption.tolist()
-    monthly_total = run.total_energy_consumption.tolist()
-    monthly_ghg = run.total_ghg_emissions.tolist()
+    monthly_heating = floats(run.heating_demand)
+    monthly_cooling = floats(run.cooling_demand)
+    monthly_htg_consumption = floats(run.heating_consumption)
+    monthly_clg_consumption = floats(run.cooling_consumption)
+    monthly_total = floats(run.total_energy_consumption)
+    monthly_ghg = floats(run.total_ghg_emissions)
 
     tedi = sum(monthly_heating) / gfa if gfa > 0 else 0.0
     teui = sum(monthly_total) / gfa if gfa > 0 else 0.0

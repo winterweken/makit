@@ -47,6 +47,7 @@ class GenericWall(object):
         self.wall_type = ""  # exterior, interior, etc.
         self.workset = ""
         self.is_curtain_wall = False
+        self.is_external = None  # True, False (interior) or None (not known)
         self.level = ""
         self.windows = []  # List of GenericWindow
         self.properties = {}  # Custom properties
@@ -65,6 +66,7 @@ class GenericWall(object):
             'type': self.wall_type,
             'workset': self.workset,
             'isCurtainWall': self.is_curtain_wall,
+            'isExternal': self.is_external,
             'level': self.level,
             'windows': [w.to_dict() for w in self.windows],
             'properties': self.properties
@@ -86,6 +88,7 @@ class GenericWall(object):
         wall.wall_type = data.get('type', '')
         wall.workset = data.get('workset', '')
         wall.is_curtain_wall = data.get('isCurtainWall', False)
+        wall.is_external = data.get('isExternal')
         wall.level = data.get('level', '')
         wall.windows = [GenericWindow.from_dict(w) for w in data.get('windows', [])]
         wall.properties = data.get('properties', {})

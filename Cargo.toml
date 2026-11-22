@@ -9,7 +9,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "3.0.0"
 edition = "2021"
 authors = ["winterweken"]
 license = "MIT"
@@ -22,10 +22,10 @@ makit-geometry = { path = "crates/makit-geometry" }
 makit-tools = { path = "crates/makit-tools" }
 makit-tui = { path = "crates/makit-tui" }
 
-# rsille v3 workspace packages
-canvas = { git = "https://github.com/nidhoggfgg/rsille", branch = "main" }
-render = { git = "https://github.com/nidhoggfgg/rsille", branch = "main" }
-tui = { git = "https://github.com/nidhoggfgg/rsille", branch = "main" }
+# TUI (ratatui 0.29 depends on crossterm 0.28.1 — keep these in lockstep)
+ratatui = "0.29"
+gag = "1"
+os_pipe = "1"
 
 # CLI
 clap = { version = "4", features = ["derive"] }
@@ -48,6 +48,8 @@ thiserror = "2"
 
 # Terminal
 crossterm = { version = "0.28", features = ["event-stream"] }
+# Already in the tree through crossterm; used to restore the terminal on SIGTERM.
+signal-hook = "0.3"
 
 # Testing
 tower = { version = "0.5", features = ["util"] }

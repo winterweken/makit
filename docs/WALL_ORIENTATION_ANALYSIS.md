@@ -163,6 +163,20 @@ The generic building model format is JSON-based and platform-agnostic:
 }
 ```
 
+- `orientation` is the wall's **outward-facing normal** in project coordinates (+Y project north, +X project east), not the direction the wall runs in.
+- `projectNorth` is the clockwise angle, in radians, that turns project coordinates into true ones (`analysis_engine.rotate_vector_2d`); it is 0 when project north is true north.
+- `isCurtainWall` walls have their normal reversed before classification (see Curtain Walls below).
+- `area` is the wall's opaque area, net of the windows and doors in it; the analyses add the window area back (WWR = window / (wall + window)). The IFC extractor takes `NetSideArea`; with only `GrossSideArea` or height × length it subtracts the windows and doors that fill the wall's openings; with no quantities it measures the geometry, which has the openings cut out.
+- `isExternal` is `true` for an envelope wall and `false` for an interior one. Walls flagged `false`, and the windows in them, are left out of the analysis; walls without the field are counted. The IFC extractor copies it from `Pset_WallCommon.IsExternal` (a property left without a value counts as not known); the Revit extractor does not set it yet.
+
+The Python `analysis_engine` and the Rust `building_model::analyze_wwr` both apply these rules.
+
+### Where the IFC extractor gets them
+
+IFC places a wall along its local X axis, so `ifc_extractors.get_ifc_wall_orientation` takes the perpendicular. Which side of it is outside is not fixed: Revit exports some walls with local +Y outward and some inward. The extractor points the normal away from the plan centre of the walls flagged `IsExternal`, which is right for exterior walls of a building without courtyards. `projectNorth` comes from the representation context's `TrueNorth` vector `(x, y)` as `atan2(-x, y)`.
+
+Each `IfcCurtainWall` becomes a wall with `isCurtainWall: true`. Its parts are measured from their geometry (exporters rarely give curtain walls quantities): glazed panels, `IfcWindow`s and doors named as glass become its `windows`, one per part, and frames and opaque panels make up its `area`. A panel is glazed when its name, type or material says glass or glazed; a door only when its name or type does, so a framed entrance door counts as frame. The facade direction is the horizontal normal carrying the most surface, pointed away from the building centre, and is stored reversed, like Revit's, so the analyses' curtain-wall flip turns it outward. `IsExternal` comes from `Pset_CurtainWallCommon`.
+
 ## API Endpoints
 
 The PyRevit server exposes three endpoints:
@@ -292,4 +306,4 @@ Calculated separately for each direction and overall.
 
 ### Curtain Walls
 
-Curtain walls have their orientation inverted before classification (Revit API quirk).
+Curtain walls have their orientation inverted before classification (Revit API quirk). The IFC extractor stores curtain walls the same way, so every source reads alike.

@@ -19,13 +19,13 @@ python3 analyze_ifc.py ../../../examples/IFC/Building-Architecture.ifc
 
 **Output:**
 ```
-Total Walls: 4
-Total Wall Area: 43.3 sq m
+Total Walls: 3
+Total Wall Area: 36.4 sq m
 Total Windows: 0
 Overall WWR: 0.0%
 
-EAST FACING: 1 walls, 21.2 sq m
-WEST FACING: 3 walls, 22.1 sq m
+EAST FACING: 2 walls, 15.2 sq m
+WEST FACING: 1 walls, 21.2 sq m
 ```
 
 ### 2. Extract to Generic Format
@@ -34,6 +34,17 @@ WEST FACING: 3 walls, 22.1 sq m
 python3 analyze_ifc.py Building-Architecture.ifc \
   --extract-only \
   --output building-model.json
+```
+
+`makit analyze`, `makit tui` and the `wall-orientation-wwr` action look for an
+IFC file's extraction beside it: first `<name>.json` (for `Ifc4_ARC.ifc`,
+`Ifc4_ARC.json`), then `building-model.json`. They use `building-model.json` only
+when its `metadata.sourceFile` names that IFC file, or, for older extractions
+without it, when no other `.ifc` file is in the folder. With several IFC files in
+one folder, extract each to its own `<name>.json`:
+
+```bash
+python3 analyze_ifc.py Ifc4_ARC.ifc --extract-only --output Ifc4_ARC.json
 ```
 
 Creates a platform-agnostic JSON file that can be:
@@ -61,7 +72,8 @@ The `building-model.json` file is **platform-independent**:
     {
       "id": "1AQAupaRP1txwK1AGiN61V",
       "name": "house - outer wall - house right front",
-      "orientation": {"x": 0.0, "y": -1.0, "z": 0.0},
+      "orientation": {"x": 1.0, "y": 0.0, "z": 0.0},
+      "isExternal": true,
       "area": 6.3,
       "level": "00 groundfloor",
       "type": "solidwall",
@@ -71,9 +83,15 @@ The `building-model.json` file is **platform-independent**:
     }
   ],
   "projectNorth": 0.0,
-  "units": "m"
+  "units": "m",
+  "metadata": {
+    "projectName": "ifc silly sample scene - project",
+    "sourceFile": "Building-Architecture.ifc"
+  }
 }
 ```
+
+`metadata.sourceFile` is the name of the IFC file the model was extracted from.
 
 **Key point**: This same format can come from:
 - IFC files (this example)
@@ -89,9 +107,9 @@ The `Building-Architecture.ifc` file contains:
 - IFC4 format
 - Includes descriptions and metadata
 
-All walls are on "00 groundfloor" level with orientations:
-- 1 East-facing wall (21.2 sq m)
-- 3 West-facing walls (22.1 sq m)
+All walls are on "00 groundfloor" level. The analysis counts the three exterior walls; the plumbing wall is flagged interior (`IsExternal` false) and left out:
+- 2 East-facing walls (15.2 sq m): the house's right front and right back walls
+- 1 West-facing wall (21.2 sq m): the house's left wall
 
 ## What This Demonstrates
 

@@ -11,7 +11,7 @@
 //! 5. Deserialize into `MurbResults`
 
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 
@@ -19,6 +19,8 @@ use serde::{Deserialize, Serialize};
 
 use makit_core::models::TaskContext;
 use makit_core::registry::Registry;
+
+use crate::building_model;
 
 // ---------------------------------------------------------------------------
 // Data Types (M2)
@@ -135,6 +137,141 @@ fn default_window_groups() -> Vec<WindowGroupInput> {
             shading: 0.0,
         },
     ]
+}
+
+/// Compass points accepted in `window-directions`, clockwise from north.
+const COMPASS: [(&str, f64); 8] = [
+    ("N", 0.0),
+    ("NE", 45.0),
+    ("E", 90.0),
+    ("SE", 135.0),
+    ("S", 180.0),
+    ("SW", 225.0),
+    ("W", 270.0),
+    ("NW", 315.0),
+];
+
+const WINDOW_DIRECTIONS_FORMAT: &str = "expected azimuth:share pairs separated by commas, \
+     e.g. S:60,W:40 or 143:0.67,233:0.33 (azimuth in degrees clockwise from north, \
+     or N, NE, E, SE, S, SW, W, NW; shares in any unit)";
+
+/// Parse `window-directions`: how the glazing is split between facings.
+///
+/// `S:60,W:40` puts 60% of the window area facing south and 40% west.
+/// Azimuths are degrees clockwise from north or compass points; shares may
+/// be in any unit (percentages, fractions, m² by facing) and are scaled to
+/// add up to 1. An empty value keeps the default of 25% each way.
+pub fn parse_window_directions(spec: &str) -> anyhow::Result<Vec<WindowGroupInput>> {
+    if spec.trim().is_empty() {
+        return Ok(default_window_groups());
+    }
+    let mut pairs = Vec::new();
+    for item in spec.split(',').map(str::trim).filter(|i| !i.is_empty()) {
+        let bad = || anyhow::anyhow!("bad window direction '{item}': {WINDOW_DIRECTIONS_FORMAT}");
+        let (facing, share) = item.split_once(':').ok_or_else(bad)?;
+        let facing = facing.trim();
+        let azimuth = match COMPASS
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case(facing))
+        {
+            Some(&(_, azimuth)) => azimuth,
+            None => facing
+                .parse::<f64>()
+                .ok()
+                .filter(|a| a.is_finite())
+                .ok_or_else(bad)?
+                .rem_euclid(360.0),
+        };
+        let share = share
+            .trim()
+            .parse::<f64>()
+            .ok()
+            .filter(|s| s.is_finite() && *s > 0.0)
+            .ok_or_else(bad)?;
+        pairs.push((azimuth, share));
+    }
+    if pairs.is_empty() {
+        anyhow::bail!("no window directions: {WINDOW_DIRECTIONS_FORMAT}");
+    }
+    let total: f64 = pairs.iter().map(|(_, share)| share).sum();
+    Ok(pairs
+        .into_iter()
+        .map(|(azimuth, share)| WindowGroupInput {
+            pct_window_area: share / total,
+            window_azimuth: azimuth,
+            shgc: default_shgc(),
+            shading: 0.0,
+        })
+        .collect())
+}
+
+/// Window groups from a building model's windows by facing. `path` is an
+/// extraction JSON, or an IFC file whose extraction makit can find. Returns
+/// the groups, the JSON read and the window area that faces somewhere.
+pub fn window_groups_from_model(
+    path: &Path,
+) -> anyhow::Result<(Vec<WindowGroupInput>, PathBuf, f64)> {
+    let is_ifc = path
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("ifc"));
+    let json = if is_ifc {
+        building_model::find_json_for_ifc(path).ok_or_else(|| {
+            anyhow::anyhow!(
+                "{} is not extracted yet (no {}): extract it, or give window-directions",
+                path.display(),
+                building_model::extraction_path(path).display()
+            )
+        })?
+    } else {
+        path.to_path_buf()
+    };
+    let model = building_model::load_model(&json)
+        .map_err(|e| anyhow::anyhow!("cannot read model {}: {e}", json.display()))?;
+    let facings = building_model::window_area_by_facing(&model);
+    let total: f64 = facings.iter().map(|(_, area)| area).sum();
+    if total <= 0.0 {
+        anyhow::bail!(
+            "{} has no windows in exterior walls to take directions from",
+            json.display()
+        );
+    }
+    let groups = facings
+        .into_iter()
+        .map(|(azimuth, area)| WindowGroupInput {
+            pct_window_area: area / total,
+            window_azimuth: azimuth,
+            shgc: default_shgc(),
+            shading: 0.0,
+        })
+        .collect();
+    Ok((groups, json, total))
+}
+
+/// The window split for `ctx` and where it came from: `window-directions`
+/// when given, else the windows of `model` by facing, else 25% each way.
+fn window_groups(ctx: &TaskContext) -> anyhow::Result<(Vec<WindowGroupInput>, String)> {
+    let spec = ctx.get_option("window-directions", "");
+    if !spec.trim().is_empty() {
+        return Ok((parse_window_directions(&spec)?, "as given".to_string()));
+    }
+    let model = ctx.get_option("model", "");
+    if model.trim().is_empty() {
+        return Ok((default_window_groups(), "even split".to_string()));
+    }
+    let (groups, json, area) = window_groups_from_model(Path::new(model.trim()))?;
+    Ok((
+        groups,
+        format!("from the {area:.1} m² of windows in {}", json.display()),
+    ))
+}
+
+/// `68% 143°, 20% 233°, 12% 53°`
+fn describe_window_groups(groups: &[WindowGroupInput]) -> String {
+    groups
+        .iter()
+        .map(|g| format!("{:.0}% {:.0}°", g.pct_window_area * 100.0, g.window_azimuth))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 // ---------------------------------------------------------------------------
@@ -277,8 +414,10 @@ pub fn format_report(results: &MurbResults) -> String {
 // Handler Bodies (M5, M6)
 // ---------------------------------------------------------------------------
 
-/// Handle `murb-simulate` — runs the full subprocess bridge.
-fn handle_simulate(ctx: &TaskContext) -> anyhow::Result<()> {
+/// The simulation input `murb-simulate` sends for `ctx`'s options, and
+/// where its window split came from.
+fn simulation_input(ctx: &TaskContext) -> anyhow::Result<(MurbInput, String)> {
+    let (window_groups, window_source) = window_groups(ctx)?;
     let input = MurbInput {
         epw_path: ctx.get_option("epw", ""),
         name: ctx.get_option("name", "makit_run"),
@@ -295,7 +434,7 @@ fn handle_simulate(ctx: &TaskContext) -> anyhow::Result<()> {
         cop_clg: ctx.get_option("cop-clg", "5.2").parse()?,
         cop_dhw: ctx.get_option("cop-dhw", "0.85").parse()?,
         hrv_efficiency: ctx.get_option("hrv", "0.55").parse()?,
-        window_groups: default_window_groups(),
+        window_groups,
     };
 
     if input.epw_path.is_empty() {
@@ -304,11 +443,23 @@ fn handle_simulate(ctx: &TaskContext) -> anyhow::Result<()> {
     if input.gfa <= 0.0 {
         anyhow::bail!("--gfa must be a positive number (gross floor area in m²)");
     }
+    Ok((input, window_source))
+}
+
+/// Handle `murb-simulate` — runs the full subprocess bridge.
+fn handle_simulate(ctx: &TaskContext) -> anyhow::Result<()> {
+    let (input, window_source) = simulation_input(ctx)?;
 
     println!("Running MURB energy simulation...");
     println!("  EPW:      {}", input.epw_path);
     println!("  GFA:      {} m²", input.gfa);
     println!("  Province: {}", input.province);
+    println!(
+        "  Windows:  {} m² ({}; {})",
+        input.area_windows,
+        describe_window_groups(&input.window_groups),
+        window_source
+    );
 
     let results = run_simulation(&input)?;
 
@@ -414,6 +565,20 @@ pub fn register_tasks(reg: &mut Registry) {
         Some("0"),
     )
     .add_option("windows", "Window area [m²]", "float", true, None)
+    .add_option(
+        "window-directions",
+        "Window share by facing, azimuth:share (e.g. S:60,W:40)",
+        "string",
+        false,
+        None,
+    )
+    .add_option(
+        "model",
+        "IFC file or extraction to take window directions from",
+        "string",
+        false,
+        None,
+    )
     .add_option("roof", "Roof area [m²]", "float", true, None)
     .add_option(
         "u-walls",
@@ -474,6 +639,189 @@ pub fn register_tasks(reg: &mut Registry) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn facings(groups: &[WindowGroupInput]) -> Vec<(f64, f64)> {
+        groups
+            .iter()
+            .map(|g| {
+                let share = (g.pct_window_area * 10_000.0).round() / 10_000.0;
+                (g.window_azimuth, share)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn no_window_directions_means_a_quarter_each_way() {
+        let quarter = vec![(0.0, 0.25), (90.0, 0.25), (180.0, 0.25), (270.0, 0.25)];
+        assert_eq!(facings(&parse_window_directions("").unwrap()), quarter);
+        assert_eq!(facings(&parse_window_directions("  ").unwrap()), quarter);
+    }
+
+    #[test]
+    fn window_directions_take_compass_points_or_degrees_and_any_unit() {
+        assert_eq!(
+            facings(&parse_window_directions("S:60, w:40").unwrap()),
+            vec![(180.0, 0.6), (270.0, 0.4)]
+        );
+        // window areas by facing, straight from a model
+        assert_eq!(
+            facings(&parse_window_directions("143:123.4,233:37,53:22.4").unwrap()),
+            vec![(143.0, 0.6751), (233.0, 0.2024), (53.0, 0.1225)]
+        );
+        assert_eq!(
+            facings(&parse_window_directions("NE:1,se:1,SW:1,NW:1").unwrap()),
+            vec![(45.0, 0.25), (135.0, 0.25), (225.0, 0.25), (315.0, 0.25)]
+        );
+        assert_eq!(
+            facings(&parse_window_directions("450:1,-90:1").unwrap()),
+            vec![(90.0, 0.5), (270.0, 0.5)]
+        );
+        let group = &parse_window_directions("S:1").unwrap()[0];
+        assert_eq!((group.shgc, group.shading), (0.4, 0.0));
+    }
+
+    #[test]
+    fn bad_window_directions_say_what_is_expected() {
+        for spec in ["S", "Q:1", "S:-1", "S:0", "S:abc", ":1", "S:1,N", "S:inf"] {
+            let err = parse_window_directions(spec).unwrap_err().to_string();
+            assert!(err.contains("azimuth:share"), "{spec}: {err}");
+        }
+    }
+
+    #[test]
+    fn murb_simulate_sends_the_window_directions() {
+        let mut ctx = TaskContext::new();
+        for (key, value) in [
+            ("epw", "toronto.epw"),
+            ("gfa", "100"),
+            ("walls-ag", "50"),
+            ("windows", "10"),
+            ("roof", "40"),
+            ("window-directions", "SE:3,SW:1"),
+        ] {
+            ctx.options.insert(key.into(), value.into());
+        }
+        let (input, _) = simulation_input(&ctx).unwrap();
+        assert_eq!(
+            facings(&input.window_groups),
+            vec![(135.0, 0.75), (225.0, 0.25)]
+        );
+
+        let mut reg = Registry::default();
+        register_tasks(&mut reg);
+        for name in ["window-directions", "model"] {
+            let option = reg.actions["murb-simulate"]
+                .options
+                .iter()
+                .find(|o| o.name == name)
+                .expect("option registered");
+            assert!(!option.required, "{name}");
+        }
+    }
+
+    /// A fresh, empty folder for one test.
+    fn folder(test: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("makit-murb-{}-{test}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// A model with 3 m² of windows facing east and 1 m² facing south.
+    fn write_model(path: &std::path::Path, with_windows: bool) {
+        let windows = |area: f64| {
+            if with_windows {
+                serde_json::json!([{ "id": format!("w{area}"), "area": area }])
+            } else {
+                serde_json::json!([])
+            }
+        };
+        let model = serde_json::json!({
+            "walls": [
+                { "id": "e", "orientation": { "x": 1.0, "y": 0.0, "z": 0.0 }, "area": 10.0,
+                  "isExternal": true, "windows": windows(3.0) },
+                { "id": "s", "orientation": { "x": 0.0, "y": -1.0, "z": 0.0 }, "area": 10.0,
+                  "isExternal": true, "windows": windows(1.0) }
+            ]
+        });
+        std::fs::write(path, model.to_string()).unwrap();
+    }
+
+    fn context(extra: &[(&str, &str)]) -> TaskContext {
+        let mut ctx = TaskContext::new();
+        for (key, value) in [
+            ("epw", "toronto.epw"),
+            ("gfa", "100"),
+            ("walls-ag", "50"),
+            ("windows", "10"),
+            ("roof", "40"),
+        ]
+        .iter()
+        .chain(extra)
+        {
+            ctx.options.insert(key.to_string(), value.to_string());
+        }
+        ctx
+    }
+
+    #[test]
+    fn window_directions_come_from_the_model_when_not_given() {
+        let dir = folder("from-model");
+        let json = dir.join("house.json");
+        write_model(&json, true);
+        let (input, source) =
+            simulation_input(&context(&[("model", json.to_str().unwrap())])).unwrap();
+        assert_eq!(
+            facings(&input.window_groups),
+            vec![(90.0, 0.75), (180.0, 0.25)]
+        );
+        assert!(source.contains("house.json"), "{source}");
+    }
+
+    #[test]
+    fn given_window_directions_win_over_the_model() {
+        let dir = folder("given-wins");
+        let json = dir.join("house.json");
+        write_model(&json, true);
+        let (input, source) = simulation_input(&context(&[
+            ("model", json.to_str().unwrap()),
+            ("window-directions", "N:1"),
+        ]))
+        .unwrap();
+        assert_eq!(facings(&input.window_groups), vec![(0.0, 1.0)]);
+        assert!(!source.contains("house.json"), "{source}");
+    }
+
+    #[test]
+    fn an_ifc_model_uses_its_extraction() {
+        let dir = folder("ifc");
+        std::fs::write(dir.join("house.ifc"), "ISO-10303-21;").unwrap();
+        write_model(&dir.join("house.json"), true);
+        let ifc = dir.join("house.ifc");
+        let (input, _) = simulation_input(&context(&[("model", ifc.to_str().unwrap())])).unwrap();
+        assert_eq!(
+            facings(&input.window_groups),
+            vec![(90.0, 0.75), (180.0, 0.25)]
+        );
+    }
+
+    #[test]
+    fn a_model_that_cannot_give_directions_is_an_error() {
+        let dir = folder("no-directions");
+        let json = dir.join("blind.json");
+        write_model(&json, false);
+        let err = simulation_input(&context(&[("model", json.to_str().unwrap())]))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("no windows"), "{err}");
+
+        std::fs::write(dir.join("other.ifc"), "ISO-10303-21;").unwrap();
+        let ifc = dir.join("other.ifc");
+        let err = simulation_input(&context(&[("model", ifc.to_str().unwrap())]))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("not extracted"), "{err}");
+    }
 
     #[test]
     fn test_murb_input_serialization() {
