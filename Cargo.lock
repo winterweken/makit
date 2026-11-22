@@ -941,7 +941,7 @@ dependencies = [
 
 [[package]]
 name = "makit"
-version = "0.1.0"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -955,7 +955,7 @@ dependencies = [
 
 [[package]]
 name = "makit-core"
-version = "0.1.0"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "figment",
@@ -966,11 +966,11 @@ dependencies = [
 
 [[package]]
 name = "makit-geometry"
-version = "0.1.0"
+version = "3.0.0"
 
 [[package]]
 name = "makit-tools"
-version = "0.1.0"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -986,7 +986,7 @@ dependencies = [
 
 [[package]]
 name = "makit-tui"
-version = "0.1.0"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "crossterm",
