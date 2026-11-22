@@ -117,6 +117,7 @@ impl NodeId {
             NodeId::Action(name) if name == "wall-orientation-wwr" => {
                 Some(("input", PickedFile::Json))
             }
+            NodeId::Action(name) if name == "murb-simulate" => Some(("model", PickedFile::Json)),
             _ => None,
         }
     }
@@ -339,6 +340,7 @@ mod tests {
         // The WWR action reads the picked file's JSON extraction.
         assert!(ctx("action:wall-orientation-wwr"));
         assert!(ctx("action:wall-orientation-wwr:opt:unit"));
+        assert!(ctx("action:murb-simulate"));
         assert!(!ctx("action:revit-wall-orientations"));
         assert!(!ctx("source:revit"));
         assert!(!ctx("cat:ifc"));
@@ -395,7 +397,11 @@ mod tests {
             binding("source:ifc:opt:file"),
             Some(("file", PickedFile::Ifc))
         );
-        assert_eq!(binding("action:murb-simulate"), None);
+        // murb-simulate takes its window directions from the picked model.
+        assert_eq!(
+            binding("action:murb-simulate"),
+            Some(("model", PickedFile::Json))
+        );
         assert_eq!(binding("sources"), None);
     }
 }

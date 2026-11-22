@@ -11,7 +11,7 @@
 //! 5. Deserialize into `MurbResults`
 
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 
@@ -19,6 +19,8 @@ use serde::{Deserialize, Serialize};
 
 use makit_core::models::TaskContext;
 use makit_core::registry::Registry;
+
+use crate::building_model;
 
 // ---------------------------------------------------------------------------
 // Data Types (M2)
@@ -203,6 +205,66 @@ pub fn parse_window_directions(spec: &str) -> anyhow::Result<Vec<WindowGroupInpu
         .collect())
 }
 
+/// Window groups from a building model's windows by facing. `path` is an
+/// extraction JSON, or an IFC file whose extraction makit can find. Returns
+/// the groups, the JSON read and the window area that faces somewhere.
+pub fn window_groups_from_model(
+    path: &Path,
+) -> anyhow::Result<(Vec<WindowGroupInput>, PathBuf, f64)> {
+    let is_ifc = path
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("ifc"));
+    let json = if is_ifc {
+        building_model::find_json_for_ifc(path).ok_or_else(|| {
+            anyhow::anyhow!(
+                "{} is not extracted yet (no {}): extract it, or give window-directions",
+                path.display(),
+                building_model::extraction_path(path).display()
+            )
+        })?
+    } else {
+        path.to_path_buf()
+    };
+    let model = building_model::load_model(&json)
+        .map_err(|e| anyhow::anyhow!("cannot read model {}: {e}", json.display()))?;
+    let facings = building_model::window_area_by_facing(&model);
+    let total: f64 = facings.iter().map(|(_, area)| area).sum();
+    if total <= 0.0 {
+        anyhow::bail!(
+            "{} has no windows in exterior walls to take directions from",
+            json.display()
+        );
+    }
+    let groups = facings
+        .into_iter()
+        .map(|(azimuth, area)| WindowGroupInput {
+            pct_window_area: area / total,
+            window_azimuth: azimuth,
+            shgc: default_shgc(),
+            shading: 0.0,
+        })
+        .collect();
+    Ok((groups, json, total))
+}
+
+/// The window split for `ctx` and where it came from: `window-directions`
+/// when given, else the windows of `model` by facing, else 25% each way.
+fn window_groups(ctx: &TaskContext) -> anyhow::Result<(Vec<WindowGroupInput>, String)> {
+    let spec = ctx.get_option("window-directions", "");
+    if !spec.trim().is_empty() {
+        return Ok((parse_window_directions(&spec)?, "as given".to_string()));
+    }
+    let model = ctx.get_option("model", "");
+    if model.trim().is_empty() {
+        return Ok((default_window_groups(), "even split".to_string()));
+    }
+    let (groups, json, area) = window_groups_from_model(Path::new(model.trim()))?;
+    Ok((
+        groups,
+        format!("from the {area:.1} m² of windows in {}", json.display()),
+    ))
+}
+
 /// `68% 143°, 20% 233°, 12% 53°`
 fn describe_window_groups(groups: &[WindowGroupInput]) -> String {
     groups
@@ -352,8 +414,10 @@ pub fn format_report(results: &MurbResults) -> String {
 // Handler Bodies (M5, M6)
 // ---------------------------------------------------------------------------
 
-/// The simulation input `murb-simulate` sends for `ctx`'s options.
-fn simulation_input(ctx: &TaskContext) -> anyhow::Result<MurbInput> {
+/// The simulation input `murb-simulate` sends for `ctx`'s options, and
+/// where its window split came from.
+fn simulation_input(ctx: &TaskContext) -> anyhow::Result<(MurbInput, String)> {
+    let (window_groups, window_source) = window_groups(ctx)?;
     let input = MurbInput {
         epw_path: ctx.get_option("epw", ""),
         name: ctx.get_option("name", "makit_run"),
@@ -370,7 +434,7 @@ fn simulation_input(ctx: &TaskContext) -> anyhow::Result<MurbInput> {
         cop_clg: ctx.get_option("cop-clg", "5.2").parse()?,
         cop_dhw: ctx.get_option("cop-dhw", "0.85").parse()?,
         hrv_efficiency: ctx.get_option("hrv", "0.55").parse()?,
-        window_groups: parse_window_directions(&ctx.get_option("window-directions", ""))?,
+        window_groups,
     };
 
     if input.epw_path.is_empty() {
@@ -379,21 +443,22 @@ fn simulation_input(ctx: &TaskContext) -> anyhow::Result<MurbInput> {
     if input.gfa <= 0.0 {
         anyhow::bail!("--gfa must be a positive number (gross floor area in m²)");
     }
-    Ok(input)
+    Ok((input, window_source))
 }
 
 /// Handle `murb-simulate` — runs the full subprocess bridge.
 fn handle_simulate(ctx: &TaskContext) -> anyhow::Result<()> {
-    let input = simulation_input(ctx)?;
+    let (input, window_source) = simulation_input(ctx)?;
 
     println!("Running MURB energy simulation...");
     println!("  EPW:      {}", input.epw_path);
     println!("  GFA:      {} m²", input.gfa);
     println!("  Province: {}", input.province);
     println!(
-        "  Windows:  {} m² ({})",
+        "  Windows:  {} m² ({}; {})",
         input.area_windows,
-        describe_window_groups(&input.window_groups)
+        describe_window_groups(&input.window_groups),
+        window_source
     );
 
     let results = run_simulation(&input)?;
@@ -503,6 +568,13 @@ pub fn register_tasks(reg: &mut Registry) {
     .add_option(
         "window-directions",
         "Window share by facing, azimuth:share (e.g. S:60,W:40)",
+        "string",
+        false,
+        None,
+    )
+    .add_option(
+        "model",
+        "IFC file or extraction to take window directions from",
         "string",
         false,
         None,
@@ -629,7 +701,7 @@ mod tests {
         ] {
             ctx.options.insert(key.into(), value.into());
         }
-        let input = simulation_input(&ctx).unwrap();
+        let (input, _) = simulation_input(&ctx).unwrap();
         assert_eq!(
             facings(&input.window_groups),
             vec![(135.0, 0.75), (225.0, 0.25)]
@@ -637,12 +709,118 @@ mod tests {
 
         let mut reg = Registry::default();
         register_tasks(&mut reg);
-        let option = reg.actions["murb-simulate"]
-            .options
-            .iter()
-            .find(|o| o.name == "window-directions")
-            .expect("option registered");
-        assert!(!option.required);
+        for name in ["window-directions", "model"] {
+            let option = reg.actions["murb-simulate"]
+                .options
+                .iter()
+                .find(|o| o.name == name)
+                .expect("option registered");
+            assert!(!option.required, "{name}");
+        }
+    }
+
+    /// A fresh, empty folder for one test.
+    fn folder(test: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("makit-murb-{}-{test}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// A model with 3 m² of windows facing east and 1 m² facing south.
+    fn write_model(path: &std::path::Path, with_windows: bool) {
+        let windows = |area: f64| {
+            if with_windows {
+                serde_json::json!([{ "id": format!("w{area}"), "area": area }])
+            } else {
+                serde_json::json!([])
+            }
+        };
+        let model = serde_json::json!({
+            "walls": [
+                { "id": "e", "orientation": { "x": 1.0, "y": 0.0, "z": 0.0 }, "area": 10.0,
+                  "isExternal": true, "windows": windows(3.0) },
+                { "id": "s", "orientation": { "x": 0.0, "y": -1.0, "z": 0.0 }, "area": 10.0,
+                  "isExternal": true, "windows": windows(1.0) }
+            ]
+        });
+        std::fs::write(path, model.to_string()).unwrap();
+    }
+
+    fn context(extra: &[(&str, &str)]) -> TaskContext {
+        let mut ctx = TaskContext::new();
+        for (key, value) in [
+            ("epw", "toronto.epw"),
+            ("gfa", "100"),
+            ("walls-ag", "50"),
+            ("windows", "10"),
+            ("roof", "40"),
+        ]
+        .iter()
+        .chain(extra)
+        {
+            ctx.options.insert(key.to_string(), value.to_string());
+        }
+        ctx
+    }
+
+    #[test]
+    fn window_directions_come_from_the_model_when_not_given() {
+        let dir = folder("from-model");
+        let json = dir.join("house.json");
+        write_model(&json, true);
+        let (input, source) =
+            simulation_input(&context(&[("model", json.to_str().unwrap())])).unwrap();
+        assert_eq!(
+            facings(&input.window_groups),
+            vec![(90.0, 0.75), (180.0, 0.25)]
+        );
+        assert!(source.contains("house.json"), "{source}");
+    }
+
+    #[test]
+    fn given_window_directions_win_over_the_model() {
+        let dir = folder("given-wins");
+        let json = dir.join("house.json");
+        write_model(&json, true);
+        let (input, source) = simulation_input(&context(&[
+            ("model", json.to_str().unwrap()),
+            ("window-directions", "N:1"),
+        ]))
+        .unwrap();
+        assert_eq!(facings(&input.window_groups), vec![(0.0, 1.0)]);
+        assert!(!source.contains("house.json"), "{source}");
+    }
+
+    #[test]
+    fn an_ifc_model_uses_its_extraction() {
+        let dir = folder("ifc");
+        std::fs::write(dir.join("house.ifc"), "ISO-10303-21;").unwrap();
+        write_model(&dir.join("house.json"), true);
+        let ifc = dir.join("house.ifc");
+        let (input, _) = simulation_input(&context(&[("model", ifc.to_str().unwrap())])).unwrap();
+        assert_eq!(
+            facings(&input.window_groups),
+            vec![(90.0, 0.75), (180.0, 0.25)]
+        );
+    }
+
+    #[test]
+    fn a_model_that_cannot_give_directions_is_an_error() {
+        let dir = folder("no-directions");
+        let json = dir.join("blind.json");
+        write_model(&json, false);
+        let err = simulation_input(&context(&[("model", json.to_str().unwrap())]))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("no windows"), "{err}");
+
+        std::fs::write(dir.join("other.ifc"), "ISO-10303-21;").unwrap();
+        let ifc = dir.join("other.ifc");
+        let err = simulation_input(&context(&[("model", ifc.to_str().unwrap())]))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("not extracted"), "{err}");
     }
 
     #[test]

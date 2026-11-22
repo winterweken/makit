@@ -237,6 +237,28 @@ fn true_normal(wall: &GenericWall, project_north: f64) -> [f64; 3] {
     }
 }
 
+/// Window area by the way its wall faces on the true compass: pairs of
+/// (azimuth in whole degrees clockwise from north, m²), sorted by azimuth.
+///
+/// Only windows in walls not flagged interior count. Windows outside any
+/// wall, such as skylights, have no facing and are left out.
+pub fn window_area_by_facing(model: &BuildingModel) -> Vec<(f64, f64)> {
+    let mut by_azimuth: std::collections::BTreeMap<i64, f64> = std::collections::BTreeMap::new();
+    for wall in model.walls.iter().filter(|w| w.is_external != Some(false)) {
+        let area: f64 = wall.windows.iter().map(|w| w.area).sum();
+        let [x, y, _] = true_normal(wall, model.project_north);
+        if area <= 0.0 || x.hypot(y) < 1e-9 {
+            continue;
+        }
+        let azimuth = (x.atan2(y).to_degrees().round() as i64).rem_euclid(360);
+        *by_azimuth.entry(azimuth).or_default() += area;
+    }
+    by_azimuth
+        .into_iter()
+        .map(|(azimuth, area)| (azimuth as f64, area))
+        .collect()
+}
+
 /// Convert generic walls to the WallData format used by analyze_orientations.
 fn to_wall_data(walls: &[GenericWall], project_north: f64) -> Vec<WallData> {
     walls
@@ -451,6 +473,39 @@ mod tests {
             .map(|o| o.direction.as_str())
             .collect();
         assert_eq!(dirs, vec!["North", "East"]);
+    }
+
+    #[test]
+    fn window_area_by_facing_follows_the_exterior_walls() {
+        let model: BuildingModel = serde_json::from_value(serde_json::json!({
+            "walls": [
+                { "id": "east", "orientation": { "x": 1.0, "y": 0.0, "z": 0.0 }, "area": 10.0,
+                  "isExternal": true, "windows": [{ "id": "a", "area": 2.0 }, { "id": "b", "area": 3.0 }] },
+                { "id": "south", "orientation": { "x": 0.0, "y": -1.0, "z": 0.0 }, "area": 10.0,
+                  "windows": [{ "id": "c", "area": 1.0 }] },
+                { "id": "partition", "orientation": { "x": -1.0, "y": 0.0, "z": 0.0 }, "area": 5.0,
+                  "isExternal": false, "windows": [{ "id": "d", "area": 4.0 }] },
+                // a curtain wall's stored normal points inward
+                { "id": "curtain", "orientation": { "x": 0.0, "y": 1.0, "z": 0.0 }, "area": 0.0,
+                  "isCurtainWall": true, "windows": [{ "id": "g", "area": 6.0 }] },
+                { "id": "blind", "orientation": { "x": 0.0, "y": 1.0, "z": 0.0 }, "area": 8.0 }
+            ],
+            "windows": [{ "id": "skylight", "area": 2.7 }]
+        }))
+        .unwrap();
+        assert_eq!(
+            window_area_by_facing(&model),
+            vec![(90.0, 5.0), (180.0, 7.0)]
+        );
+
+        // on the true compass: at -90° project east is true north
+        let rotated: BuildingModel = serde_json::from_value(serde_json::json!({
+            "walls": [{ "orientation": { "x": 1.0, "y": 0.0, "z": 0.0 }, "area": 4.0,
+                        "windows": [{ "id": "w", "area": 1.0 }] }],
+            "projectNorth": -std::f64::consts::FRAC_PI_2
+        }))
+        .unwrap();
+        assert_eq!(window_area_by_facing(&rotated), vec![(0.0, 1.0)]);
     }
 
     /// Direction of the only bucket for a one-wall model.

@@ -95,7 +95,7 @@ cargo run -p makit
 | `Esc` / `q` | Close help · quit |
 | Mouse | Wheel scrolls the pane under the cursor · click selects / opens |
 
-**Option values.** Expand a source or action to see its options. `Enter` on an option opens a one-line form (`Enter` saves, `Esc` cancels, `Ctrl-U` clears, an empty value restores the default); a leading `~` is expanded to your home directory. Values are kept for the session and passed to the task when you press `e`. The file loaded in the IFC picker fills `ifc --file` and `wall-orientation-wwr --input` unless you type something else.
+**Option values.** Expand a source or action to see its options. `Enter` on an option opens a one-line form (`Enter` saves, `Esc` cancels, `Ctrl-U` clears, an empty value restores the default); a leading `~` is expanded to your home directory. Values are kept for the session and passed to the task when you press `e`. The file loaded in the IFC picker fills `ifc --file`, `wall-orientation-wwr --input` and `murb-simulate --model` unless you type something else.
 
 **Previews.** Charts and drawings built from your data are titled plainly (`heating demand`, `wall area by orientation`); stock drawings are marked `· illustration`, and a chart with nothing to show stays empty (`· no results`). When the pane is too short for a readable drawing, the preview is left out.
 
@@ -113,10 +113,17 @@ makit analyze examples/IFC/Building-Architecture.ifc
 
 # Run a MURB energy simulation (needs the murb repository on PYTHONPATH).
 # window-directions splits the glazing by facing: azimuth (degrees clockwise
-# from north, or N/NE/E/SE/S/SW/W/NW) and share in any unit; default 25% each way.
+# from north, or N/NE/E/SE/S/SW/W/NW) and share in any unit. Without it, model
+# (an IFC file or its extraction) gives the split of its windows by wall facing;
+# with neither, 25% each way.
 PYTHONPATH=../murb makit exec murb analysis murb-simulate \
   -o epw=weather.epw -o gfa=335.5 -o walls-ag=307.4 -o windows=182.8 -o roof=244.3 \
   -o window-directions=SE:68,SW:20,NE:12
+
+# The same, taking the window split from the IFC model
+PYTHONPATH=../murb makit exec murb analysis murb-simulate \
+  -o epw=weather.epw -o gfa=335.5 -o walls-ag=307.4 -o windows=182.8 -o roof=244.3 \
+  -o model=path/to/model.ifc
 
 # Show help
 makit --help
@@ -242,7 +249,7 @@ Tools register **sources** (geometry input drivers) and **actions** (operations)
 # Build
 cargo build
 
-# Run all 274 tests (10 core, 40 geometry, 42 tools, 182 tui)
+# Run all 279 tests (10 core, 40 geometry, 47 tools, 182 tui)
 cargo test
 
 # Python IFC extractor: set up once, then run its tests
