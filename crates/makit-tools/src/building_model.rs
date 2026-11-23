@@ -64,13 +64,32 @@ pub struct GenericWall {
     pub bottom: Option<f64>,
     #[serde(default)]
     pub top: Option<f64>,
+    /// Ends of the wall's axis in plan: metres, project coordinates
+    /// (format 3). `None` when the extractor found no axis.
+    #[serde(default, rename = "startPoint")]
+    pub start_point: Option<Vec3>,
+    #[serde(default, rename = "endPoint")]
+    pub end_point: Option<Vec3>,
     #[serde(default)]
     pub windows: Vec<WallWindow>,
     #[serde(default)]
     pub properties: serde_json::Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+/// Plan distance under which an axis counts as a point, not a wall (1 mm).
+const AXIS_EPSILON: f64 = 0.001;
+
+impl GenericWall {
+    /// The wall's axis, when both ends are known and more than a millimetre
+    /// apart in plan.
+    pub fn axis(&self) -> Option<(Vec3, Vec3)> {
+        let (start, end) = (self.start_point?, self.end_point?);
+        let plan = ((end.x - start.x).powi(2) + (end.y - start.y).powi(2)).sqrt();
+        (plan > AXIS_EPSILON).then_some((start, end))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 pub struct Vec3 {
     pub x: f64,
     pub y: f64,
@@ -190,6 +209,12 @@ impl BuildingModel {
         self.metadata
             .as_ref()
             .map_or(1, |metadata| metadata.format_version)
+    }
+
+    /// Whether the model can be drawn: a format 3 extraction (axes in
+    /// metres) with at least one wall that has an axis.
+    pub fn has_axes(&self) -> bool {
+        self.format_version() >= 3 && self.walls.iter().any(|w| w.axis().is_some())
     }
 }
 
@@ -616,10 +641,10 @@ fn to_wall_data(walls: &[GenericWall], project_north: f64) -> Vec<WallData> {
             wall_type: w.wall_type.clone(),
             level: w.level.clone(),
             area_sqm: w.area,
-            length_m: w.length / 1000.0, // generic format stores mm
+            length_m: w.length,
             height_m: w.height,
             start_point: [0.0, 0.0, 0.0],
-            end_point: [w.length / 1000.0, 0.0, 0.0],
+            end_point: [w.length, 0.0, 0.0],
             normal: true_normal(w, project_north),
         })
         .collect()
@@ -1163,6 +1188,62 @@ mod tests {
         std::fs::write(&json, r#"{ "walls": [] }"#).unwrap();
         assert_eq!(format_version_of(&json), 1);
         assert_eq!(format_version_of(&dir.join("missing.json")), 1);
+    }
+
+    #[test]
+    fn wall_axes_load_and_degenerate_ones_are_none() {
+        let model: BuildingModel = serde_json::from_str(
+            r#"{ "walls": [
+                { "startPoint": {"x": 1.0, "y": 2.0, "z": 0.0}, "endPoint": {"x": 1.0, "y": 7.0, "z": 0.0} },
+                { "startPoint": null, "endPoint": null },
+                { "startPoint": {"x": 0.0, "y": 0.0, "z": 0.0}, "endPoint": {"x": 0.0005, "y": 0.0, "z": 0.0} }
+            ], "metadata": { "formatVersion": 3 } }"#,
+        )
+        .unwrap();
+        let (start, end) = model.walls[0].axis().unwrap();
+        assert_eq!((start.y, end.y), (2.0, 7.0));
+        assert_eq!(model.walls[1].axis(), None);
+        assert_eq!(model.walls[2].axis(), None);
+        assert!(model.has_axes());
+    }
+
+    #[test]
+    fn has_axes_needs_format_three_and_one_axis() {
+        let two: BuildingModel = serde_json::from_str(
+            r#"{ "walls": [{ "startPoint": {"x": 0.0, "y": 0.0, "z": 0.0}, "endPoint": {"x": 4.0, "y": 0.0, "z": 0.0} }],
+                 "metadata": { "formatVersion": 2 } }"#,
+        )
+        .unwrap();
+        assert!(!two.has_axes());
+        let bare: BuildingModel =
+            serde_json::from_str(r#"{ "walls": [{}], "metadata": { "formatVersion": 3 } }"#)
+                .unwrap();
+        assert!(!bare.has_axes());
+    }
+
+    #[test]
+    fn the_sample_extractions_carry_axes() {
+        let dir = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples/IFC"));
+        for name in [
+            "building-model.json",
+            "Ifc2x3_Duplex_Architecture.json",
+            "Ifc4_ARC.json",
+        ] {
+            let model = load_model(&dir.join(name)).unwrap();
+            assert!(model.has_axes(), "{name}");
+            assert!(model.walls.iter().all(|w| w.axis().is_some()), "{name}");
+        }
+    }
+
+    #[test]
+    fn wall_data_keeps_the_lengths_in_metres() {
+        let model: BuildingModel = serde_json::from_str(
+            r#"{ "walls": [{ "length": 6.4, "height": 2.7, "area": 10.0 }], "metadata": { "formatVersion": 3 } }"#,
+        )
+        .unwrap();
+        let data = to_wall_data(&model.walls, 0.0);
+        assert_eq!((data[0].length_m, data[0].height_m), (6.4, 2.7));
+        assert_eq!(data[0].end_point, [6.4, 0.0, 0.0]);
     }
 
     #[test]

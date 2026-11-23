@@ -119,9 +119,9 @@ pub fn extract(
 }
 
 /// Whether `json` no longer stands for `ifc`: the IFC is newer by more than
-/// [`STALE_TOLERANCE`], or the JSON predates storeys and slabs (format 1).
+/// [`STALE_TOLERANCE`], or the JSON predates wall axes (format below 3).
 pub fn is_stale(ifc: &Path, json: &Path) -> bool {
-    if building_model::format_version_of(json) < 2 {
+    if building_model::format_version_of(json) < 3 {
         return true;
     }
     let modified = |path: &Path| std::fs::metadata(path).and_then(|m| m.modified());
@@ -371,7 +371,7 @@ mod tests {
         let dir = folder("stale");
         let ifc = dir.join("m.ifc");
         let json = dir.join("m.json");
-        write_model(&json, Some(2));
+        write_model(&json, Some(3));
         touch(&ifc); // written moments after the JSON, like a checkout
         assert!(!is_stale(&ifc, &json));
 
@@ -387,6 +387,10 @@ mod tests {
         );
         assert!(is_stale(&ifc, &old));
         assert!(!is_stale(&ifc, &json));
+
+        let two = dir.join("two.json");
+        write_model(&two, Some(2)); // predates wall axes
+        assert!(is_stale(&ifc, &two));
     }
 
     #[test]
@@ -399,7 +403,7 @@ mod tests {
         let ifc = dir.join("lonely.ifc");
         touch(&ifc);
         assert!(needs_extraction(&ifc));
-        write_model(&dir.join("lonely.json"), Some(2)); // written after the ifc, so newer
+        write_model(&dir.join("lonely.json"), Some(3)); // written after the ifc, so newer
         assert!(!needs_extraction(&ifc));
         let r = extraction_for(&ifc, None).unwrap(); // must not look for Python
         assert_eq!(
@@ -484,7 +488,7 @@ mod tests {
         assert!(run_extract(&ifc, None, false, None).is_err());
 
         // A fresh extraction is reported as such and left alone.
-        write_model(&dir.join("house.json"), Some(2));
+        write_model(&dir.join("house.json"), Some(3));
         let r = run_extract(&ifc, None, false, None).unwrap();
         assert!(!r.extracted && r.note.is_none());
     }
