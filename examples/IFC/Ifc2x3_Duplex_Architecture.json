@@ -2686,7 +2686,7 @@
     {
       "id": "1xS3BCk291UvhgP2dvNtSE",
       "name": "Roof",
-      "elevation": 6.00000000000039,
+      "elevation": 6.0,
       "floorArea": 0,
       "slabIds": []
     }
