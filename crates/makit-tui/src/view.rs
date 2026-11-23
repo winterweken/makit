@@ -522,12 +522,12 @@ fn render_preview(frame: &mut Frame, state: &AppState, kind: PreviewKind, area: 
     if area.width == 0 || area.height == 0 {
         return;
     }
-    let rec = preview::record(kind, state.logo_angle, state.preview_data());
-    let Some(bounds) = preview::content_bounds(kind, &rec) else {
+    let scene = preview::record(kind, state.logo_angle, state.preview_data());
+    let Some(bounds) = preview::content_bounds(kind, &scene) else {
         return;
     };
     let fit = preview::fit_bounds(bounds, area.width, area.height);
-    let points = preview::expand_points(&rec.points, fit.scale);
+    let points = preview::expand_points(&scene.main.points, fit.scale);
     // The logo is drawn in colour: the kit in slate, the lifted block in the
     // theme's three colours. Other previews are one colour.
     let toned = (kind == PreviewKind::Logo).then(|| logo::segments(state.logo_angle));
@@ -536,6 +536,12 @@ fn render_preview(frame: &mut Frame, state: &AppState, kind: PreviewKind, area: 
         .x_bounds(fit.x_bounds)
         .y_bounds(fit.y_bounds)
         .paint(|ctx| {
+            // The faint layer goes under everything else, so the main
+            // drawing's edges win where they meet.
+            for &((x1, y1), (x2, y2)) in &scene.faint.segments {
+                ctx.draw(&CanvasLine::new(x1, y1, x2, y2, THEME.dim));
+            }
+            ctx.layer();
             if let Some(toned) = &toned {
                 // Kit first, so the hero block's edges win where they meet.
                 for &(((x1, y1), (x2, y2)), tone) in
@@ -550,7 +556,7 @@ fn render_preview(frame: &mut Frame, state: &AppState, kind: PreviewKind, area: 
                     ctx.draw(&CanvasLine::new(x1, y1, x2, y2, tone.color()));
                 }
             } else {
-                for &((x1, y1), (x2, y2)) in &rec.segments {
+                for &((x1, y1), (x2, y2)) in &scene.main.segments {
                     ctx.draw(&CanvasLine::new(x1, y1, x2, y2, THEME.accent));
                 }
             }
@@ -559,7 +565,7 @@ fn render_preview(frame: &mut Frame, state: &AppState, kind: PreviewKind, area: 
                 color: THEME.accent,
             });
             ctx.layer();
-            for (x, y, text) in &rec.labels {
+            for (x, y, text) in &scene.main.labels {
                 ctx.print(
                     *x,
                     *y,
@@ -1409,6 +1415,29 @@ mod tests {
         assert!(lines
             .iter()
             .any(|l| l.contains("Preview · wall area by orientation")));
+        assert!(has_braille(&lines));
+    }
+
+    #[test]
+    fn a_loaded_model_is_drawn_in_isometric() {
+        let mut s = state(120, 40);
+        s.tree.select(1); // source:ifc
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../examples/IFC/Ifc4_ARC.json"
+        );
+        let model = building_model::load_model(Path::new(path)).unwrap();
+        s.ifc.loaded = Some(s.ifc.files[0].clone());
+        s.ifc.analysis = Some(building_model::analyze_wwr(&model));
+        s.ifc.model = Some(model);
+        let lines = text(&render(&s));
+        assert!(lines
+            .iter()
+            .any(|l| l.contains("Preview · isometric") && !l.contains("illustration")));
+        assert!(lines
+            .iter()
+            .any(|l| l.contains("Walls ") && l.contains(" drawn")));
+        assert!(lines.iter().any(|l| l.contains("m footprint")));
         assert!(has_braille(&lines));
     }
 }

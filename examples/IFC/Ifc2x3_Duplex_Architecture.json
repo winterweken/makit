@@ -15,12 +15,12 @@
       },
       "endPoint": {
         "x": 4.4,
-        "y": -1.417000000000014,
+        "y": -17.38299999999998,
         "z": 3.100000000000378
       },
       "area": 49.2,
       "height": 0.0,
-      "length": 0.0,
+      "length": 16.96599999999997,
       "width": 0.0,
       "type": "Basic Wall:Party Wall - CMU Residential Unit Dimising Wall:128555",
       "workset": "",
@@ -48,13 +48,13 @@
         "z": 0.0
       },
       "endPoint": {
-        "x": 1.0,
+        "x": 8.800000000000002,
         "y": -0.2085000000000001,
         "z": 0.0
       },
       "area": 13.6,
       "height": 0.0,
-      "length": 0.0,
+      "length": 8.800000000000002,
       "width": 0.0,
       "type": "Basic Wall:Exterior - Brick on Block:130892",
       "workset": "",
@@ -99,12 +99,12 @@
       },
       "endPoint": {
         "x": 8.5915,
-        "y": -1.4170000000000276,
+        "y": -17.799999999999997,
         "z": 0.0
       },
       "area": 49.7,
       "height": 0.0,
-      "length": 0.0,
+      "length": 17.38299999999997,
       "width": 0.0,
       "type": "Basic Wall:Exterior - Brick on Block:130892",
       "workset": "",
@@ -148,13 +148,13 @@
         "z": 0.0
       },
       "endPoint": {
-        "x": 7.3829999999999725,
+        "x": -1.7763568394002505e-15,
         "y": -17.5915,
         "z": 0.0
       },
       "area": 12.3,
       "height": 0.0,
-      "length": 0.0,
+      "length": 8.382999999999974,
       "width": 0.0,
       "type": "Basic Wall:Exterior - Brick on Block:130892",
       "workset": "",
@@ -199,12 +199,12 @@
       },
       "endPoint": {
         "x": 0.208499999999999,
-        "y": -16.38299999999997,
+        "y": -0.4170000000000016,
         "z": 0.0
       },
       "area": 48.4,
       "height": 0.0,
-      "length": 0.0,
+      "length": 16.96599999999997,
       "width": 0.0,
       "type": "Basic Wall:Exterior - Brick on Block:130892",
       "workset": "",
@@ -249,12 +249,12 @@
       },
       "endPoint": {
         "x": 2.538,
-        "y": -1.4170000000000083,
+        "y": -4.000000000000005,
         "z": 0.0
       },
       "area": 10.0,
       "height": 0.0,
-      "length": 0.0,
+      "length": 3.582999999999997,
       "width": 0.0,
       "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
       "workset": "",
@@ -283,12 +283,12 @@
       },
       "endPoint": {
         "x": 2.512000000000002,
-        "y": -7.804999999999967,
+        "y": -9.725000000000009,
         "z": 0.0
       },
       "area": 6.6,
       "height": 0.0,
-      "length": 0.0,
+      "length": 2.9200000000000417,
       "width": 0.0,
       "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
       "workset": "",
@@ -316,13 +316,13 @@
         "z": 0.0
       },
       "endPoint": {
-        "x": 7.3829999999999885,
+        "x": 4.182000000000003,
         "y": -7.800000000000002,
         "z": 0.0
       },
       "area": 11.7,
       "height": 0.0,
-      "length": 0.0,
+      "length": 4.200999999999985,
       "width": 0.0,
       "type": "Basic Wall:Party Wall - CMU Residential Unit Dimising Wall:128555",
       "workset": "",
@@ -350,13 +350,13 @@
         "z": 0.0
       },
       "endPoint": {
-        "x": 1.4169999999999985,
+        "x": 4.618,
         "y": -10.0,
         "z": 0.0
       },
       "area": 11.7,
       "height": 0.0,
-      "length": 0.0,
+      "length": 4.201000000000002,
       "width": 0.0,
       "type": "Basic Wall:Party Wall - CMU Residential Unit Dimising Wall:128555",
       "workset": "",
@@ -385,12 +385,12 @@
       },
       "endPoint": {
         "x": 4.4,
-        "y": -9.0,
+        "y": -7.799999999999973,
         "z": 0.0
       },
       "area": 6.1,
       "height": 0.0,
-      "length": 0.0,
+      "length": 2.200000000000027,
       "width": 0.0,
       "type": "Basic Wall:Party Wall - CMU Residential Unit Dimising Wall:128555",
       "workset": "",
@@ -419,12 +419,12 @@
       },
       "endPoint": {
         "x": 6.287999999999999,
-        "y": -9.99500000000004,
+        "y": -8.075,
         "z": 0.0
       },
       "area": 6.6,
       "height": 0.0,
-      "length": 0.0,
+      "length": 2.920000000000041,
       "width": 0.0,
       "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
       "workset": "",
@@ -452,13 +452,13 @@
         "z": 0.0
       },
       "endPoint": {
-        "x": 5.769999999999999,
+        "x": 6.226,
         "y": -10.30800000000003,
         "z": 0.0
       },
       "area": 4.1,
       "height": 0.0,
-      "length": 0.0,
+      "length": 1.4560000000000013,
       "width": 0.0,
       "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
       "workset": "",
@@ -487,12 +487,12 @@
       },
       "endPoint": {
         "x": 6.262000000000001,
-        "y": -14.8,
+        "y": -17.382999999999992,
         "z": 0.0
       },
       "area": 10.0,
       "height": 0.0,
-      "length": 0.0,
+      "length": 3.5829999999999913,
       "width": 0.0,
       "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
       "workset": "",
@@ -520,13 +520,13 @@
         "z": -1.25
       },
       "endPoint": {
-        "x": 1.0,
+        "x": 8.800000000000004,
         "y": -0.2084999999999981,
         "z": -1.25
       },
       "area": 11.0,
       "height": 0.0,
-      "length": 0.0,
+      "length": 8.800000000000004,
       "width": 0.0,
       "type": "Basic Wall:Foundation - Concrete (417mm):128676",
       "workset": "",
@@ -555,12 +555,12 @@
       },
       "endPoint": {
         "x": 8.591500000000003,
-        "y": -1.4170000000000256,
+        "y": -17.800000000000015,
         "z": -1.25
       },
       "area": 21.7,
       "height": 0.0,
-      "length": 0.0,
+      "length": 17.38299999999999,
       "width": 0.0,
       "type": "Basic Wall:Foundation - Concrete (417mm):128676",
       "workset": "",
@@ -588,13 +588,13 @@
         "z": -1.25
       },
       "endPoint": {
-        "x": 7.382999999999976,
+        "x": 0.0,
         "y": -17.59150000000001,
         "z": -1.25
       },
       "area": 10.5,
       "height": 0.0,
-      "length": 0.0,
+      "length": 8.382999999999976,
       "width": 0.0,
       "type": "Basic Wall:Foundation - Concrete (417mm):128676",
       "workset": "",
@@ -623,12 +623,12 @@
       },
       "endPoint": {
         "x": 0.2085000000000006,
-        "y": -16.38299999999999,
+        "y": -0.41699999999999804,
         "z": -1.25
       },
       "area": 21.2,
       "height": 0.0,
-      "length": 0.0,
+      "length": 16.96599999999999,
       "width": 0.0,
       "type": "Basic Wall:Foundation - Concrete (417mm):128676",
       "workset": "",
@@ -656,13 +656,13 @@
         "z": -1.25
       },
       "endPoint": {
-        "x": 7.382999999999992,
+        "x": 4.182499999999996,
         "y": -7.800000000000001,
         "z": -1.25
       },
       "area": 5.3,
       "height": 0.0,
-      "length": 0.0,
+      "length": 4.200499999999996,
       "width": 0.0,
       "type": "Basic Wall:Foundation - Concrete (435mm):207146",
       "workset": "",
@@ -690,13 +690,13 @@
         "z": -1.25
       },
       "endPoint": {
-        "x": 1.4170000000000005,
+        "x": 4.6174999999999935,
         "y": -10.0,
         "z": -1.25
       },
       "area": 5.3,
       "height": 0.0,
-      "length": 0.0,
+      "length": 4.200499999999993,
       "width": 0.0,
       "type": "Basic Wall:Foundation - Concrete (435mm):207146",
       "workset": "",
@@ -725,12 +725,12 @@
       },
       "endPoint": {
         "x": 4.399999999999994,
-        "y": -8.782500000000015,
+        "y": -8.017499999999986,
         "z": -1.25
       },
       "area": 2.0,
       "height": 0.0,
-      "length": 0.0,
+      "length": 1.765000000000029,
       "width": 0.0,
       "type": "Basic Wall:Foundation - Concrete (435mm):207146",
       "workset": "",
@@ -758,13 +758,13 @@
         "z": 3.100000000000378
       },
       "endPoint": {
-        "x": 1.0,
+        "x": 8.8,
         "y": -0.2085000000000001,
         "z": 3.100000000000378
       },
       "area": 15.7,
       "height": 0.0,
-      "length": 0.0,
+      "length": 8.8,
       "width": 0.0,
       "type": "Basic Wall:Exterior - Brick on Block:130892",
       "workset": "",
@@ -854,12 +854,12 @@
       },
       "endPoint": {
         "x": 8.5915,
-        "y": -1.0,
+        "y": -17.79999999999997,
         "z": 3.100000000000378
       },
       "area": 40.1,
       "height": 0.0,
-      "length": 0.0,
+      "length": 17.79999999999997,
       "width": 0.0,
       "type": "Basic Wall:Exterior - Brick on Block:130892",
       "workset": "",
@@ -963,13 +963,13 @@
         "z": 3.100000000000378
       },
       "endPoint": {
-        "x": 7.799999999999974,
+        "x": 0.0,
         "y": -17.5915,
         "z": 3.100000000000378
       },
       "area": 15.7,
       "height": 0.0,
-      "length": 0.0,
+      "length": 8.799999999999974,
       "width": 0.0,
       "type": "Basic Wall:Exterior - Brick on Block:130892",
       "workset": "",
@@ -1059,12 +1059,12 @@
       },
       "endPoint": {
         "x": 0.208499999999999,
-        "y": -16.79999999999997,
+        "y": 1.0658141036401503e-14,
         "z": 3.100000000000378
       },
       "area": 40.1,
       "height": 0.0,
-      "length": 0.0,
+      "length": 17.79999999999998,
       "width": 0.0,
       "type": "Basic Wall:Exterior - Brick on Block:130892",
       "workset": "",
@@ -1168,13 +1168,13 @@
         "z": 2.612
       },
       "endPoint": {
-        "x": 1.4169999999999994,
+        "x": 2.5059999999999993,
         "y": -6.188000000000002,
         "z": 2.612
       },
       "area": 5.3,
       "height": 0.0,
-      "length": 0.0,
+      "length": 2.089,
       "width": 0.0,
       "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
       "workset": "",
@@ -1203,12 +1203,12 @@
       },
       "endPoint": {
         "x": 2.444,
-        "y": -7.250000000000009,
+        "y": -11.674000000000003,
         "z": 3.100000000000378
       },
       "area": 14.0,
       "height": 0.0,
-      "length": 0.0,
+      "length": 5.423999999999994,
       "width": 0.0,
       "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
       "workset": "",
@@ -1236,13 +1236,13 @@
         "z": 3.100000000000378
       },
       "endPoint": {
-        "x": 1.3819999999999908,
+        "x": 0.4169999999999987,
         "y": -11.612,
         "z": 3.100000000000378
       },
       "area": 3.9,
       "height": 0.0,
-      "length": 0.0,
+      "length": 1.964999999999992,
       "width": 0.0,
       "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
       "workset": "",
@@ -1270,13 +1270,13 @@
         "z": 3.100000000000378
       },
       "endPoint": {
-        "x": 3.505999999999999,
+        "x": 4.124999999999989,
         "y": -6.758000000000003,
         "z": 3.100000000000378
       },
       "area": 4.7,
       "height": 0.0,
-      "length": 0.0,
+      "length": 1.6189999999999904,
       "width": 0.0,
       "type": "Basic Wall:Interior - Plumbing (152mm Stud):128382",
       "workset": "",
@@ -1304,13 +1304,13 @@
         "z": 3.100000000000378
       },
       "endPoint": {
-        "x": 3.124999999999983,
+        "x": 2.505999999999993,
         "y": -11.072,
         "z": 3.100000000000378
       },
       "area": 4.7,
       "height": 0.0,
-      "length": 0.0,
+      "length": 1.61899999999999,
       "width": 0.0,
       "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
       "workset": "",
@@ -1338,13 +1338,13 @@
         "z": 2.612000000000196
       },
       "endPoint": {
-        "x": 7.382999999999981,
+        "x": 6.2940000000000005,
         "y": -11.612,
         "z": 2.612000000000196
       },
       "area": 5.3,
       "height": 0.0,
-      "length": 0.0,
+      "length": 2.088999999999981,
       "width": 0.0,
       "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
       "workset": "",
@@ -1373,12 +1373,12 @@
       },
       "endPoint": {
         "x": 6.356,
-        "y": -10.55,
+        "y": -6.126000000000006,
         "z": 3.100000000000378
       },
       "area": 14.0,
       "height": 0.0,
-      "length": 0.0,
+      "length": 5.423999999999995,
       "width": 0.0,
       "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
       "workset": "",
@@ -1406,13 +1406,13 @@
         "z": 3.100000000000378
       },
       "endPoint": {
-        "x": 7.418000000000008,
+        "x": 8.38299999999999,
         "y": -6.188000000000002,
         "z": 3.100000000000378
       },
       "area": 3.9,
       "height": 0.0,
-      "length": 0.0,
+      "length": 1.964999999999982,
       "width": 0.0,
       "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
       "workset": "",
@@ -1440,13 +1440,13 @@
         "z": 3.100000000000378
       },
       "endPoint": {
-        "x": 5.674999999999989,
+        "x": 6.294000000000008,
         "y": -6.728000000000002,
         "z": 3.100000000000378
       },
       "area": 4.7,
       "height": 0.0,
-      "length": 0.0,
+      "length": 1.6190000000000184,
       "width": 0.0,
       "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
       "workset": "",
@@ -1474,13 +1474,13 @@
         "z": 3.100000000000378
       },
       "endPoint": {
-        "x": 5.294000000000001,
+        "x": 4.674999999999982,
         "y": -11.04200000000001,
         "z": 3.100000000000378
       },
       "area": 4.7,
       "height": 0.0,
-      "length": 0.0,
+      "length": 1.6190000000000193,
       "width": 0.0,
       "type": "Basic Wall:Interior - Plumbing (152mm Stud):128382",
       "workset": "",
@@ -1508,13 +1508,13 @@
         "z": 6.0
       },
       "endPoint": {
-        "x": 1.0,
+        "x": 8.800000000000002,
         "y": -0.2085000000000001,
         "z": 6.0
       },
       "area": 5.4,
       "height": 0.0,
-      "length": 0.0,
+      "length": 8.800000000000002,
       "width": 0.0,
       "type": "Basic Wall:Exterior - Brick on Block:130892",
       "workset": "",
@@ -1543,12 +1543,12 @@
       },
       "endPoint": {
         "x": 8.5915,
-        "y": -1.4170000000000276,
+        "y": -17.799999999999997,
         "z": 6.0
       },
       "area": 10.6,
       "height": 0.0,
-      "length": 0.0,
+      "length": 17.38299999999997,
       "width": 0.0,
       "type": "Basic Wall:Exterior - Brick on Block:130892",
       "workset": "",
@@ -1576,13 +1576,13 @@
         "z": 6.0
       },
       "endPoint": {
-        "x": 7.3829999999999725,
+        "x": -1.7763568394002505e-15,
         "y": -17.5915,
         "z": 6.0
       },
       "area": 5.1,
       "height": 0.0,
-      "length": 0.0,
+      "length": 8.382999999999974,
       "width": 0.0,
       "type": "Basic Wall:Exterior - Brick on Block:130892",
       "workset": "",
@@ -1611,12 +1611,12 @@
       },
       "endPoint": {
         "x": 0.208499999999999,
-        "y": -16.38299999999997,
+        "y": -0.4170000000000016,
         "z": 6.0
       },
       "area": 10.3,
       "height": 0.0,
-      "length": 0.0,
+      "length": 16.96599999999997,
       "width": 0.0,
       "type": "Basic Wall:Exterior - Brick on Block:130892",
       "workset": "",
@@ -1644,13 +1644,13 @@
         "z": 0.0
       },
       "endPoint": {
-        "x": 7.3829999999999885,
+        "x": 4.030000000000002,
         "y": -7.506000000000003,
         "z": 0.0
       },
       "area": 12.2,
       "height": 0.0,
-      "length": 0.0,
+      "length": 4.352999999999986,
       "width": 0.0,
       "type": "Basic Wall:Interior - Furring (152 mm Stud):187795",
       "workset": "",
@@ -1679,12 +1679,12 @@
       },
       "endPoint": {
         "x": 4.105999999999999,
-        "y": -8.725000000000014,
+        "y": -7.581999999999972,
         "z": 0.0
       },
       "area": 6.6,
       "height": 0.0,
-      "length": 0.0,
+      "length": 2.1430000000000415,
       "width": 0.0,
       "type": "Basic Wall:Interior - Furring (152 mm Stud):187795",
       "workset": "",
@@ -1712,13 +1712,13 @@
         "z": 0.0
       },
       "endPoint": {
-        "x": 3.030000000000003,
+        "x": 2.5740000000000007,
         "y": -7.491999999999973,
         "z": 0.0
       },
       "area": 4.1,
       "height": 0.0,
-      "length": 0.0,
+      "length": 1.4560000000000022,
       "width": 0.0,
       "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
       "workset": "",
@@ -1747,12 +1747,12 @@
       },
       "endPoint": {
         "x": 4.694000000000003,
-        "y": -9.07499999999999,
+        "y": -10.370000000000017,
         "z": 0.0
       },
       "area": 6.4,
       "height": 0.0,
-      "length": 0.0,
+      "length": 2.2950000000000266,
       "width": 0.0,
       "type": "Basic Wall:Interior - Furring (152 mm Stud):187795",
       "workset": "",
@@ -1780,13 +1780,13 @@
         "z": 0.0
       },
       "endPoint": {
-        "x": 1.4169999999999991,
+        "x": 4.6179999999999986,
         "y": -10.294,
         "z": 0.0
       },
       "area": 11.7,
       "height": 0.0,
-      "length": 0.0,
+      "length": 4.201,
       "width": 0.0,
       "type": "Basic Wall:Interior - Furring (152 mm Stud):187795",
       "workset": "",
@@ -1815,12 +1815,12 @@
       },
       "endPoint": {
         "x": 4.693999999999989,
-        "y": -7.790000000000003,
+        "y": -10.95000000000001,
         "z": 3.100000000000378
       },
       "area": 10.8,
       "height": 0.0,
-      "length": 0.0,
+      "length": 4.160000000000007,
       "width": 0.0,
       "type": "Basic Wall:Interior - Furring (152 mm Stud):187795",
       "workset": "",
@@ -1849,12 +1849,12 @@
       },
       "endPoint": {
         "x": 4.105999999999982,
-        "y": -10.01,
+        "y": -6.850000000000004,
         "z": 3.100000000000378
       },
       "area": 10.8,
       "height": 0.0,
-      "length": 0.0,
+      "length": 4.159999999999996,
       "width": 0.0,
       "type": "Basic Wall:Interior - Furring (152 mm Stud):187795",
       "workset": "",
@@ -1882,13 +1882,13 @@
         "z": 3.100000000000378
       },
       "endPoint": {
-        "x": 3.0299999999999834,
+        "x": 2.5059999999999922,
         "y": -10.03205117851059,
         "z": 3.100000000000378
       },
       "area": 2.9,
       "height": 0.0,
-      "length": 0.0,
+      "length": 1.5239999999999911,
       "width": 0.0,
       "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
       "workset": "",
@@ -1916,13 +1916,13 @@
         "z": 3.100000000000378
       },
       "endPoint": {
-        "x": 5.769999999999988,
+        "x": 6.294000000000007,
         "y": -7.783384235071523,
         "z": 3.100000000000378
       },
       "area": 2.9,
       "height": 0.0,
-      "length": 0.0,
+      "length": 1.5240000000000187,
       "width": 0.0,
       "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
       "workset": "",
@@ -1951,12 +1951,12 @@
       },
       "endPoint": {
         "x": 1.493400000000008,
-        "y": -7.250000000000005,
+        "y": -9.725000000000007,
         "z": 2.612
       },
       "area": 1.7,
       "height": 0.0,
-      "length": 0.0,
+      "length": 3.4750000000000014,
       "width": 0.0,
       "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
       "workset": "",
@@ -1985,12 +1985,12 @@
       },
       "endPoint": {
         "x": 7.306599999999956,
-        "y": -10.55,
+        "y": -8.075,
         "z": 2.612
       },
       "area": 1.7,
       "height": 0.0,
-      "length": 0.0,
+      "length": 3.4750000000000014,
       "width": 0.0,
       "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
       "workset": "",
@@ -2018,13 +2018,13 @@
         "z": 5.712000000000378
       },
       "endPoint": {
-        "x": 7.84045000000003,
+        "x": 7.923550000000031,
         "y": -6.567450000000052,
         "z": 5.712000000000378
       },
       "area": 0.3,
       "height": 0.0,
-      "length": 0.0,
+      "length": 1.0831000000000008,
       "width": 0.0,
       "type": "Basic Wall:Interior - Furring (38 mm Stud):128404",
       "workset": "",
@@ -2053,12 +2053,12 @@
       },
       "endPoint": {
         "x": 6.867450000000031,
-        "y": -6.729550000000008,
+        "y": -6.594450000000051,
         "z": 5.712000000000378
       },
       "area": 0.3,
       "height": 0.0,
-      "length": 0.0,
+      "length": 1.135099999999957,
       "width": 0.0,
       "type": "Basic Wall:Interior - Furring (38 mm Stud):128404",
       "workset": "",
@@ -2086,13 +2086,13 @@
         "z": 5.712000000000378
       },
       "endPoint": {
-        "x": 6.977550000000031,
+        "x": 6.89445000000003,
         "y": -7.702550000000009,
         "z": 5.712000000000378
       },
       "area": 0.3,
       "height": 0.0,
-      "length": 0.0,
+      "length": 1.0831000000000008,
       "width": 0.0,
       "type": "Basic Wall:Interior - Furring (38 mm Stud):128404",
       "workset": "",
@@ -2121,12 +2121,12 @@
       },
       "endPoint": {
         "x": 7.95055000000003,
-        "y": -7.540450000000051,
+        "y": -7.675550000000012,
         "z": 5.712000000000378
       },
       "area": 0.3,
       "height": 0.0,
-      "length": 0.0,
+      "length": 1.1350999999999605,
       "width": 0.0,
       "type": "Basic Wall:Interior - Furring (38 mm Stud):128404",
       "workset": "",
@@ -2154,13 +2154,13 @@
         "z": 5.712000000000378
       },
       "endPoint": {
-        "x": 1.807450000000026,
+        "x": 1.890550000000026,
         "y": -10.09745000000004,
         "z": 5.712000000000378
       },
       "area": 0.3,
       "height": 0.0,
-      "length": 0.0,
+      "length": 1.0831,
       "width": 0.0,
       "type": "Basic Wall:Interior - Furring (38 mm Stud):128404",
       "workset": "",
@@ -2189,12 +2189,12 @@
       },
       "endPoint": {
         "x": 0.8344500000000258,
-        "y": -10.25955,
+        "y": -10.124450000000044,
         "z": 5.712000000000378
       },
       "area": 0.3,
       "height": 0.0,
-      "length": 0.0,
+      "length": 1.135099999999957,
       "width": 0.0,
       "type": "Basic Wall:Interior - Furring (38 mm Stud):128404",
       "workset": "",
@@ -2222,13 +2222,13 @@
         "z": 5.712000000000378
       },
       "endPoint": {
-        "x": 0.944550000000026,
+        "x": 0.861450000000026,
         "y": -11.23255,
         "z": 5.712000000000378
       },
       "area": 0.3,
       "height": 0.0,
-      "length": 0.0,
+      "length": 1.0831,
       "width": 0.0,
       "type": "Basic Wall:Interior - Furring (38 mm Stud):128404",
       "workset": "",
@@ -2257,12 +2257,12 @@
       },
       "endPoint": {
         "x": 1.917550000000025,
-        "y": -11.07045000000004,
+        "y": -11.205549999999999,
         "z": 5.712000000000378
       },
       "area": 0.3,
       "height": 0.0,
-      "length": 0.0,
+      "length": 1.1350999999999587,
       "width": 0.0,
       "type": "Basic Wall:Interior - Furring (38 mm Stud):128404",
       "workset": "",
@@ -2993,6 +2993,6 @@
     "sourceFile": "Ifc2x3_Duplex_Architecture.ifc",
     "projectName": "0001",
     "description": "",
-    "formatVersion": 2
+    "formatVersion": 3
   }
 }

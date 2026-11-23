@@ -55,6 +55,15 @@ impl Rectangle {
     pub fn area(&self) -> f64 {
         self.width * self.height
     }
+
+    /// The smallest rectangle covering both `self` and `other`.
+    pub fn union(&self, other: &Rectangle) -> Rectangle {
+        let x0 = self.x.min(other.x);
+        let y0 = self.y.min(other.y);
+        let x1 = (self.x + self.width).max(other.x + other.width);
+        let y1 = (self.y + self.height).max(other.y + other.height);
+        Rectangle::new(x0, y0, x1 - x0, y1 - y0)
+    }
 }
 
 /// A room with walls and metadata.
@@ -205,5 +214,13 @@ mod tests {
         // Should be roughly centered
         assert!(x > 10.0 && x < 70.0);
         assert!(y > 10.0 && y < 70.0);
+    }
+
+    #[test]
+    fn union_covers_both_rectangles() {
+        let a = Rectangle::new(0.0, 0.0, 2.0, 2.0);
+        let b = Rectangle::new(1.0, -1.0, 4.0, 1.0);
+        assert_eq!(a.union(&b), Rectangle::new(0.0, -1.0, 5.0, 3.0));
+        assert_eq!(a.union(&a), a);
     }
 }

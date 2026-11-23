@@ -389,6 +389,14 @@ class SampleFileTest(unittest.TestCase):
         self.assertAlmostEqual(left.bottom, -0.25, places=2)
         self.assertAlmostEqual(left.top, 3.38, places=2)
 
+    def test_the_sample_house_walls_have_axes_as_long_as_their_lengths(self):
+        import math
+        path = os.path.join(ROOT, "examples", "IFC", "Building-Architecture.ifc")
+        model = ifc_extractors.extract_building_model_from_ifc(path)
+        lengths = sorted(round(math.hypot(w.end_point.x - w.start_point.x, w.end_point.y - w.start_point.y), 1)
+                         for w in model.walls)
+        self.assertEqual(lengths, [1.8, 3.8, 4.2, 6.0])
+
 
 def geometry_file():
     """A metre file with a Model/Body context, for fixtures with real geometry."""
@@ -609,12 +617,18 @@ class GenericModelTest(unittest.TestCase):
         self.assertEqual(back.slabs[0].storey, "L1")
         self.assertEqual(back.slabs[0].bottom, 2.8)
 
-    def test_to_dict_stamps_format_version_2(self):
+    def test_to_dict_stamps_format_version_3(self):
         model = geometry_models.BuildingModel()
         model.metadata["projectName"] = "p"
-        self.assertEqual(model.to_dict()["metadata"]["formatVersion"], 2)
-        self.assertEqual(geometry_models.FORMAT_VERSION, 2)
+        self.assertEqual(model.to_dict()["metadata"]["formatVersion"], 3)
+        self.assertEqual(geometry_models.FORMAT_VERSION, 3)
         self.assertNotIn("formatVersion", model.metadata)
+
+    def test_a_loaded_dict_keeps_its_format_version(self):
+        two = geometry_models.BuildingModel.from_dict({"walls": [], "metadata": {"formatVersion": 2}})
+        self.assertEqual(two.to_dict()["metadata"]["formatVersion"], 2)
+        one = geometry_models.BuildingModel.from_dict({"walls": [], "metadata": {}})
+        self.assertEqual(one.to_dict()["metadata"]["formatVersion"], 1)
 
     def test_wall_elevations_round_trip(self):
         wall = geometry_models.GenericWall("w", "wall")
@@ -836,6 +850,128 @@ class AreaUnitTest(TempDirTest):
         roof = next(s for s in model.slabs if s.kind == "roof")
         self.assertAlmostEqual(plate.area, 1076.4, places=0)
         self.assertAlmostEqual(roof.area, 538.2, places=0)
+
+
+def wall_with_axis(f, context, origin, x_axis, points):
+    """A wall placed at `origin` along `x_axis` whose Axis representation is
+    the polyline `points` (local (x, y) pairs, file units)."""
+    wall = f.createIfcWall(ifcopenshell.guid.new(), None, "w", None, None, place(f, origin, x_axis), None, None, None)
+    poly = f.createIfcPolyline([f.createIfcCartesianPoint((float(x), float(y))) for x, y in points])
+    rep = f.createIfcShapeRepresentation(context, "Axis", "Curve2D", [poly])
+    wall.Representation = f.createIfcProductDefinitionShape(None, None, [rep])
+    return wall
+
+
+@unittest.skipIf(ifcopenshell is None, "needs ifcopenshell")
+class WallAxisTest(TempDirTest):
+    """A wall's axis comes out in metres, in project coordinates, with its real length."""
+
+    def ends(self, wall, f):
+        start, end = ifc_extractors.get_ifc_wall_geometry(wall, f)
+        return (round(start.x, 6), round(start.y, 6), round(start.z, 6)), (round(end.x, 6), round(end.y, 6), round(end.z, 6))
+
+    def test_an_axis_polyline_is_placed_and_scaled(self):
+        import ifcopenshell.api.context
+        f = new_file("MILLI")
+        model = ifcopenshell.api.context.add_context(f, context_type="Model")
+        wall = wall_with_axis(f, model, (1000, 2000), (0, 1), [(0, 0), (5000, 0)])
+        self.assertEqual(self.ends(wall, f), ((1.0, 2.0, 0.0), (1.0, 7.0, 0.0)))
+
+    def test_a_bent_axis_runs_from_its_first_to_its_last_point(self):
+        import ifcopenshell.api.context
+        f = new_file(None)
+        model = ifcopenshell.api.context.add_context(f, context_type="Model")
+        wall = wall_with_axis(f, model, (0, 0), (1, 0), [(0, 0), (2, 0), (2, 3)])
+        self.assertEqual(self.ends(wall, f), ((0.0, 0.0, 0.0), (2.0, 3.0, 0.0)))
+
+    def test_without_an_axis_the_length_quantity_is_used(self):
+        f = new_file("MILLI")
+        wall = f.createIfcWall(ifcopenshell.guid.new(), None, "w", None, None, place(f, (3000, 0), (1, 0)), None, None, None)
+        add_quantities(f, wall, "Qto_WallBaseQuantities", lengths=[("Length", 4000.0), ("Width", 200.0)])
+        self.assertEqual(self.ends(wall, f), ((3.0, 0.0, 0.0), (7.0, 0.0, 0.0)))
+
+    def test_without_quantities_the_geometry_is_measured(self):
+        f, body = geometry_file()
+        wall = wall_with_geometry(f, body, "w", (1, 1), 0.5, length=4.0, height=3.0)
+        start, end = ifc_extractors.get_ifc_wall_geometry(wall, f)
+        self.assertAlmostEqual(start.x, 1.0, places=3)
+        self.assertAlmostEqual(end.x, 5.0, places=3)
+        self.assertAlmostEqual(start.y, end.y, places=6)
+        self.assertAlmostEqual(start.z, 0.5, places=3)
+
+    def test_a_body_across_its_placement_is_measured_along_its_faces(self):
+        import math
+        f, body = geometry_file()
+        # A box 0.2 m along local X and 4 m along local Y: the wall runs along Y,
+        # whatever its placement says.
+        wall = wall_with_geometry(f, body, "w", (6, 3), 0.0, length=0.2, height=3.0, thickness=4.0)
+        start, end = ifc_extractors.get_ifc_wall_geometry(wall, f)
+        self.assertAlmostEqual(math.hypot(end.x - start.x, end.y - start.y), 4.0, places=3)
+        self.assertAlmostEqual(start.x, end.x, places=6)
+
+    def test_an_indexed_axis_follows_its_segments(self):
+        import ifcopenshell.api.context
+        f = new_file(None)
+        model = ifcopenshell.api.context.add_context(f, context_type="Model")
+        wall = f.createIfcWall(ifcopenshell.guid.new(), None, "w", None, None, place(f, (0, 0), (1, 0)), None, None, None)
+        # The point pool is not in traversal order: the segments run (0,0) -> (1,0) -> (4,0).
+        pool = f.createIfcCartesianPointList2D([(1.0, 0.0), (0.0, 0.0), (4.0, 0.0)])
+        segments = [f.create_entity("IfcLineIndex", (2, 1)), f.create_entity("IfcLineIndex", (1, 3))]
+        curve = f.createIfcIndexedPolyCurve(pool, segments, False)
+        rep = f.createIfcShapeRepresentation(model, "Axis", "Curve2D", [curve])
+        wall.Representation = f.createIfcProductDefinitionShape(None, None, [rep])
+        self.assertEqual(self.ends(wall, f), ((0.0, 0.0, 0.0), (4.0, 0.0, 0.0)))
+
+    def test_a_wall_with_nothing_to_go_on_has_no_axis(self):
+        f = new_file(None)
+        wall = f.createIfcWall(ifcopenshell.guid.new(), None, "w", None, None, None, None, None, None)
+        self.assertEqual(ifc_extractors.get_ifc_wall_geometry(wall, f), (None, None))
+
+    def test_a_curtain_wall_gets_an_axis_along_its_facade(self):
+        path = os.path.join(self.tmp, "house.ifc")
+        curtain_house().write(path)
+        model = ifc_extractors.extract_building_model_from_ifc(path)
+        cw = next(w for w in model.walls if w.name == "glazing")
+        xs = sorted([cw.start_point.x, cw.end_point.x])
+        self.assertAlmostEqual(xs[0], 2.0, places=2)
+        self.assertAlmostEqual(xs[1], 6.05, places=2)
+        self.assertAlmostEqual(cw.start_point.y, cw.end_point.y, places=6)
+        self.assertAlmostEqual(cw.length, 4.05, places=2)
+
+
+@unittest.skipIf(ifcopenshell is None, "needs ifcopenshell")
+class LengthUnitsTest(TempDirTest):
+    """Format 3 writes every wall and window length in metres."""
+
+    def test_wall_dimensions_are_scaled_and_length_is_the_axis(self):
+        import ifcopenshell.api.context
+        f = new_file("MILLI")
+        model = ifcopenshell.api.context.add_context(f, context_type="Model")
+        wall = wall_with_axis(f, model, (0, 0), (1, 0), [(0, 0), (6404, 0)])
+        add_quantities(f, wall, "Qto_WallBaseQuantities",
+                       lengths=[("Height", 2700.0), ("Length", 6404.0), ("Width", 202.0)])
+        w = self.extract(f).walls[0]
+        self.assertAlmostEqual(w.height, 2.7)
+        self.assertAlmostEqual(w.length, 6.404)
+        self.assertAlmostEqual(w.width, 0.202)
+
+    def test_a_wall_without_an_axis_takes_the_scaled_length_quantity(self):
+        f = new_file("MILLI")
+        wall = f.createIfcWall(ifcopenshell.guid.new(), None, "w", None, None, None, None, None, None)
+        add_quantities(f, wall, "Qto_WallBaseQuantities", lengths=[("Length", 3200.0), ("Width", 202.0)])
+        w = self.extract(f).walls[0]
+        self.assertAlmostEqual(w.length, 3.2)
+        self.assertAlmostEqual(w.width, 0.202)
+
+    def test_window_size_and_position_are_scaled(self):
+        f = new_file("MILLI")
+        window = f.createIfcWindow(ifcopenshell.guid.new(), None, "win", None, None, place(f, (1500, 0), (1, 0)),
+                                   None, None, 2420.0, 4835.0, None, None, None)
+        win = self.extract(f).windows[0]
+        self.assertAlmostEqual(win.height, 2.42)
+        self.assertAlmostEqual(win.width, 4.835)
+        self.assertAlmostEqual(win.position.x, 1.5)
+        self.assertAlmostEqual(win.area, 11.7, places=1)
 
 
 if __name__ == "__main__":

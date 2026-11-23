@@ -101,13 +101,17 @@ def create_projected_view(walls, direction, all_windows):
         wall_count += 1
         total_wall_area += wall.area
         
-        # Wall corners in 3D
-        # p1: Start Bottom
-        x1, y1, z1 = wall.start_point.x, wall.start_point.y, wall.start_point.z
-        # p2: End Bottom
-        x2, y2, z2 = wall.end_point.x, wall.end_point.y, wall.end_point.z
-        
-        height = wall.height if wall.height > 0 else 3.0
+        # Wall corners in 3D: the axis ends at the wall's bottom, lifted to
+        # its top; a wall without elevations stands on its axis, as high as
+        # its height says (3 m when it does not)
+        x1, y1 = wall.start_point.x, wall.start_point.y
+        x2, y2 = wall.end_point.x, wall.end_point.y
+        if wall.bottom is not None and wall.top is not None:
+            z1 = z2 = wall.bottom
+            height = wall.top - wall.bottom
+        else:
+            z1, z2 = wall.start_point.z, wall.end_point.z
+            height = wall.height if wall.height > 0 else 3.0
         
         # p3: End Top
         x3, y3, z3 = x2, y2, z2 + height

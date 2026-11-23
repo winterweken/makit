@@ -133,65 +133,152 @@ def get_ifc_wall_orientation(wall, centre=None):
             nx, ny = -nx, -ny
     return GeometricVector(nx, ny, 0.0)
 
-def get_ifc_wall_geometry(wall):
+def get_axis_points(wall):
     """
-    Extract wall geometry (start/end points)
-    
-    Args:
-        wall: IFC wall element
-        
-    Returns:
-        tuple (start_point, end_point) as GeometricVector or (None, None)
+    The first and last point of the wall's Axis representation, in the
+    wall's local coordinates (x, y, z): an IfcPolyline or IfcIndexedPolyCurve
+    of two or more points (2D points get z 0). None when the wall has no
+    such axis.
+    """
+    representation = getattr(wall, 'Representation', None)
+    if not representation:
+        return None
+    for rep in representation.Representations:
+        if rep.RepresentationIdentifier != 'Axis' or not rep.Items:
+            continue
+        item = rep.Items[0]
+        if item.is_a('IfcPolyline'):
+            points = [p.Coordinates for p in item.Points]
+        elif item.is_a('IfcIndexedPolyCurve'):
+            # The point list is a pool; with Segments, the curve runs from
+            # the first segment's first index to the last segment's last
+            # (1-based). Without them the list is the traversal.
+            pool = list(item.Points.CoordList)
+            segments = getattr(item, 'Segments', None)
+            points = pool
+            if segments:
+                try:
+                    first = segments[0].wrappedValue[0]
+                    last = segments[-1].wrappedValue[-1]
+                    points = [pool[first - 1], pool[last - 1]]
+                except (AttributeError, IndexError, TypeError):
+                    points = pool
+        else:
+            return None
+        if len(points) < 2:
+            return None
+        ends = []
+        for p in (points[0], points[-1]):
+            ends.append((p[0], p[1], p[2] if len(p) > 2 else 0.0))
+        return ends
+    return None
+
+def to_project(matrix, point, length_scale):
+    """A local (x, y, z) through a 4x4 placement matrix, scaled to metres."""
+    x, y, z = point
+    return tuple(
+        float(matrix[i][0] * x + matrix[i][1] * y + matrix[i][2] * z + matrix[i][3]) * length_scale
+        for i in range(3))
+
+def axis_from_faces(faces, direction, z=None):
+    """
+    A wall's axis measured from its triangles (metres, project coordinates):
+    its ends are the least and greatest extent of the vertices along the
+    plan `direction` (dx, dy), on the line through their mean across it, at
+    `z` (the lowest vertex when None). None without vertices or direction.
+    """
+    vertices = [v for _, _, triangle in faces for v in triangle]
+    if not vertices:
+        return None
+    dx, dy = direction
+    length = math.hypot(dx, dy)
+    if length == 0:
+        return None
+    dx, dy = dx / length, dy / length
+    along = [v[0] * dx + v[1] * dy for v in vertices]
+    across = sum(-v[0] * dy + v[1] * dx for v in vertices) / len(vertices)
+    if z is None:
+        z = min(v[2] for v in vertices)
+
+    def point(a):
+        return (a * dx - across * dy, a * dy + across * dx, z)
+
+    return point(min(along)), point(max(along))
+
+def facade_normal(faces):
+    """
+    The horizontal unit normal carrying the most face area among a wall's
+    triangles (its sign folded so x > 0, or y > 0 when x is 0): the way its
+    sides look. None when no face is near-vertical.
+    """
+    weights = {}
+    for n, area, _ in faces:
+        if abs(n[2]) > 0.1:
+            continue
+        key = (round(n[0], 2), round(n[1], 2))
+        if key[0] < 0 or (key[0] == 0 and key[1] < 0):
+            key = (-key[0], -key[1])
+        weights[key] = weights.get(key, 0.0) + area
+    if not weights:
+        return None
+    nx, ny = max(weights, key=weights.get)
+    length = math.hypot(nx, ny)
+    if length == 0:
+        return None
+    return nx / length, ny / length
+
+def get_ifc_wall_geometry(wall, ifc_file):
+    """
+    A wall's axis as (start, end) GeometricVectors in metres, project
+    coordinates: the ends of its Axis representation, else its placement
+    origin and X direction run out to its Length quantity, else measured
+    from its geometry along the placement's X axis. (None, None) when the
+    wall offers none of these.
     """
     if not IFC_AVAILABLE:
         return None, None
-        
     try:
-        # Use ifcopenshell.util.placement to get absolute position
+        length_scale, _ = get_unit_scales(ifc_file)
+        if not getattr(wall, 'ObjectPlacement', None):
+            return None, None
         matrix = ifcopenshell.util.placement.get_local_placement(wall.ObjectPlacement)
-        
-        # Origin (Start point)
-        start_x = matrix[0][3]
-        start_y = matrix[1][3]
-        start_z = matrix[2][3]
-        
-        # Direction X
-        dir_x = matrix[0][0]
-        dir_y = matrix[1][0]
-        dir_z = matrix[2][0]
-        
-        # Get length to calculate end point
-        length = 0
-        for rel in wall.IsDefinedBy:
-            if rel.is_a('IfcRelDefinesByProperties'):
-                prop = rel.RelatingPropertyDefinition
-                if prop.is_a('IfcElementQuantity'):
-                    for q in prop.Quantities:
-                        if q.is_a('IfcQuantityLength') and ('Length' in q.Name or 'Width' in q.Name):
-                            if q.LengthValue > length:
-                                length = q.LengthValue
-                                
-        # If length not found properties, try geometry
-        if length == 0:
-            try:
-                if get_faces(wall):
-                    # Simple approximation if no explicit length
-                    # This is complex without proper BRep analysis, but for 2D start/end:
-                    length = 1.0 # Fallback
-            except Exception:
-                pass
-                
-        # Calculate End point based on direction and length
-        end_x = start_x + dir_x * length
-        end_y = start_y + dir_y * length
-        end_z = start_z + dir_z * length
-        
-        return (
-            GeometricVector(start_x, start_y, start_z),
-            GeometricVector(end_x, end_y, end_z)
-        )
-    except:
-        return None, None
+
+        points = get_axis_points(wall)
+        if points:
+            start, end = [to_project(matrix, p, length_scale) for p in points]
+            return GeometricVector(*start), GeometricVector(*end)
+
+        length = 0.0
+        for quantity in get_element_quantities(wall):
+            if quantity.is_a('IfcQuantityLength') and quantity.Name == 'Length':
+                length = quantity.LengthValue
+        if length > 0:
+            start = to_project(matrix, (0.0, 0.0, 0.0), length_scale)
+            end = to_project(matrix, (length, 0.0, 0.0), length_scale)
+            return GeometricVector(*start), GeometricVector(*end)
+
+        try:
+            faces = get_faces(wall)
+        except Exception:
+            faces = []
+        # Along the wall is across its facade; the placement's X axis only
+        # when the geometry has no vertical face to tell. The axis runs the
+        # placement's way, so start and end mean the same whichever source
+        # gave them.
+        px, py = matrix[0][0], matrix[1][0]
+        normal = facade_normal(faces)
+        if normal:
+            direction = (-normal[1], normal[0])
+            if direction[0] * px + direction[1] * py < 0:
+                direction = (-direction[0], -direction[1])
+        else:
+            direction = (px, py)
+        axis = axis_from_faces(faces, direction)
+        if axis:
+            return GeometricVector(*axis[0]), GeometricVector(*axis[1])
+    except Exception as e:
+        print("Warning: no axis for wall {}: {}".format(wall.GlobalId, str(e)))
+    return None, None
 
 def get_unit_scales(ifc_file):
     """
@@ -336,7 +423,7 @@ def extract_ifc_wall_to_generic(wall, ifc_file, area_unit='sqm', centre=None):
         generic_wall.orientation = orientation
         
     # Get Geometry Points
-    start, end = get_ifc_wall_geometry(wall)
+    start, end = get_ifc_wall_geometry(wall, ifc_file)
     if start:
         generic_wall.start_point = start
     if end:
@@ -369,22 +456,22 @@ def extract_ifc_wall_to_generic(wall, ifc_file, area_unit='sqm', centre=None):
     except:
         pass
 
-    # Get dimensions from quantities
+    # Dimensions from quantities, in metres; the axis is the better length
     try:
-        for rel in wall.IsDefinedBy:
-            if rel.is_a('IfcRelDefinesByProperties'):
-                prop_def = rel.RelatingPropertyDefinition
-                if prop_def.is_a('IfcElementQuantity'):
-                    for quantity in prop_def.Quantities:
-                        if quantity.is_a('IfcQuantityLength'):
-                            if 'Height' in quantity.Name:
-                                generic_wall.height = quantity.LengthValue
-                            elif 'Length' in quantity.Name or 'Width' in quantity.Name:
-                                generic_wall.length = quantity.LengthValue
-                        elif quantity.is_a('IfcQuantityLength') and 'Width' in quantity.Name:
-                            generic_wall.width = quantity.LengthValue
-    except:
-        pass
+        length_scale, _ = get_unit_scales(ifc_file)
+        for quantity in get_element_quantities(wall):
+            if not quantity.is_a('IfcQuantityLength'):
+                continue
+            if 'Height' in quantity.Name:
+                generic_wall.height = quantity.LengthValue * length_scale
+            elif 'Width' in quantity.Name:
+                generic_wall.width = quantity.LengthValue * length_scale
+            elif 'Length' in quantity.Name:
+                generic_wall.length = quantity.LengthValue * length_scale
+    except Exception as e:
+        print("Warning: no dimensions for wall {}: {}".format(wall.GlobalId, str(e)))
+    if start and end:
+        generic_wall.length = math.hypot(end.x - start.x, end.y - start.y)
 
     # Check if curtain wall
     generic_wall.is_curtain_wall = 'CURTAIN' in (wall.ObjectType or '').upper()
@@ -764,25 +851,14 @@ def extract_ifc_curtain_wall_to_generic(curtain_wall, ifc_file, area_unit='sqm',
         return None
 
     # The facade faces along the horizontal normal that carries most area
-    weights = {}
-    total = 0.0
-    sx = sy = 0.0
-    for part, triangles in meshes:
-        for n, area, (a, b, c) in triangles:
-            total += area
-            sx += (a[0] + b[0] + c[0]) / 3.0 * area
-            sy += (a[1] + b[1] + c[1]) / 3.0 * area
-            if abs(n[2]) > 0.1:
-                continue
-            key = (round(n[0], 2), round(n[1], 2))
-            if key[0] < 0 or (key[0] == 0 and key[1] < 0):
-                key = (-key[0], -key[1])
-            weights[key] = weights.get(key, 0.0) + area
-    if not weights:
+    faces = [face for _, triangles in meshes for face in triangles]
+    normal = facade_normal(faces)
+    if normal is None:
         return None
-    nx, ny = max(weights, key=weights.get)
-    length = math.hypot(nx, ny)
-    nx, ny = nx / length, ny / length
+    nx, ny = normal
+    total = sum(area for _, area, _ in faces)
+    sx = sum((a[0] + b[0] + c[0]) / 3.0 * area for _, area, (a, b, c) in faces)
+    sy = sum((a[1] + b[1] + c[1]) / 3.0 * area for _, area, (a, b, c) in faces)
     if centre is not None and total > 0:
         mx = sx / total - centre[0] * length_scale
         my = sy / total - centre[1] * length_scale
@@ -798,8 +874,12 @@ def extract_ifc_curtain_wall_to_generic(curtain_wall, ifc_file, area_unit='sqm',
     generic_wall.level = level
     generic_wall.wall_type = curtain_wall.ObjectType or ""
     generic_wall.properties['ifcType'] = curtain_wall.is_a()
-    generic_wall.bottom, generic_wall.top = get_z_range(
-        [face for _, triangles in meshes for face in triangles])
+    generic_wall.bottom, generic_wall.top = get_z_range(faces)
+    axis = axis_from_faces(faces, (-ny, nx))
+    if axis:
+        generic_wall.start_point = GeometricVector(*axis[0])
+        generic_wall.end_point = GeometricVector(*axis[1])
+        generic_wall.length = math.hypot(axis[1][0] - axis[0][0], axis[1][1] - axis[0][1])
 
     opaque = 0.0
     for part, triangles in meshes:
@@ -832,7 +912,8 @@ def extract_ifc_window_to_generic(window, ifc_file, area_unit='sqm'):
     # Get Position
     pos = get_element_position(window)
     if pos:
-        generic_window.position = pos
+        generic_window.position = GeometricVector(
+            pos.x * length_scale, pos.y * length_scale, pos.z * length_scale)
 
     # Try to find host wall
     try:
@@ -855,9 +936,9 @@ def extract_ifc_window_to_generic(window, ifc_file, area_unit='sqm'):
                     for quantity in prop_def.Quantities:
                         if quantity.is_a('IfcQuantityLength'):
                             if 'Height' in quantity.Name:
-                                generic_window.height = quantity.LengthValue
+                                generic_window.height = quantity.LengthValue * length_scale
                             elif 'Width' in quantity.Name:
-                                generic_window.width = quantity.LengthValue
+                                generic_window.width = quantity.LengthValue * length_scale
                         elif quantity.is_a('IfcQuantityArea'):
                             area_sqm = quantity.AreaValue * area_scale
                             if area_unit == 'sqm':
@@ -869,13 +950,13 @@ def extract_ifc_window_to_generic(window, ifc_file, area_unit='sqm'):
 
     # The window's overall size when the quantities gave none
     if generic_window.height == 0 and getattr(window, 'OverallHeight', None):
-        generic_window.height = window.OverallHeight
+        generic_window.height = window.OverallHeight * length_scale
     if generic_window.width == 0 and getattr(window, 'OverallWidth', None):
-        generic_window.width = window.OverallWidth
+        generic_window.width = window.OverallWidth * length_scale
 
     # Calculate area if not found
     if generic_window.area == 0 and generic_window.height > 0 and generic_window.width > 0:
-        area_sqm = generic_window.height * generic_window.width * length_scale ** 2
+        area_sqm = generic_window.height * generic_window.width
         if area_unit == 'sqm':
             generic_window.area = round(area_sqm, 1)
         else:

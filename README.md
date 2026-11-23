@@ -65,7 +65,7 @@ cargo run -p makit
 
 **Option values.** Expand a source or action to see its options. `Enter` on an option opens a one-line form (`Enter` saves, `Esc` cancels, `Ctrl-U` clears, an empty value restores the default); a leading `~` is expanded to your home directory. Values are kept for the session and passed to the task when you press `e`. The file loaded in the IFC picker fills `ifc --file`, `wall-orientation-wwr --input` and `murb-simulate --model` unless you type something else. Loading an IFC file extracts it first when it has no JSON beside it, or one older than the file, with a Python that has IfcOpenShell (`MAKIT_PYTHON`, the repository's `.venv`, or `python3`); the picker then shows its WWR and envelope figures.
 
-**Previews.** Charts and drawings built from your data are titled plainly (`heating demand`, `wall area by orientation`); stock drawings are marked `· illustration`, and a chart with nothing to show stays empty (`· no results`). When the pane is too short for a readable drawing, the preview is left out.
+**Previews.** Charts and drawings built from your data are titled plainly (`heating demand`, `wall area by orientation`); stock drawings are marked `· illustration`, and a chart with nothing to show stays empty (`· no results`). Load an IFC file in the picker and the `ifc` node draws its walls in isometric (`isometric`), exterior walls bright and interior walls dim, from the axes a format 3 extraction carries. When the pane is too short for a readable drawing, the preview is left out.
 
 ### CLI Commands
 

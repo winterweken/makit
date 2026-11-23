@@ -64,7 +64,7 @@ def main():
     print("-" * 60)
     sorted_walls = sorted(model.walls, key=lambda w: w.length, reverse=True)
     for i, wall in enumerate(sorted_walls[:3], 1):
-        print("  {}. {} - {:.1f} m".format(i, wall.name, wall.length / 1000))
+        print("  {}. {} - {:.1f} m".format(i, wall.name, wall.length))
 
     print()
 
