@@ -9,6 +9,18 @@ pub const SETUP_HINT: &str = "set up a Python with IfcOpenShell once: \
     uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell \
     (or point MAKIT_PYTHON at one)";
 
+/// How to get a Python that has `module`, for error messages: the IfcOpenShell
+/// setup for the extractor; otherwise the package goes on `PYTHONPATH`.
+pub fn setup_hint(module: &str) -> String {
+    if module == "ifcopenshell" {
+        return SETUP_HINT.to_string();
+    }
+    format!(
+        "put the package that provides {module} on PYTHONPATH, \
+         or point MAKIT_PYTHON at a Python that has it"
+    )
+}
+
 /// An interpreter worth trying, and whether the user named it (`MAKIT_PYTHON`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Candidate {
@@ -94,8 +106,9 @@ pub fn find_with(
         tried.push(candidate.path.display().to_string());
     }
     anyhow::bail!(
-        "no Python with {module} found (tried {}); {SETUP_HINT}",
-        tried.join(", ")
+        "no Python with {module} found (tried {}); {}",
+        tried.join(", "),
+        setup_hint(module)
     )
 }
 
@@ -179,6 +192,21 @@ mod tests {
             err.contains("python3") && err.contains("ifcopenshell") && err.contains("uv venv"),
             "{err}"
         );
+    }
+
+    #[test]
+    fn the_hint_names_the_package_that_is_missing() {
+        // murb_energy_tool does not come with IfcOpenShell: its hint is PYTHONPATH
+        let err = find_with(vec![cand("python3", false)], "murb_energy_tool", &|_, _| {
+            false
+        })
+        .unwrap_err()
+        .to_string();
+        assert!(
+            err.contains("PYTHONPATH") && err.contains("murb_energy_tool"),
+            "{err}"
+        );
+        assert!(!err.contains("IfcOpenShell"), "{err}");
     }
 
     #[test]

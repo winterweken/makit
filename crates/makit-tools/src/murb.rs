@@ -626,13 +626,7 @@ fn handle_connect(_ctx: &TaskContext) -> anyhow::Result<()> {
             "✓ MURB energy model available (Python: {})",
             python.display()
         ),
-        Err(err) => {
-            println!("✗ {err}");
-            println!(
-                "  Install: put the murb repository on PYTHONPATH, or point MAKIT_PYTHON \
-                 at a Python that has murb_energy_tool"
-            );
-        }
+        Err(err) => println!("✗ {err}"),
     }
     Ok(())
 }
