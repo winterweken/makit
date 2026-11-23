@@ -1,0 +1,296 @@
+{
+  "name": "Ifc4_ARC in Toronto_TMY",
+  "monthly_heating_demand": [
+    13062.200344857854,
+    11702.524929866986,
+    9690.85480539606,
+    5053.671520830065,
+    1358.4992688579014,
+    15.76239668417793,
+    0.0,
+    0.0,
+    177.39972690573177,
+    2242.4911265799897,
+    7108.635831098875,
+    11954.43491991768
+  ],
+  "monthly_cooling_demand": [
+    161.79764571835344,
+    288.9276965901445,
+    635.8695771391381,
+    1014.1210403729284,
+    1968.7896292504608,
+    4137.835556199293,
+    8035.617588754276,
+    8431.06461990789,
+    3453.5745325751486,
+    1024.8881534673071,
+    411.0765980904987,
+    108.22219913203584
+  ],
+  "monthly_heating_consumption": [
+    15367.29452336218,
+    13767.676388078808,
+    11401.005653407128,
+    5945.4959068589,
+    1598.2344339504723,
+    18.54399609903286,
+    0.0,
+    0.0,
+    208.7055610655668,
+    2638.224854799988,
+    8363.100977763383,
+    14064.041082256092
+  ],
+  "monthly_cooling_consumption": [
+    31.11493186891412,
+    55.56301857502778,
+    122.28261098829576,
+    195.0232769947939,
+    378.6133902404732,
+    795.7376069614024,
+    1545.3110747604376,
+    1621.3585807515171,
+    664.1489485721439,
+    197.09387566678987,
+    79.05319194048052,
+    20.811961371545355
+  ],
+  "monthly_total_consumption": [
+    21365.709042608974,
+    19213.058388801597,
+    17490.587851773304,
+    11915.32523615487,
+    7944.147411568827,
+    6589.087655361612,
+    7512.61066213832,
+    7588.658168129399,
+    6647.6605619388865,
+    8802.618317844659,
+    14216.960222005038,
+    20052.15263100552
+  ],
+  "monthly_ghg_emissions": [
+    3597.809860959701,
+    3229.8042467685727,
+    2872.1058459563233,
+    1847.356624015016,
+    1079.442455877257,
+    776.8483644670657,
+    820.9155059363492,
+    823.1969311160816,
+    807.8253189816152,
+    1264.9990022069617,
+    2287.8890364310582,
+    3358.1483888867747
+  ],
+  "tedi_kwh_m2": 86.76,
+  "teui_kwh_m2": 207.76,
+  "ghgi_kg_m2": 31.67,
+  "gfa": 718.8199999999999,
+  "weather_file": "Toronto.City-Univ.of.Toronto",
+  "report_path": "examples/MURB/Ifc4_ARC-in-Toronto/results/Ifc4_ARC in Toronto_TMY/Ifc4_ARC in Toronto_TMY.html",
+  "report_error": null,
+  "input": {
+    "epw_path": "examples/EPW/Toronto_TMU/CAN_ON_Toronto.City-Univ.of.Toronto.715080_TMYx.epw",
+    "name": "Ifc4_ARC in Toronto",
+    "province": "ON",
+    "gfa": 718.8199999999999,
+    "area_walls_ag": 532.4977984603095,
+    "area_walls_bg": 174.7422015396905,
+    "area_windows": 197.34000000000017,
+    "area_roof": 244.34000000000003,
+    "u_walls_ag": 0.273,
+    "u_windows": 2.56,
+    "u_roof": 0.164,
+    "cop_htg": 0.85,
+    "cop_clg": 5.2,
+    "cop_dhw": 0.85,
+    "hrv_efficiency": 0.55,
+    "window_groups": [
+      {
+        "pct_window_area": 0.11670313639679065,
+        "window_azimuth": 53.0,
+        "shgc": 0.4,
+        "shading": 0.0
+      },
+      {
+        "pct_window_area": 0.6744816088360945,
+        "window_azimuth": 143.0,
+        "shgc": 0.4,
+        "shading": 0.0
+      },
+      {
+        "pct_window_area": 0.2088152547671147,
+        "window_azimuth": 233.0,
+        "shgc": 0.4,
+        "shading": 0.0
+      }
+    ],
+    "report_dir": "examples/MURB/Ifc4_ARC-in-Toronto"
+  },
+  "envelope": {
+    "grade": 0.0,
+    "gfa": 718.8199999999999,
+    "storeys": [
+      {
+        "name": "Foundation",
+        "elevation": -0.8,
+        "area": 3.6,
+        "plates": 11
+      },
+      {
+        "name": "Level 1 Living Rm.",
+        "elevation": -0.55,
+        "area": 162.3,
+        "plates": 3
+      },
+      {
+        "name": "Level 1",
+        "elevation": 0.0,
+        "area": 144.37,
+        "plates": 2
+      },
+      {
+        "name": "Ceiling",
+        "elevation": 2.7,
+        "area": 149.49,
+        "plates": 2
+      },
+      {
+        "name": "Level 2",
+        "elevation": 3.0,
+        "area": 259.06,
+        "plates": 5
+      },
+      {
+        "name": "Roof Line",
+        "elevation": 6.0,
+        "area": 0.0,
+        "plates": 0
+      }
+    ],
+    "empty_storeys": 1,
+    "walls_ag": 532.4977984603095,
+    "walls_bg": 174.7422015396905,
+    "walls_without_height": 0,
+    "windows": 197.34000000000017,
+    "windows_by_facing": [
+      [
+        53.0,
+        22.4
+      ],
+      [
+        143.0,
+        129.45999999999998
+      ],
+      [
+        233.0,
+        40.08
+      ]
+    ],
+    "roof": 244.34000000000003,
+    "roofs": [
+      [
+        "Basic Roof:SG Metal Panels roof:243274",
+        173.55
+      ],
+      [
+        "Basic Roof:Warm Roof - Timber:724430",
+        70.79
+      ]
+    ],
+    "left_out": [
+      [
+        "M_Pile-Steel Pipe:600mm Diameter:512299",
+        0.07
+      ],
+      [
+        "M_Pile-Steel Pipe:600mm Diameter:512321",
+        0.07
+      ],
+      [
+        "M_Pile-Steel Pipe:600mm Diameter:512396",
+        0.07
+      ],
+      [
+        "M_Pile-Steel Pipe:600mm Diameter:512447",
+        0.07
+      ],
+      [
+        "M_Pile-Steel Pipe:600mm Diameter:512451",
+        0.07
+      ],
+      [
+        "M_Pile-Steel Pipe:600mm Diameter:512471",
+        0.07
+      ],
+      [
+        "M_Pile-Steel Pipe:600mm Diameter:512475",
+        0.07
+      ],
+      [
+        "M_Pile-Steel Pipe:600mm Diameter:512524",
+        0.07
+      ],
+      [
+        "M_Pile-Steel Pipe:600mm Diameter:512528",
+        0.07
+      ],
+      [
+        "Pad:Pad 2:523064",
+        287.34
+      ]
+    ],
+    "format_version": 2
+  },
+  "model": "examples/IFC/Ifc4_ARC.ifc",
+  "even_glass": {
+    "tedi_kwh_m2": 97.06,
+    "teui_kwh_m2": 218.04,
+    "ghgi_kg_m2": 33.84,
+    "monthly_heating_demand": [
+      14276.38695361978,
+      12891.793385002196,
+      10748.113930232896,
+      5799.844771704959,
+      1647.6970306255052,
+      15.76239668417793,
+      0.0,
+      0.0,
+      202.17158427301013,
+      2872.243943234779,
+      8290.503813545713,
+      13026.40054840278
+    ],
+    "monthly_cooling_demand": [
+      33.159761133786944,
+      89.24540999869667,
+      299.9478210308454,
+      564.3675978211254,
+      1411.5851788419702,
+      3497.368314367275,
+      6961.446978636657,
+      7007.604743919697,
+      2310.2947082538662,
+      497.1422055556879,
+      111.36370098735398,
+      16.855152544556855
+    ],
+    "monthly_total_consumption": [
+      22769.425821718734,
+      20573.797308055073,
+      18669.8217785741,
+      12706.68507289252,
+      8177.225370470258,
+      6465.920878086224,
+      7306.039390961854,
+      7314.915884285516,
+      6456.94241887028,
+      9442.014379129734,
+      15549.756046933971,
+      21295.718078635196
+    ]
+  },
+  "command": "makit exec murb analysis murb-simulate -o epw=examples/EPW/Toronto_TMU/CAN_ON_Toronto.City-Univ.of.Toronto.715080_TMYx.epw -o model=examples/IFC/Ifc4_ARC.ifc -o output=examples/MURB/Ifc4_ARC-in-Toronto/murb_results.json"
+}
