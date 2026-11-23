@@ -737,10 +737,10 @@ pub fn register_tasks(reg: &mut Registry) {
     .add_option("epw", "Path to EPW weather file", "string", true, None)
     .add_option(
         "name",
-        "Simulation name",
+        "Simulation name (default: the model's name in the EPW's city)",
         "string",
         false,
-        Some("makit_run"),
+        None,
     )
     .add_option(
         "gfa",
@@ -1167,6 +1167,34 @@ mod tests {
         // an EPW that cannot be read leaves the station out
         let (input, _, _) = simulation_input(&model_context(&json, &[])).unwrap();
         assert_eq!(input.name, "Ifc4_ARC");
+    }
+
+    #[test]
+    fn a_tui_run_with_the_registered_defaults_laid_over_still_derives_the_name() {
+        // The TUI lays every registered default over a run's options, so a
+        // default name would reach the handler as if typed.
+        let mut reg = Registry::default();
+        register_tasks(&mut reg);
+        let dir = folder("tui-name");
+        let epw = dir.join("CAN_ON_Toronto.epw");
+        std::fs::write(&epw, "LOCATION,Toronto.City-Univ.of.Toronto,ON,CAN,SRC-TMYx,715080,43.6658,-79.3953,-5.0,112.5\n").unwrap();
+        let json = dir.join("Ifc4_ARC.json");
+        write_envelope_model(&json, true, true, true);
+        let mut ctx = TaskContext::new();
+        for option in &reg.actions["murb-simulate"].options {
+            if let Some(default) = &option.default {
+                ctx.options.insert(option.name.clone(), default.clone());
+            }
+        }
+        ctx.options
+            .insert("epw".into(), epw.to_str().unwrap().into());
+        ctx.options
+            .insert("model".into(), json.to_str().unwrap().into());
+        let (input, _, _) = simulation_input(&ctx).unwrap();
+        assert_eq!(input.name, "Ifc4_ARC in Toronto");
+        // and the model's areas still come through the defaults
+        assert_eq!(input.gfa, 120.0);
+        assert_eq!(round1(input.area_walls_bg), 2.5);
     }
 
     #[test]
