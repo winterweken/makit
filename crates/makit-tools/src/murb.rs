@@ -21,6 +21,7 @@ use makit_core::models::TaskContext;
 use makit_core::registry::Registry;
 
 use crate::building_model;
+use crate::python;
 
 // ---------------------------------------------------------------------------
 // Data Types (M2)
@@ -278,55 +279,10 @@ fn describe_window_groups(groups: &[WindowGroupInput]) -> String {
 // Subprocess Bridge (M3-M5)
 // ---------------------------------------------------------------------------
 
-/// Locate the murb_runner.py script relative to the makit binary.
-fn find_runner_script() -> anyhow::Result<PathBuf> {
-    // Check relative to current executable
-    if let Ok(exe) = std::env::current_exe() {
-        let exe_dir = exe.parent().unwrap_or(std::path::Path::new("."));
-        // Development: binary is in target/debug, script is in scripts/
-        for candidate in &[
-            exe_dir.join("../../scripts/murb_runner.py"),
-            exe_dir.join("../scripts/murb_runner.py"),
-            exe_dir.join("scripts/murb_runner.py"),
-        ] {
-            if candidate.exists() {
-                return Ok(candidate.canonicalize()?);
-            }
-        }
-    }
-
-    // Check relative to CWD
-    let cwd_script = PathBuf::from("scripts/murb_runner.py");
-    if cwd_script.exists() {
-        return Ok(cwd_script.canonicalize()?);
-    }
-
-    anyhow::bail!(
-        "murb_runner.py not found. Ensure the makit repository is intact \
-         and scripts/murb_runner.py exists."
-    )
-}
-
-/// Find a Python interpreter on the system.
-fn find_python() -> anyhow::Result<String> {
-    for candidate in &["python3", "python"] {
-        if Command::new(candidate)
-            .arg("--version")
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .is_ok()
-        {
-            return Ok(candidate.to_string());
-        }
-    }
-    anyhow::bail!("Python not found — MURB requires Python 3.10+ with murb_energy_tool installed")
-}
-
 /// Run a MURB simulation via the Python subprocess bridge.
 pub fn run_simulation(input: &MurbInput) -> anyhow::Result<MurbResults> {
-    let python = find_python()?;
-    let script = find_runner_script()?;
+    let python = python::find("murb_energy_tool")?;
+    let script = python::repo_file("scripts/murb_runner.py")?;
     let input_json = serde_json::to_string(input)?;
 
     let mut child = Command::new(&python)
@@ -505,22 +461,20 @@ fn handle_report(ctx: &TaskContext) -> anyhow::Result<()> {
 }
 
 /// Handle `murb` source connection check.
-fn handle_connect(ctx: &TaskContext) -> anyhow::Result<()> {
-    // Verify Python + murb_energy_tool are available
-    let python = find_python()?;
-    let check = Command::new(&python)
-        .args(["-c", "import murb_energy_tool; print('ok')"])
-        .output()?;
-
-    if check.status.success() {
-        println!("✓ MURB energy model available (Python: {})", python);
-    } else {
-        let stderr = String::from_utf8_lossy(&check.stderr);
-        println!("✗ murb_energy_tool not found: {}", stderr.trim());
-        println!("  Install: pip install -r requirements.txt (from murb repo)");
+fn handle_connect(_ctx: &TaskContext) -> anyhow::Result<()> {
+    match python::find("murb_energy_tool") {
+        Ok(python) => println!(
+            "✓ MURB energy model available (Python: {})",
+            python.display()
+        ),
+        Err(err) => {
+            println!("✗ {err}");
+            println!(
+                "  Install: put the murb repository on PYTHONPATH, or point MAKIT_PYTHON \
+                 at a Python that has murb_energy_tool"
+            );
+        }
     }
-
-    let _ = ctx; // suppress unused warning
     Ok(())
 }
 
