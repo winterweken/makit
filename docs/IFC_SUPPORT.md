@@ -102,7 +102,7 @@ pip install ifcopenshell
 
 ## Generic Format: Version 2
 
-Extractions written since makit 3.1 carry `metadata.formatVersion: 2` and, next to
+Extractions written by this version of the extractor carry `metadata.formatVersion: 2` and, next to
 `walls` and `windows`:
 
 ```json

@@ -239,11 +239,11 @@ Tools register **sources** (inputs and connections) and **actions** (operations)
 # Build
 cargo build
 
-# Run all 323 tests (3 cli, 10 core, 40 geometry, 80 tools, 190 tui). They read the
+# Run all 324 tests (3 cli, 10 core, 40 geometry, 80 tools, 191 tui). They read the
 # three committed extractions in examples/IFC and need no Python.
 cargo test
 
-# Python IFC extractor: set up once, then run its 44 tests. makit finds this
+# Python IFC extractor: set up once, then run its 48 tests. makit finds this
 # Python on its own (MAKIT_PYTHON, then .venv/bin/python, then python3).
 uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell
 .venv/bin/python -m unittest discover -s pyrevit-extension/tests

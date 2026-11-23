@@ -94,7 +94,7 @@ The `building-model.json` file is **platform-independent**:
       "type": "solidwall",
       "properties": {
         "description": "A solid outer wall..."
-      }
+      },
       "bottom": -0.25,
       "top": 3.38
     }
