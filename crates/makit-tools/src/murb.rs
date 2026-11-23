@@ -173,10 +173,12 @@ pub fn command_line(ctx: &TaskContext) -> String {
         if value.is_empty() {
             continue;
         }
-        let needs_quotes = value
+        // only plain path-like values go unquoted; anything the shell could
+        // read (spaces, & ; | ( ) quotes…) is single-quoted
+        let plain = value
             .chars()
-            .any(|c| c.is_whitespace() || "'\"$`\\".contains(c));
-        let value = if needs_quotes {
+            .all(|c| c.is_ascii_alphanumeric() || "-_./:+,@%=".contains(c));
+        let value = if !plain {
             format!("'{}'", value.replace('\'', "'\\''"))
         } else {
             value.clone()
@@ -1532,6 +1534,22 @@ mod tests {
             command_line(&ctx),
             "makit exec murb analysis murb-simulate -o epw='a b.epw' -o grade=1 -o model=house.json"
         );
+        // shell metacharacters without whitespace are quoted too
+        for (value, quoted) in [
+            ("house&annex.epw", "'house&annex.epw'"),
+            ("a;b", "'a;b'"),
+            ("it's.epw", "'it'\\''s.epw'"),
+            ("examples/IFC/x.ifc", "examples/IFC/x.ifc"),
+            ("-1.5", "-1.5"),
+        ] {
+            let mut ctx = TaskContext::new();
+            ctx.options.insert("epw".into(), value.into());
+            assert_eq!(
+                command_line(&ctx),
+                format!("makit exec murb analysis murb-simulate -o epw={quoted}"),
+                "{value}"
+            );
+        }
     }
 
     #[test]

@@ -180,6 +180,26 @@ fn facings(pairs: &[(f64, f64)]) -> Vec<Facing> {
     facings
 }
 
+/// Whether two facings lists describe the same split: the same directions
+/// (within half a degree) with the same shares (within a percent).
+fn same_split(a: &[Facing], b: &[Facing]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut a: Vec<&Facing> = a.iter().collect();
+    let mut b: Vec<&Facing> = b.iter().collect();
+    let by_azimuth = |x: &&Facing, y: &&Facing| {
+        x.azimuth
+            .partial_cmp(&y.azimuth)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    };
+    a.sort_by(by_azimuth);
+    b.sort_by(by_azimuth);
+    a.iter()
+        .zip(&b)
+        .all(|(x, y)| (x.azimuth - y.azimuth).abs() <= 0.5 && x.share.abs_diff(y.share) <= 1)
+}
+
 /// The run's name without murb's weather suffix.
 fn title_of(results: &MurbResults) -> String {
     let name = results.name.trim();
@@ -210,29 +230,37 @@ pub fn page_data(results: &MurbResults) -> PageData {
         })
         .unwrap_or_default();
 
-    let glass = match (envelope, input) {
-        (Some(e), _) => {
-            let facings = facings(&e.windows_by_facing);
-            let total: f64 = facings.iter().map(|f| f.area).fold(0.0, |s, v| s + v);
-            Glass {
-                total: round(total, 1),
-                unfaced: round((e.windows - total).max(0.0), 1),
-                facings,
-            }
+    // The split the simulation ran with: the model's facings when the
+    // window groups follow them, else the groups as typed.
+    let model_glass = envelope.map(|e| {
+        let facings = facings(&e.windows_by_facing);
+        let total: f64 = facings.iter().map(|f| f.area).fold(0.0, |s, v| s + v);
+        Glass {
+            total: round(total, 1),
+            unfaced: round((e.windows - total).max(0.0), 1),
+            facings,
         }
-        (None, Some(i)) => {
-            let pairs: Vec<(f64, f64)> = i
-                .window_groups
-                .iter()
-                .map(|g| (g.window_azimuth, g.pct_window_area * i.area_windows))
-                .collect();
-            let facings = facings(&pairs);
-            Glass {
-                total: round(i.area_windows, 1),
-                unfaced: 0.0,
-                facings,
-            }
+    });
+    let typed_glass = input.map(|i| {
+        let pairs: Vec<(f64, f64)> = i
+            .window_groups
+            .iter()
+            .map(|g| (g.window_azimuth, g.pct_window_area * i.area_windows))
+            .collect();
+        Glass {
+            total: round(i.area_windows, 1),
+            unfaced: 0.0,
+            facings: facings(&pairs),
         }
+    });
+    let split_as_given = match (&model_glass, &typed_glass) {
+        (Some(model), Some(typed)) => !same_split(&model.facings, &typed.facings),
+        _ => false,
+    };
+    let glass = match (model_glass, typed_glass) {
+        (Some(model), _) if !split_as_given => model,
+        (_, Some(typed)) => typed,
+        (Some(model), None) => model,
         (None, None) => Glass::default(),
     };
 
@@ -266,15 +294,17 @@ pub fn page_data(results: &MurbResults) -> PageData {
             .map(|e| total_mwh(&e.monthly_cooling_demand)),
     };
 
-    let (roof, glass_area, walls_ag, walls_bg, known) = match (envelope, input) {
-        (Some(e), _) => (e.roof, e.windows, e.walls_ag, e.walls_bg, true),
-        (None, Some(i)) => (
+    // The areas the simulation ran with (typed values win over the model);
+    // the model keeps the storeys and the provenance.
+    let (roof, glass_area, walls_ag, walls_bg, known) = match (input, envelope) {
+        (Some(i), _) => (
             i.area_roof,
             i.area_windows,
             i.area_walls_ag,
             i.area_walls_bg,
             true,
         ),
+        (None, Some(e)) => (e.roof, e.windows, e.walls_ag, e.walls_bg, true),
         (None, None) => (0.0, 0.0, 0.0, 0.0, false),
     };
     let floor = results.gfa;
@@ -386,10 +416,46 @@ pub fn page_data(results: &MurbResults) -> PageData {
                 ));
             }
             notes.push(glass_note);
+            if split_as_given {
+                let model_facings: Vec<String> = facings(&e.windows_by_facing)
+                    .iter()
+                    .map(|f| format!("{} {}%", f.word, f.share))
+                    .collect();
+                notes.push(format!(
+                    "Glass split as given: {}; the model's windows face {}.",
+                    glass
+                        .facings
+                        .iter()
+                        .map(|f| format!("{} {}%", f.word, f.share))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    if model_facings.is_empty() {
+                        "nowhere".to_string()
+                    } else {
+                        model_facings.join(", ")
+                    }
+                ));
+            }
             notes.push(format!(
                 "Walls are net of their openings and split at grade {:.1} m: {:.1} m² above, {:.1} m² below.",
                 e.grade, e.walls_ag, e.walls_bg
             ));
+            if let Some(i) = input {
+                let overrides: Vec<String> = [
+                    ("floor", i.gfa, e.gfa),
+                    ("walls above grade", i.area_walls_ag, e.walls_ag),
+                    ("walls below grade", i.area_walls_bg, e.walls_bg),
+                    ("windows", i.area_windows, e.windows),
+                    ("roof", i.area_roof, e.roof),
+                ]
+                .iter()
+                .filter(|(_, typed, model)| (typed - model).abs() > 0.05)
+                .map(|(what, typed, model)| format!("{what} {typed:.1} m² (model {model:.1} m²)"))
+                .collect();
+                if !overrides.is_empty() {
+                    notes.push(format!("Typed over the model: {}.", overrides.join(", ")));
+                }
+            }
         }
         (None, Some(_)) => notes.push(
             "The floor, wall, window and roof areas are as typed; no model was used.".to_string(),
@@ -745,6 +811,55 @@ mod tests {
             note.contains("Pad:Pad 2 (287.3 m²), stub a (0.1 m²), stub b (0.1 m²) and 2 more, 287.7 m² in all"),
             "{note}"
         );
+    }
+
+    #[test]
+    fn typed_areas_over_the_model_are_what_the_page_shows() {
+        let mut results = arc_results();
+        results.input.as_mut().unwrap().area_roof = 300.0;
+        results.input.as_mut().unwrap().area_walls_bg = 0.0;
+        let data = page_data(&results);
+        // the envelope the simulation ran with, not the one the model measured
+        assert_eq!(data.envelope.roof, 300.0);
+        assert_eq!(data.envelope.walls_bg, 0.0);
+        assert_eq!(
+            round1(data.envelope.above_grade),
+            round1(532.5 + 197.3 + 300.0)
+        );
+        // the model still gives the storeys and the provenance
+        assert_eq!(data.envelope.levels, 2);
+        let note = data
+            .notes
+            .iter()
+            .find(|n| n.contains("Typed over the model"))
+            .expect("an override note");
+        assert!(note.contains("roof 300.0 m² (model 244.3 m²)"), "{note}");
+        assert!(
+            note.contains("walls below grade 0.0 m² (model 174.7 m²)"),
+            "{note}"
+        );
+        assert!(!note.contains("windows"), "{note}");
+    }
+
+    #[test]
+    fn typed_window_directions_drive_the_compass() {
+        let mut results = arc_results();
+        results.input.as_mut().unwrap().window_groups = vec![group(0.0, 1.0)];
+        let data = page_data(&results);
+        assert_eq!(data.glass.facings.len(), 1);
+        let north = &data.glass.facings[0];
+        assert_eq!(
+            (north.azimuth, north.name.as_str(), north.share),
+            (0.0, "N", 100)
+        );
+        assert_eq!(north.area, 197.3);
+        assert!(data.lede.contains("north"), "{}", data.lede);
+        let note = data
+            .notes
+            .iter()
+            .find(|n| n.contains("split as given"))
+            .expect("a note on the given split");
+        assert!(note.contains("south-east"), "{note}");
     }
 
     #[test]
