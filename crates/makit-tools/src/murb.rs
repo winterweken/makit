@@ -22,6 +22,7 @@ use makit_core::registry::Registry;
 
 use crate::building_model::{self, Envelope};
 use crate::ifc;
+use crate::murb_report;
 use crate::python;
 
 // ---------------------------------------------------------------------------
@@ -94,6 +95,97 @@ pub struct MurbResults {
     /// Why it could not write one, when it could not.
     #[serde(default)]
     pub report_error: Option<String>,
+    /// The input the run was made from, for the report page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input: Option<MurbInput>,
+    /// The model's envelope, when a model gave the areas.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub envelope: Option<Envelope>,
+    /// The `--model` path, when one was given.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    /// A second run with the glass spread evenly, for comparison.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub even_glass: Option<EvenGlass>,
+    /// The makit command that reproduces the run.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub command: Option<String>,
+}
+
+/// What a run with the glass spread evenly (25 % each way) gave, kept with
+/// the results so the report page can show what the real split is worth.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EvenGlass {
+    pub tedi_kwh_m2: f64,
+    pub teui_kwh_m2: f64,
+    pub ghgi_kg_m2: f64,
+    pub monthly_heating_demand: Vec<f64>,
+    pub monthly_cooling_demand: Vec<f64>,
+    pub monthly_total_consumption: Vec<f64>,
+}
+
+impl EvenGlass {
+    fn from_results(results: &MurbResults) -> Self {
+        Self {
+            tedi_kwh_m2: results.tedi_kwh_m2,
+            teui_kwh_m2: results.teui_kwh_m2,
+            ghgi_kg_m2: results.ghgi_kg_m2,
+            monthly_heating_demand: results.monthly_heating_demand.clone(),
+            monthly_cooling_demand: results.monthly_cooling_demand.clone(),
+            monthly_total_consumption: results.monthly_total_consumption.clone(),
+        }
+    }
+}
+
+/// Whether `groups` is the even split murb defaults to: a quarter each way.
+fn is_even_split(groups: &[WindowGroupInput]) -> bool {
+    let even = default_window_groups();
+    groups.len() == even.len()
+        && groups.iter().zip(&even).all(|(g, e)| {
+            (g.pct_window_area - e.pct_window_area).abs() < 1e-9
+                && (g.window_azimuth - e.window_azimuth).abs() < 1e-9
+        })
+}
+
+/// The comparison run for `input`: the same building with its glass spread
+/// evenly, named after it and without murb's HTML report. `None` when the
+/// split already is even.
+pub fn even_glass_input(input: &MurbInput) -> Option<MurbInput> {
+    if is_even_split(&input.window_groups) {
+        return None;
+    }
+    Some(MurbInput {
+        name: format!("{} (even glass)", input.name),
+        window_groups: default_window_groups(),
+        report_dir: None,
+        ..input.clone()
+    })
+}
+
+/// The makit command that reproduces a run: every option given, sorted,
+/// values quoted when the shell would need it.
+pub fn command_line(ctx: &TaskContext) -> String {
+    let mut keys: Vec<&String> = ctx.options.keys().collect();
+    keys.sort();
+    let mut parts = vec!["makit exec murb analysis murb-simulate".to_string()];
+    for key in keys {
+        let value = &ctx.options[key];
+        if value.is_empty() {
+            continue;
+        }
+        // only plain path-like values go unquoted; anything the shell could
+        // read (spaces, & ; | ( ) quotes…) is single-quoted
+        let plain = value
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "-_./:+,@%=".contains(c));
+        let value = if !plain {
+            format!("'{}'", value.replace('\'', "'\\''"))
+        } else {
+            value.clone()
+        };
+        parts.push(format!("-o {key}={value}"));
+    }
+    parts.join(" ")
 }
 
 // Default value functions for serde
@@ -652,7 +744,7 @@ fn handle_simulate(ctx: &TaskContext) -> anyhow::Result<()> {
     }
     println!();
 
-    let results = run_simulation(&input)?;
+    let mut results = run_simulation(&input)?;
 
     // Print summary
     print!("{}", format_report(&results));
@@ -662,12 +754,28 @@ fn handle_simulate(ctx: &TaskContext) -> anyhow::Result<()> {
         println!("\n{err}");
     }
 
-    // Save to file if requested
+    // The same building with its glass spread evenly, for the page's comparison
+    if let Some(even) = even_glass_input(&input) {
+        match run_simulation(&even) {
+            Ok(comparison) => results.even_glass = Some(EvenGlass::from_results(&comparison)),
+            Err(err) => println!("\n(no even-glass comparison: {err:#})"),
+        }
+    }
+    let model = ctx.get_option("model", "");
+    results.model = (!model.trim().is_empty()).then(|| model.trim().to_string());
+    results.envelope = envelope;
+    results.command = Some(command_line(ctx));
+    results.input = Some(input);
+
+    // Save the results and the report page beside them
     let output_path = ctx.get_option("output", "murb_results.json");
     if !output_path.is_empty() {
         let json = serde_json::to_string_pretty(&results)?;
         std::fs::write(&output_path, json)?;
         println!("\nResults saved to: {}", output_path);
+        let page = murb_report::page_path_for(Path::new(&output_path));
+        std::fs::write(&page, murb_report::render_html(&results))?;
+        println!("Report page:      {}", page.display());
     }
 
     Ok(())
@@ -690,6 +798,16 @@ fn handle_report(ctx: &TaskContext) -> anyhow::Result<()> {
     match format.as_str() {
         "json" => {
             println!("{}", serde_json::to_string_pretty(&results)?);
+        }
+        "html" => {
+            let output = ctx.get_option("output", "");
+            let page = if output.trim().is_empty() {
+                murb_report::page_path_for(Path::new(&input_path))
+            } else {
+                PathBuf::from(output.trim())
+            };
+            std::fs::write(&page, murb_report::render_html(&results))?;
+            println!("Report page: {}", page.display());
         }
         _ => {
             print!("{}", format_report(&results));
@@ -841,10 +959,17 @@ pub fn register_tasks(reg: &mut Registry) {
     .add_option("input", "Simulation results JSON", "string", true, None)
     .add_option(
         "format",
-        "Report format (text, json)",
+        "Report format (text, json, html)",
         "string",
         false,
         Some("text"),
+    )
+    .add_option(
+        "output",
+        "Where html writes the page (default: beside the input)",
+        "string",
+        false,
+        None,
     );
 }
 
@@ -1358,6 +1483,100 @@ mod tests {
         assert!(simulation_input(&model_context(&json, &[])).is_ok());
     }
 
+    // ─── The report page's data ─────────────────────────────────────────
+
+    #[test]
+    fn an_even_split_needs_no_comparison_run() {
+        let mut input = MurbInput {
+            epw_path: "t.epw".into(),
+            name: "house in Toronto".into(),
+            province: "ON".into(),
+            gfa: 100.0,
+            area_walls_ag: 50.0,
+            area_walls_bg: 0.0,
+            area_windows: 10.0,
+            area_roof: 40.0,
+            u_walls_ag: 0.273,
+            u_windows: 2.56,
+            u_roof: 0.164,
+            cop_htg: 0.85,
+            cop_clg: 5.2,
+            cop_dhw: 0.85,
+            hrv_efficiency: 0.55,
+            window_groups: default_window_groups(),
+            report_dir: Some("/r".into()),
+        };
+        assert!(even_glass_input(&input).is_none());
+        input.window_groups = parse_window_directions("SE:3,SW:1").unwrap();
+        let even = even_glass_input(&input).expect("a comparison run");
+        assert_eq!(
+            facings(&even.window_groups),
+            facings(&default_window_groups())
+        );
+        assert_eq!(even.area_windows, 10.0);
+        assert_eq!(even.name, "house in Toronto (even glass)");
+        assert_eq!(even.report_dir, None);
+    }
+
+    #[test]
+    fn the_command_line_reproduces_the_run() {
+        let mut ctx = TaskContext::new();
+        for (k, v) in [("model", "house.json"), ("epw", "a b.epw"), ("grade", "1")] {
+            ctx.options.insert(k.into(), v.into());
+        }
+        assert_eq!(
+            command_line(&ctx),
+            "makit exec murb analysis murb-simulate -o epw='a b.epw' -o grade=1 -o model=house.json"
+        );
+        // shell metacharacters without whitespace are quoted too
+        for (value, quoted) in [
+            ("house&annex.epw", "'house&annex.epw'"),
+            ("a;b", "'a;b'"),
+            ("it's.epw", "'it'\\''s.epw'"),
+            ("examples/IFC/x.ifc", "examples/IFC/x.ifc"),
+            ("-1.5", "-1.5"),
+        ] {
+            let mut ctx = TaskContext::new();
+            ctx.options.insert("epw".into(), value.into());
+            assert_eq!(
+                command_line(&ctx),
+                format!("makit exec murb analysis murb-simulate -o epw={quoted}"),
+                "{value}"
+            );
+        }
+    }
+
+    #[test]
+    fn results_keep_the_run_context_for_the_page() {
+        let json = r#"{
+            "name": "h_TMY", "monthly_heating_demand": [], "monthly_cooling_demand": [],
+            "monthly_heating_consumption": [], "monthly_cooling_consumption": [],
+            "monthly_total_consumption": [], "monthly_ghg_emissions": [], "tedi_kwh_m2": 1.0,
+            "teui_kwh_m2": 2.0, "ghgi_kg_m2": 3.0, "gfa": 4.0, "weather_file": "T"
+        }"#;
+        let old: MurbResults = serde_json::from_str(json).unwrap();
+        assert!(old.input.is_none() && old.envelope.is_none() && old.even_glass.is_none());
+        assert!(old.model.is_none() && old.command.is_none());
+        // what the handler adds is written and read back
+        let mut full = old.clone();
+        full.even_glass = Some(EvenGlass {
+            tedi_kwh_m2: 5.0,
+            teui_kwh_m2: 6.0,
+            ghgi_kg_m2: 7.0,
+            monthly_heating_demand: vec![1.0; 12],
+            monthly_cooling_demand: vec![2.0; 12],
+            monthly_total_consumption: vec![3.0; 12],
+        });
+        full.command = Some("makit exec murb analysis murb-simulate -o epw=t.epw".into());
+        full.model = Some("h.ifc".into());
+        let text = serde_json::to_string(&full).unwrap();
+        let back: MurbResults = serde_json::from_str(&text).unwrap();
+        assert_eq!(back.even_glass, full.even_glass);
+        assert_eq!(back.command, full.command);
+        // absent fields are not written
+        assert!(!serde_json::to_string(&old).unwrap().contains("even_glass"));
+    }
+
     #[test]
     fn test_murb_input_serialization() {
         let input = MurbInput {
@@ -1430,6 +1649,11 @@ mod tests {
             weather_file: "TORONTO".to_string(),
             report_path: None,
             report_error: None,
+            input: None,
+            envelope: None,
+            model: None,
+            even_glass: None,
+            command: None,
         };
 
         let report = format_report(&results);

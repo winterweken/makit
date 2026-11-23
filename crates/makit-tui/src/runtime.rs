@@ -263,7 +263,7 @@ fn spawn_murb_load(path: String, tx: Sender<Msg>) {
         .spawn(move || {
             let path = task::expand_tilde(&path, home_dir().as_deref());
             let results = app::load_murb_results(Path::new(&path));
-            let _ = tx.send(Msg::MurbLoaded(results));
+            let _ = tx.send(Msg::MurbLoaded(results.map(Box::new)));
         });
     if spawned.is_err() {
         let _ = tx_spawn_err.send(Msg::MurbLoaded(None));
@@ -577,6 +577,11 @@ mod tests {
             weather_file: "x.epw".into(),
             report_path: None,
             report_error: None,
+            input: None,
+            envelope: None,
+            model: None,
+            even_glass: None,
+            command: None,
         };
         let dir = std::env::temp_dir().join(format!("makit-tui-murb-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
