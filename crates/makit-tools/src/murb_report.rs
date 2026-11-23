@@ -1,6 +1,6 @@
 //! The report page `murb-simulate` writes beside its results: the glass on a
-//! compass next to the three intensities, the year, the envelope, and how the
-//! numbers were made. Everything the page states is derived here, in
+//! compass next to the three intensities, the year, where the heat goes, the
+//! envelope, and how the numbers were made. Everything the page states is derived here, in
 //! [`page_data`]; the page's own script only lays it out.
 
 use std::path::{Path, PathBuf};
@@ -114,6 +114,25 @@ pub struct EnvelopeData {
     pub known: bool,
 }
 
+/// Heat moving one way, per square metre of floor over the year.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Flow {
+    pub name: String,
+    /// kWh/m², one decimal.
+    pub kwh_m2: f64,
+}
+
+/// Where the heat goes: lost while heating by each path, gained while
+/// heating, gained while cooling by each source.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct HeatFlows {
+    pub heating_losses: Vec<Flow>,
+    pub heating_gains: Vec<Flow>,
+    pub cooling_gains: Vec<Flow>,
+    /// Why they do not add up to TEDI.
+    pub note: String,
+}
+
 /// Everything the page states.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct PageData {
@@ -129,6 +148,8 @@ pub struct PageData {
     pub monthly: Monthly,
     pub totals: Totals,
     pub envelope: EnvelopeData,
+    /// None for results written before makit ran the model itself.
+    pub heat_flows: Option<HeatFlows>,
     pub notes: Vec<String>,
     pub command: Option<String>,
 }
@@ -209,6 +230,41 @@ fn title_of(results: &MurbResults) -> String {
         }
     }
     name.to_string()
+}
+
+/// Why the heat flows do not add up to TEDI.
+const HEAT_FLOW_NOTE: &str = "Heating demand is worked out month by month and never goes below zero, so in mild months the gains outweigh the losses and the surplus is not carried over: these figures do not add up to the TEDI above.";
+
+/// The year's heat flows per square metre of floor, from the results'
+/// breakdown; none without one, or without a floor area.
+fn heat_flows(results: &MurbResults) -> Option<HeatFlows> {
+    let b = results.breakdown.as_ref()?;
+    if results.gfa <= 0.0 {
+        return None;
+    }
+    let flow = |name: &str, series: &[f64]| Flow {
+        name: name.to_string(),
+        kwh_m2: round(series.iter().sum::<f64>() / results.gfa, 1),
+    };
+    Some(HeatFlows {
+        heating_losses: vec![
+            flow("Transmission", &b.transmission_heat_losses),
+            flow("Ventilation", &b.ventilation_heat_losses),
+            flow("Infiltration", &b.infiltration_heat_losses),
+        ],
+        heating_gains: vec![
+            flow("Internal gains", &b.internal_gains_during_htg),
+            flow("Solar gains", &b.solar_gains_during_htg),
+        ],
+        cooling_gains: vec![
+            flow("Transmission", &b.transmission_heat_gains),
+            flow("Ventilation", &b.ventilation_heat_gains),
+            flow("Infiltration", &b.infiltration_heat_gains),
+            flow("Internal gains", &b.internal_gains_during_clg),
+            flow("Solar gains", &b.solar_gains_during_clg),
+        ],
+        note: HEAT_FLOW_NOTE.to_string(),
+    })
 }
 
 /// Everything the page states, derived from the results.
@@ -478,7 +534,7 @@ pub fn page_data(results: &MurbResults) -> PageData {
         ));
     }
     notes.push(
-        "murb_energy_tool is written for multi-unit residential buildings; for other building types treat these results as indicative.".to_string(),
+        "The energy model, ported from murb_energy_tool, is written for multi-unit residential buildings; for other building types treat these results as indicative.".to_string(),
     );
 
     PageData {
@@ -493,6 +549,7 @@ pub fn page_data(results: &MurbResults) -> PageData {
         monthly,
         totals,
         envelope: envelope_data,
+        heat_flows: heat_flows(results),
         notes,
         command: results.command.clone(),
     }
@@ -556,7 +613,7 @@ pub fn page_path_for(results_path: &Path) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::murb::{EvenGlass, MurbInput, MurbResults, WindowGroupInput};
+    use crate::murb::{Breakdown, EvenGlass, MurbInput, MurbResults, WindowGroupInput};
     use std::path::{Path, PathBuf};
 
     fn round1(x: f64) -> f64 {
@@ -715,6 +772,83 @@ mod tests {
     }
 
     /// The JSON the page embeds.
+    #[test]
+    fn the_page_shows_where_the_heat_goes() {
+        let every = vec![100.0; 12];
+        let mut results = arc_results();
+        results.breakdown = Some(Breakdown {
+            transmission_heat_losses: every.clone(),
+            transmission_heat_gains: every.clone(),
+            ventilation_heat_losses: every.clone(),
+            ventilation_heat_gains: every.clone(),
+            infiltration_heat_losses: every.clone(),
+            infiltration_heat_gains: every.clone(),
+            internal_gains_during_htg: every.clone(),
+            internal_gains_during_clg: every.clone(),
+            solar_gains_during_htg: vec![50.0; 12],
+            solar_gains_during_clg: every.clone(),
+            lighting_consumption: every.clone(),
+            dhw_htg_consumption: every.clone(),
+            plug_loads_consumption: every.clone(),
+            electricity_consumption: every.clone(),
+            gas_consumption: every,
+        });
+        let g = results.gfa;
+        let flows = page_data(&results).heat_flows.expect("heat flows");
+        let names = |list: &[Flow]| list.iter().map(|f| f.name.clone()).collect::<Vec<_>>();
+        assert_eq!(
+            names(&flows.heating_losses),
+            ["Transmission", "Ventilation", "Infiltration"]
+        );
+        assert!(flows
+            .heating_losses
+            .iter()
+            .all(|f| f.kwh_m2 == round1(1200.0 / g)));
+        assert_eq!(
+            names(&flows.heating_gains),
+            ["Internal gains", "Solar gains"]
+        );
+        assert_eq!(flows.heating_gains[1].kwh_m2, round1(600.0 / g));
+        assert_eq!(
+            names(&flows.cooling_gains),
+            [
+                "Transmission",
+                "Ventilation",
+                "Infiltration",
+                "Internal gains",
+                "Solar gains"
+            ]
+        );
+        assert_eq!(
+            flows.note,
+            "Heating demand is worked out month by month and never goes below zero, so in mild months the gains outweigh the losses and the surplus is not carried over: these figures do not add up to the TEDI above."
+        );
+        let html = render_html(&results);
+        assert!(html.contains(r#"aria-labelledby="heat-h""#));
+        assert_eq!(
+            embedded_data(&html)["heat_flows"]["heating_gains"][0]["name"],
+            "Internal gains"
+        );
+    }
+
+    #[test]
+    fn old_results_have_no_heat_flows() {
+        let results = arc_results();
+        assert!(results.breakdown.is_none());
+        assert_eq!(page_data(&results).heat_flows, None);
+        assert!(embedded_data(&render_html(&results))["heat_flows"].is_null());
+    }
+
+    #[test]
+    fn the_caveat_names_the_engine_makit_carries() {
+        let notes = page_data(&arc_results()).notes;
+        assert!(notes.iter().any(|n| n
+            == "The energy model, ported from murb_energy_tool, is written for multi-unit residential buildings; for other building types treat these results as indicative."));
+        assert!(!notes
+            .iter()
+            .any(|n| n.starts_with("murb_energy_tool is written")));
+    }
+
     fn embedded_data(html: &str) -> serde_json::Value {
         let marker = r#"<script id="makit-data" type="application/json">"#;
         let start = html.find(marker).expect("data script") + marker.len();

@@ -84,6 +84,14 @@
   th, td { padding: 5px 14px 5px 0; text-align: right; border-bottom: 1px solid var(--rule); }
   th:first-child, td:first-child { text-align: left; }
   th { font-weight: 500; color: var(--ink-3); font-size: 12.5px; }
+  .flows { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 22px 40px; }
+  .flow-group { display: grid; gap: 9px; align-content: start; }
+  .flow-title { font-size: 14px; color: var(--ink-2); }
+  .flow { display: grid; grid-template-columns: 8.5em minmax(0, 1fr) 7.4em; align-items: center; gap: 10px; font-size: 14px; }
+  .flow-track { height: 10px; border-radius: 3px; background: var(--rule); overflow: hidden; }
+  .flow-track i { display: block; height: 100%; border-radius: 3px; }
+  .flow-value { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+  .flow-value small { color: var(--ink-3); font-size: 12px; margin-left: 3px; }
   .ratios { display: flex; flex-wrap: wrap; gap: 10px 36px; }
   .ratio { display: grid; gap: 2px; }
   .ratio .value { font-weight: 600; font-size: 24px; }
@@ -143,6 +151,13 @@
       <summary>Monthly values as a table</summary>
       <div class="scroll"><table id="table"></table></div>
     </details>
+  </section>
+
+  <section aria-labelledby="heat-h" id="heat">
+    <div class="label" id="heat-h">Where the heat goes</div>
+    <h2>Lost while heating, gained while cooling</h2>
+    <div class="flows" id="flows"></div>
+    <p class="lede" id="heat-note"></p>
   </section>
 
   <section aria-labelledby="env-h">
@@ -373,6 +388,35 @@
       var row = t.insertRow();
       [MONTHS[i], (HEAT[i] || 0).toFixed(2), (COOL[i] || 0).toFixed(2), (USE[i] || 0).toFixed(2)].forEach(function (v) { row.insertCell().textContent = v; });
     }
+  })();
+
+  /* ---------- where the heat goes ---------- */
+  (function heat() {
+    var F = D.heat_flows;
+    if (!F) { document.getElementById("heat").hidden = true; return; }
+    var groups = [
+      ["Lost while heating", F.heating_losses, "var(--heat)"],
+      ["Gained while heating", F.heating_gains, "var(--heat)"],
+      ["Gained while cooling", F.cooling_gains, "var(--cool)"]
+    ];
+    var max = 0;
+    groups.forEach(function (g) { g[1].forEach(function (f) { max = Math.max(max, f.kwh_m2); }); });
+    var box = document.getElementById("flows");
+    groups.forEach(function (g) {
+      var group = h("div", "flow-group", null, box);
+      h("div", "flow-title", g[0], group);
+      g[1].forEach(function (f) {
+        var row = h("div", "flow", null, group);
+        h("span", null, f.name, row);
+        var track = h("span", "flow-track", null, row);
+        var bar = h("i", null, null, track);
+        bar.style.width = (max > 0 ? Math.max(f.kwh_m2, 0) / max * 100 : 0) + "%";
+        bar.style.background = g[2];
+        var value = h("span", "flow-value", f1(f.kwh_m2), row);
+        h("small", null, "kWh/m²", value);
+      });
+    });
+    document.getElementById("heat-note").textContent = F.note;
   })();
 
   /* ---------- the envelope ---------- */
