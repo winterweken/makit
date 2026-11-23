@@ -263,9 +263,24 @@ pub fn extraction_path(ifc_path: &Path) -> PathBuf {
     ifc_path.with_extension("json")
 }
 
-/// The makit command that extracts `ifc_path` to [`extraction_path`].
-pub fn extraction_command(ifc_path: &Path) -> String {
-    format!("makit extract {}", ifc_path.display())
+/// The format version an extraction declares, read from its metadata alone:
+/// 1 when it names none, or the file cannot be read or parsed.
+pub fn format_version_of(json: &Path) -> u32 {
+    #[derive(Deserialize)]
+    struct Header {
+        #[serde(default)]
+        metadata: Option<Version>,
+    }
+    #[derive(Deserialize)]
+    struct Version {
+        #[serde(default = "format_one", rename = "formatVersion")]
+        format_version: u32,
+    }
+    std::fs::read_to_string(json)
+        .ok()
+        .and_then(|text| serde_json::from_str::<Header>(&text).ok())
+        .and_then(|header| header.metadata)
+        .map_or(1, |version| version.format_version)
 }
 
 /// The `sourceFile` an extraction names, if it names one. An extraction
@@ -930,14 +945,6 @@ mod tests {
     }
 
     #[test]
-    fn the_extraction_command_is_makit_extract() {
-        assert_eq!(
-            extraction_command(Path::new("examples/IFC/Ifc4_ARC.ifc")),
-            "makit extract examples/IFC/Ifc4_ARC.ifc"
-        );
-    }
-
-    #[test]
     fn the_example_extraction_belongs_to_its_ifc_alone() {
         let dir = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples/IFC"));
         assert_eq!(
@@ -1087,6 +1094,23 @@ mod tests {
                 "{name} = {value:?}"
             );
         }
+    }
+
+    #[test]
+    fn the_format_version_is_read_without_the_model() {
+        let dir = folder("version");
+        let json = dir.join("odd.json");
+        // a header the model loader would choke on still names its version
+        std::fs::write(
+            &json,
+            r#"{ "metadata": { "formatVersion": 2 }, "walls": 5 }"#,
+        )
+        .unwrap();
+        assert!(load_model(&json).is_err());
+        assert_eq!(format_version_of(&json), 2);
+        std::fs::write(&json, r#"{ "walls": [] }"#).unwrap();
+        assert_eq!(format_version_of(&json), 1);
+        assert_eq!(format_version_of(&dir.join("missing.json")), 1);
     }
 
     #[test]

@@ -131,11 +131,7 @@ fn apply(state: &mut AppState, msg: Msg) -> Vec<Cmd> {
             Vec::new()
         }
         Msg::Output(line) => {
-            state.push_log(line);
-            if !state.show_output && !state.output_auto_opened {
-                state.show_output = true;
-                state.output_auto_opened = true;
-            }
+            output(state, line);
             Vec::new()
         }
         Msg::TaskFinished { id, result } => task_finished(state, id, result),
@@ -494,6 +490,15 @@ fn load_ifc(state: &mut AppState, index: usize) -> Vec<Cmd> {
     vec![Cmd::LoadIfc { path }]
 }
 
+/// A line for the Output pane, opening it the first time.
+fn output(state: &mut AppState, line: String) {
+    state.push_log(line);
+    if !state.show_output && !state.output_auto_opened {
+        state.show_output = true;
+        state.output_auto_opened = true;
+    }
+}
+
 /// The worker is running the extractor on `path`; say so while it is still
 /// the selection being loaded.
 fn ifc_extracting(state: &mut AppState, path: &str) {
@@ -530,6 +535,8 @@ fn ifc_loaded(state: &mut AppState, path: String, result: Result<IfcOutcome, Str
             }
             if let Some(note) = &note {
                 status.push_str(&format!(" · {note}"));
+                // one row cannot hold it all; the Output pane can
+                output(state, format!("── ◆ {path}: {note}"));
             }
             state.status = status;
             state.ifc.analysis = Some(analysis);
@@ -539,6 +546,8 @@ fn ifc_loaded(state: &mut AppState, path: String, result: Result<IfcOutcome, Str
         }
         Ok(IfcOutcome::NeedsExtraction { reason }) => {
             state.status = format!("◆ {path} is not extracted: {reason}");
+            // the setup hint at the end of the reason needs the Output pane's width
+            output(state, format!("── ◆ {path}: {reason}"));
             state.ifc.note = Some(reason);
         }
         Err(err) => {
@@ -1014,6 +1023,28 @@ mod tests {
             s.ifc.note.as_deref(),
             Some("using stale examples/IFC/b.json: no python")
         );
+        // the note is also in the Output pane, in full
+        assert!(s.log.iter().any(|l| l.contains("no python")), "{:?}", s.log);
+    }
+
+    #[test]
+    fn a_missing_extraction_reason_goes_to_the_output_pane_in_full() {
+        let mut s = state();
+        s.ifc.loading = Some("m/y.ifc".into());
+        let reason = "m/y.ifc is not extracted and extraction failed: no Python with \
+                      ifcopenshell found (tried python3, python); set up a Python with \
+                      IfcOpenShell once: uv venv .venv --python 3.13 …"
+            .to_string();
+        update(
+            &mut s,
+            Msg::IfcLoaded {
+                path: "m/y.ifc".into(),
+                result: Ok(IfcOutcome::NeedsExtraction { reason }),
+            },
+        );
+        // one status row cannot hold the setup hint; the Output pane can
+        assert!(s.log.iter().any(|l| l.contains("uv venv")), "{:?}", s.log);
+        assert!(s.show_output);
     }
 
     #[test]

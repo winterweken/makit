@@ -279,13 +279,18 @@ pub fn load_ifc(path: &Path, on_extract: &dyn Fn()) -> Result<IfcOutcome, String
             .is_some_and(|e| e.eq_ignore_ascii_case(ext))
     };
     let (json, extracted, note) = if has_ext("ifc") {
-        if ifc::needs_extraction(path) {
+        let found = building_model::find_json_for_ifc(path);
+        let missing = found.is_none();
+        let stale = found
+            .as_deref()
+            .is_some_and(|json| ifc::is_stale(path, json));
+        if missing || stale {
             on_extract();
         }
-        match ifc::extraction_for(path, None) {
+        match ifc::resolve(path, found, stale, || ifc::extract(path, None, None)) {
             Ok(resolved) => (resolved.json, resolved.extracted, resolved.note),
             // Nothing to show: no extraction exists and none could be made.
-            Err(err) if building_model::find_json_for_ifc(path).is_none() => {
+            Err(err) if missing => {
                 return Ok(IfcOutcome::NeedsExtraction {
                     reason: err.to_string(),
                 });

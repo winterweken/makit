@@ -121,10 +121,7 @@ pub fn extract(
 /// Whether `json` no longer stands for `ifc`: the IFC is newer by more than
 /// [`STALE_TOLERANCE`], or the JSON predates storeys and slabs (format 1).
 pub fn is_stale(ifc: &Path, json: &Path) -> bool {
-    let version = building_model::load_model(json)
-        .map(|model| model.format_version())
-        .unwrap_or(1);
-    if version < 2 {
+    if building_model::format_version_of(json) < 2 {
         return true;
     }
     let modified = |path: &Path| std::fs::metadata(path).and_then(|m| m.modified());
