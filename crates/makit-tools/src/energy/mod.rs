@@ -18,6 +18,7 @@
 use std::path::PathBuf;
 
 pub mod solar;
+pub mod weather;
 
 #[cfg(test)]
 pub(crate) mod test_support;
