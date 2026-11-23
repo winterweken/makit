@@ -246,7 +246,7 @@ Tools register **sources** (inputs and connections) and **actions** (operations)
 # Build
 cargo build
 
-# Run all 336 tests (3 cli, 10 core, 40 geometry, 92 tools, 191 tui). They read the
+# Run all 337 tests (3 cli, 10 core, 40 geometry, 93 tools, 191 tui). They read the
 # three committed extractions in examples/IFC and need no Python.
 cargo test
 
