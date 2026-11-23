@@ -140,6 +140,8 @@ The generic building model format is JSON-based and platform-agnostic:
       "id": "123456",
       "name": "Basic Wall: Exterior - CMU",
       "orientation": {"x": 1.0, "y": 0.0, "z": 0.0},
+      "startPoint": {"x": 1.0, "y": 2.0, "z": 0.0},
+      "endPoint": {"x": 13.9, "y": 2.0, "z": 0.0},
       "area": 45.2,
       "height": 3.5,
       "length": 12.9,
@@ -168,6 +170,7 @@ The generic building model format is JSON-based and platform-agnostic:
 - `isCurtainWall` walls have their normal reversed before classification (see Curtain Walls below).
 - `area` is the wall's opaque area, net of the windows and doors in it; the analyses add the window area back (WWR = window / (wall + window)). The IFC extractor takes `NetSideArea`; with only `GrossSideArea` or height × length it subtracts the windows and doors that fill the wall's openings; with no quantities it measures the geometry, which has the openings cut out.
 - `isExternal` is `true` for an envelope wall and `false` for an interior one. Walls flagged `false`, and the windows in them, are left out of the analysis; walls without the field are counted. The IFC extractor copies it from `Pset_WallCommon.IsExternal` (a property left without a value counts as not known); the Revit extractor does not set it yet.
+- `startPoint` and `endPoint` are the ends of the wall's axis in plan, in metres and project coordinates (format 3; `null` when the extractor found none), and `height`, `length` and `width` are metres too, `length` being the axis length when there is one. Format 2 extractions wrote these in the file's own units and padded a missing length to 1 m, so the TUI never draws them.
 
 The Python `analysis_engine` and the Rust `building_model::analyze_wwr` both apply these rules.
 

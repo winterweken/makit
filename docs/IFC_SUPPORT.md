@@ -9,8 +9,8 @@ The hybrid architecture now supports **IFC files** in addition to Revit! This de
 makit runs the extractor itself. Give it an IFC file and it writes `<name>.json`
 beside the file when there is none, or when the extraction is stale: the IFC is
 newer than its JSON by more than two seconds (a git checkout writes both within
-milliseconds and never counts), or the JSON predates storeys and slabs
-(`metadata.formatVersion` below 2).
+milliseconds and never counts), or the JSON predates wall axes
+(`metadata.formatVersion` below 3).
 
 ```bash
 makit extract model.ifc                           # write model.json beside it; --force redoes a fresh one
@@ -120,6 +120,36 @@ Extractions written by this version of the extractor carry `metadata.formatVersi
 
 Readers treat a missing version as 1; such extractions still load for WWR, and the
 envelope says they predate storeys and slabs.
+
+## Generic Format: Version 3
+
+Extractions written by this version carry `metadata.formatVersion: 3`. Every length a
+wall or window records is in metres, project coordinates: each wall's axis in plan
+(`startPoint`, `endPoint`), its `height`, `length` (along the axis) and `width`, and a
+window's `height`, `width` and `position`. Areas still follow `--unit`.
+
+```json
+{
+  "walls": [{
+    "name": "Basic Wall:SIP 202mm Wall:198694",
+    "startPoint": { "x": -11.12, "y": -8.49, "z": 2.7 },
+    "endPoint": { "x": -7.26, "y": -13.6, "z": 2.7 },
+    "length": 6.404, "height": 6.499, "width": 0.202,
+    "bottom": 2.7, "top": 9.2
+  }]
+}
+```
+
+The axis comes from the wall's `Axis` representation (an `IfcPolyline` or
+`IfcIndexedPolyCurve`: first and last point, through the wall's placement), else from
+its placement origin and `Length` quantity, else measured from its tessellated geometry
+along the placement's X axis. A curtain wall's axis runs along its facade, measured from
+its panels. A wall with none of these has `null` for both points.
+
+The TUI draws a format 3 model as an isometric of its walls when you load it in the IFC
+picker. Format 2 extractions still load for WWR and the envelope, but count as stale:
+makit re-extracts them when it finds a Python with IfcOpenShell, and keeps them with a
+note (and the wall rose instead of the drawing) when it does not.
 
 ## Generic Format Reusability
 

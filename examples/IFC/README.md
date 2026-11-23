@@ -42,8 +42,8 @@ makit extract Building-Architecture.ifc
 makit runs the Python extractor for you (it needs IfcOpenShell: `MAKIT_PYTHON`, the
 repository's `.venv`, or `python3`). `makit analyze`, the TUI picker and
 `murb-simulate --model` do the same on their own when the JSON beside an IFC is
-missing, or older than the IFC by more than two seconds, or predates storeys and
-slabs. By hand, the same extraction is:
+missing, or older than the IFC by more than two seconds, or predates wall axes
+(format below 3). By hand, the same extraction is:
 
 ```bash
 python3 analyze_ifc.py Building-Architecture.ifc \
