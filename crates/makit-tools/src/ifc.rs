@@ -183,24 +183,23 @@ fn is_true(value: &str) -> bool {
     )
 }
 
-/// The `ifc` source: extract `--file` to JSON (beside it, or to `--output`),
-/// even when a fresh one exists with `--force`.
-fn handle_extract(ctx: &TaskContext) -> anyhow::Result<()> {
-    let file = ctx.get_option("file", "");
-    if file.trim().is_empty() {
-        anyhow::bail!("--file is required: path to an IFC file");
-    }
-    let ifc = PathBuf::from(file.trim());
-    let output = ctx.get_option("output", "");
-    let output = (!output.trim().is_empty()).then(|| PathBuf::from(output.trim()));
-    let resolved = if is_true(&ctx.get_option("force", "")) || output.is_some() {
+/// Extract `ifc` and say what happened: to `output` or beside the file,
+/// skipping a fresh extraction unless `force`. Shared by the `ifc` source
+/// and `makit extract`.
+pub fn run_extract(
+    ifc: &Path,
+    output: Option<&Path>,
+    force: bool,
+    cancel: Option<&CancelToken>,
+) -> anyhow::Result<Resolved> {
+    let resolved = if force || output.is_some() {
         Resolved {
-            json: extract(&ifc, output.as_deref(), Some(&ctx.cancel))?,
+            json: extract(ifc, output, cancel)?,
             extracted: true,
             note: None,
         }
     } else {
-        extraction_for(&ifc, Some(&ctx.cancel))?
+        extraction_for(ifc, cancel)?
     };
     if resolved.extracted {
         println!("Extracted to {}", resolved.json.display());
@@ -218,6 +217,24 @@ fn handle_extract(ctx: &TaskContext) -> anyhow::Result<()> {
         model.slabs.len(),
         model.storeys.len()
     );
+    Ok(resolved)
+}
+
+/// The `ifc` source: extract `--file` to JSON (beside it, or to `--output`),
+/// even when a fresh one exists with `--force`.
+fn handle_extract(ctx: &TaskContext) -> anyhow::Result<()> {
+    let file = ctx.get_option("file", "");
+    if file.trim().is_empty() {
+        anyhow::bail!("--file is required: path to an IFC file");
+    }
+    let output = ctx.get_option("output", "");
+    let output = (!output.trim().is_empty()).then(|| PathBuf::from(output.trim()));
+    run_extract(
+        Path::new(file.trim()),
+        output.as_deref(),
+        is_true(&ctx.get_option("force", "")),
+        Some(&ctx.cancel),
+    )?;
     Ok(())
 }
 
