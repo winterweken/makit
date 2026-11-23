@@ -5,7 +5,7 @@
 
 use makit_geometry::drawing::{draw_arrow, draw_isometric_box, draw_rect, fill_rect};
 use makit_geometry::{Plotter, Recording, Rectangle};
-use makit_tools::building_model::WwrAnalysis;
+use makit_tools::building_model::{BuildingModel, WwrAnalysis};
 use makit_tools::murb::MurbResults;
 
 use crate::logo;
@@ -37,6 +37,16 @@ pub struct PreviewData<'a> {
     /// Wall analysis of the loaded IFC file, when the focused node is about
     /// that file.
     pub wwr: Option<&'a WwrAnalysis>,
+    /// The loaded IFC model, when the focused node is about that file.
+    pub model: Option<&'a BuildingModel>,
+}
+
+impl<'a> PreviewData<'a> {
+    /// The loaded model when it can be drawn: a format 3 extraction with
+    /// wall axes.
+    pub fn building(&self) -> Option<&'a BuildingModel> {
+        self.model.filter(|m| m.has_axes())
+    }
 }
 
 /// Logo geometry (centre and radius in dot units).

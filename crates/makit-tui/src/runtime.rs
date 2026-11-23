@@ -305,9 +305,12 @@ pub fn load_ifc(path: &Path, on_extract: &dyn Fn()) -> Result<IfcOutcome, String
         });
     };
     let model = building_model::load_model(&json).map_err(|e| e.to_string())?;
+    let analysis = building_model::analyze_wwr(&model);
+    let envelope = building_model::envelope(&model, 0.0);
     Ok(IfcOutcome::Analysis {
-        analysis: building_model::analyze_wwr(&model),
-        envelope: building_model::envelope(&model, 0.0),
+        analysis,
+        envelope,
+        model,
         json: json.to_string_lossy().into_owned(),
         extracted,
         note,
@@ -375,11 +378,13 @@ mod tests {
             Ok(IfcOutcome::Analysis {
                 analysis,
                 envelope,
+                model,
                 json,
                 extracted,
                 note,
             }) => {
                 assert!(analysis.wall_count > 0);
+                assert_eq!(model.walls.len(), 4);
                 assert!(json.ends_with(".json"), "{json}");
                 assert!(!extracted && note.is_none());
                 assert_eq!((envelope.gfa * 10.0).round() / 10.0, 25.8);

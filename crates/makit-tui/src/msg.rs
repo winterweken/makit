@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use makit_tools::building_model::{Envelope, WwrAnalysis};
+use makit_tools::building_model::{BuildingModel, Envelope, WwrAnalysis};
 use makit_tools::murb::MurbResults;
 
 use crate::node::NodeId;
@@ -27,6 +27,8 @@ pub enum IfcOutcome {
         analysis: WwrAnalysis,
         /// The MURB envelope at grade 0.
         envelope: Envelope,
+        /// The model itself, for the isometric preview.
+        model: BuildingModel,
         /// Path of the JSON extraction the analysis came from.
         json: String,
         /// The extractor ran for this load.

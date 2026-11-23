@@ -7,7 +7,7 @@
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::path::Path;
 
-use makit_tools::building_model::{Envelope, WwrAnalysis};
+use makit_tools::building_model::{BuildingModel, Envelope, WwrAnalysis};
 use makit_tools::murb::MurbResults;
 use ratatui::layout::Rect;
 
@@ -169,6 +169,9 @@ pub struct IfcState {
     pub analysis: Option<WwrAnalysis>,
     /// The MURB envelope of `loaded` at grade 0, with `analysis`.
     pub envelope: Option<Envelope>,
+    /// The loaded model itself, drawn by the isometric preview when its
+    /// extraction has wall axes.
+    pub model: Option<BuildingModel>,
     /// Path of the JSON extraction `analysis` was read from.
     pub json: Option<String>,
     /// Why loading `loaded` failed, if it did.
@@ -329,12 +332,19 @@ impl AppState {
     /// Which preview the detail pane shows.
     pub fn preview_kind(&self) -> PreviewKind {
         let kind = PreviewKind::for_node(self.active_node().as_ref());
-        // The IFC source has no drawing of its own: once a file has been
-        // analysed, its walls are worth more than the logo.
-        if kind == PreviewKind::Logo && self.preview_data().wwr.is_some() {
+        if kind != PreviewKind::Logo {
+            return kind;
+        }
+        // The IFC source has no drawing of its own: once a file is loaded,
+        // its building is worth more than the logo, and failing axes to
+        // draw it from, its wall rose is.
+        let data = self.preview_data();
+        if data.building().is_some() {
+            PreviewKind::Building
+        } else if data.wwr.is_some() {
             PreviewKind::Walls
         } else {
-            kind
+            PreviewKind::Logo
         }
     }
 
@@ -347,6 +357,11 @@ impl AppState {
             wwr: self
                 .ifc
                 .analysis
+                .as_ref()
+                .filter(|_| self.ifc_section_visible()),
+            model: self
+                .ifc
+                .model
                 .as_ref()
                 .filter(|_| self.ifc_section_visible()),
         }
@@ -720,5 +735,43 @@ mod tests {
         assert!(s.preview_data().wwr.is_none());
         s.tree.select(0); // the Sources group keeps the logo
         assert_eq!(s.preview_kind(), PreviewKind::Logo);
+    }
+
+    fn model(format_version: u32, with_axis: bool) -> makit_tools::building_model::BuildingModel {
+        let wall = if with_axis {
+            r#"{ "startPoint": {"x": 0.0, "y": 0.0, "z": 0.0}, "endPoint": {"x": 8.0, "y": 0.0, "z": 0.0}, "bottom": 0.0, "top": 3.0 }"#
+        } else {
+            "{}"
+        };
+        serde_json::from_str(&format!(
+            r#"{{ "walls": [{wall}], "metadata": {{ "formatVersion": {format_version} }} }}"#
+        ))
+        .unwrap()
+    }
+
+    #[test]
+    fn a_loaded_model_with_axes_is_drawn_in_isometric_on_ifc_nodes() {
+        let mut s = state();
+        s.tree.select(1); // source:ifc
+        s.ifc.analysis = Some(analysis());
+        s.ifc.model = Some(model(3, true));
+        assert_eq!(s.preview_kind(), PreviewKind::Building);
+        assert!(s.preview_data().building().is_some());
+        assert!(!s.needs_tick());
+        s.tree.select(2); // source:revit — the picked model says nothing about it
+        assert_eq!(s.preview_kind(), PreviewKind::Building);
+        assert!(s.preview_data().model.is_none());
+    }
+
+    #[test]
+    fn a_model_without_axes_keeps_the_rose() {
+        let mut s = state();
+        s.tree.select(1);
+        s.ifc.analysis = Some(analysis());
+        s.ifc.model = Some(model(2, true)); // a format 2 extraction: stubs, never drawn
+        assert_eq!(s.preview_kind(), PreviewKind::Walls);
+        assert!(s.preview_data().building().is_none());
+        s.ifc.model = Some(model(3, false)); // format 3 but nothing to draw
+        assert_eq!(s.preview_kind(), PreviewKind::Walls);
     }
 }

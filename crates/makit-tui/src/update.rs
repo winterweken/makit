@@ -515,6 +515,7 @@ fn ifc_loaded(state: &mut AppState, path: String, result: Result<IfcOutcome, Str
     state.ifc.loading = None;
     state.ifc.analysis = None;
     state.ifc.envelope = None;
+    state.ifc.model = None;
     state.ifc.json = None;
     state.ifc.error = None;
     state.ifc.note = None;
@@ -522,6 +523,7 @@ fn ifc_loaded(state: &mut AppState, path: String, result: Result<IfcOutcome, Str
         Ok(IfcOutcome::Analysis {
             analysis,
             envelope,
+            model,
             json,
             extracted,
             note,
@@ -541,6 +543,7 @@ fn ifc_loaded(state: &mut AppState, path: String, result: Result<IfcOutcome, Str
             state.status = status;
             state.ifc.analysis = Some(analysis);
             state.ifc.envelope = Some(envelope);
+            state.ifc.model = Some(model);
             state.ifc.json = Some(json);
             state.ifc.note = note;
         }
@@ -772,12 +775,15 @@ mod tests {
     }
 
     fn sample_envelope() -> building_model::Envelope {
+        building_model::envelope(&sample_model(), 0.0)
+    }
+
+    fn sample_model() -> building_model::BuildingModel {
         let path = concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../examples/IFC/building-model.json"
         );
-        let model = building_model::load_model(Path::new(path)).expect("example model");
-        building_model::envelope(&model, 0.0)
+        building_model::load_model(Path::new(path)).expect("example model")
     }
 
     #[test]
@@ -918,6 +924,7 @@ mod tests {
                 result: Ok(IfcOutcome::Analysis {
                     analysis,
                     envelope: sample_envelope(),
+                    model: sample_model(),
                     json: "examples/IFC/building-model.json".into(),
                     extracted: false,
                     note: None,
@@ -1004,6 +1011,7 @@ mod tests {
                 result: Ok(IfcOutcome::Analysis {
                     analysis: sample_analysis(),
                     envelope: sample_envelope(),
+                    model: sample_model(),
                     json: "examples/IFC/b.json".into(),
                     extracted: true,
                     note: Some("using stale examples/IFC/b.json: no python".into()),
