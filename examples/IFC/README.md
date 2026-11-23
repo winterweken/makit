@@ -5,8 +5,13 @@ This folder demonstrates the **hybrid architecture** working with IFC files.
 ## Files
 
 - `Building-Architecture.ifc` - Sample IFC4 file (from SketchUp)
-- `building-model.json` - Extracted generic format
+- `building-model.json` - Its extraction in the generic format
+- `Ifc4_ARC.json` - Extraction of Autodesk's Revit sample house (`Ifc4_ARC.ifc`, not in the repository)
+- `Ifc2x3_Duplex_Architecture.json` - Extraction of buildingSMART's Duplex (`Ifc2x3_Duplex_Architecture.ifc`, not in the repository)
 - `custom_analysis.py` - Example custom analysis script
+
+The two extra extractions let `cargo test` and `makit analyze` work on real models
+without IfcOpenShell. Drop the IFC files beside them to load them in the TUI.
 
 ## Quick Start
 
@@ -29,6 +34,16 @@ WEST FACING: 1 walls, 21.2 sq m
 ```
 
 ### 2. Extract to Generic Format
+
+```bash
+makit extract Building-Architecture.ifc
+```
+
+makit runs the Python extractor for you (it needs IfcOpenShell: `MAKIT_PYTHON`, the
+repository's `.venv`, or `python3`). `makit analyze`, the TUI picker and
+`murb-simulate --model` do the same on their own when the JSON beside an IFC is
+missing, or older than the IFC by more than two seconds, or predates storeys and
+slabs. By hand, the same extraction is:
 
 ```bash
 python3 analyze_ifc.py Building-Architecture.ifc \
@@ -80,18 +95,31 @@ The `building-model.json` file is **platform-independent**:
       "properties": {
         "description": "A solid outer wall..."
       }
+      "bottom": -0.25,
+      "top": 3.38
     }
+  ],
+  "storeys": [
+    { "id": "…", "name": "00 groundfloor", "elevation": 0.0, "floorArea": 25.75, "slabIds": ["…"] }
+  ],
+  "slabs": [
+    { "id": "…", "name": "floor", "kind": "floor", "area": 25.75, "top": 0.0, "bottom": -0.25, "storey": "00 groundfloor" },
+    { "id": "…", "name": "house - roof", "kind": "roof", "area": 53.61, "top": 5.7, "bottom": 1.48 }
   ],
   "projectNorth": 0.0,
   "units": "m",
   "metadata": {
     "projectName": "ifc silly sample scene - project",
-    "sourceFile": "Building-Architecture.ifc"
+    "sourceFile": "Building-Architecture.ifc",
+    "formatVersion": 2
   }
 }
 ```
 
-`metadata.sourceFile` is the name of the IFC file the model was extracted from.
+`metadata.sourceFile` is the name of the IFC file the model was extracted from;
+`formatVersion` 2 marks extractions with storeys, slabs and wall elevations. Walls
+carry `bottom` and `top` in metres, storeys the footprint union of their floor plates
+(`floorArea`), and roofs their up-facing surface. See `docs/IFC_SUPPORT.md`.
 
 **Key point**: This same format can come from:
 - IFC files (this example)
@@ -110,6 +138,10 @@ The `Building-Architecture.ifc` file contains:
 All walls are on "00 groundfloor" level. The analysis counts the three exterior walls; the plumbing wall is flagged interior (`IsExternal` false) and left out:
 - 2 East-facing walls (15.2 sq m): the house's right front and right back walls
 - 1 West-facing wall (21.2 sq m): the house's left wall
+
+Its energy envelope: one storey with a 25.8 m² floor plate, 36.4 m² of exterior wall
+(3 m² of it below grade 0, where the walls run down to the slab's underside), no
+windows, and a gable roof of 53.6 m² of slopes (two slabs under an `IfcRoof`).
 
 ## What This Demonstrates
 
@@ -176,8 +208,8 @@ for wall in model.walls:
 
 ## Requirements
 
-- Python 3.7+
-- ifcopenshell: `pip3 install --break-system-packages ifcopenshell`
+- Python 3 with ifcopenshell, only to extract: `uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell`
+  from the repository root, or point `MAKIT_PYTHON` at one. The committed extractions need nothing.
 
 ## See Also
 

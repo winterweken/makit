@@ -4,6 +4,31 @@ The hybrid architecture now supports **IFC files** in addition to Revit! This de
 
 ## Quick Start
 
+### With makit
+
+makit runs the extractor itself. Give it an IFC file and it writes `<name>.json`
+beside the file when there is none, or when the extraction is stale: the IFC is
+newer than its JSON by more than two seconds (a git checkout writes both within
+milliseconds and never counts), or the JSON predates storeys and slabs
+(`metadata.formatVersion` below 2).
+
+```bash
+makit extract model.ifc                           # write model.json beside it; --force redoes a fresh one
+makit analyze model.ifc                           # WWR by direction and the energy envelope, extracting first if needed
+makit analyze model.ifc -t envelope --grade -1.5  # the envelope alone, with grade at -1.5 m (project z)
+makit exec murb analysis murb-simulate -o model=model.ifc -o epw=weather.epw
+```
+
+The TUI picker does the same when you load an IFC file, and `murb-simulate --model`
+and `wall-orientation-wwr --input` accept an IFC path too.
+
+Extraction needs a Python with IfcOpenShell. makit looks for one in this order:
+`MAKIT_PYTHON` (which must have it; nothing else is tried behind your back), then
+`.venv/bin/python` in the repository, then `python3` and `python` on the PATH.
+`uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell`
+sets one up. A fresh JSON never needs Python. A stale one is used with a note
+when no Python is found. Only a missing one is an error.
+
 ### Standalone Python Analysis
 
 The fastest way to analyze an IFC file:
@@ -74,6 +99,27 @@ For IFC support, you need `ifcopenshell`:
 ```bash
 pip install ifcopenshell
 ```
+
+## Generic Format: Version 2
+
+Extractions written since makit 3.1 carry `metadata.formatVersion: 2` and, next to
+`walls` and `windows`:
+
+```json
+{
+  "storeys": [{ "id": "…", "name": "Level 1", "elevation": 0.0, "floorArea": 180.5, "slabIds": ["…"] }],
+  "slabs": [
+    { "id": "…", "name": "Floor:Slab on Grade", "kind": "floor", "area": 64.8,
+      "top": 0.0, "bottom": -0.13, "storey": "Level 1", "type": "Floor:127mm Slab on Grade",
+      "isExternal": false, "properties": { "ifcType": "IfcSlab" } },
+    { "id": "…", "name": "Basic Roof:Live Roof", "kind": "roof", "area": 137.4, "top": 6.46, "bottom": 6.0, "storey": "Roof" }
+  ],
+  "walls": [{ "…": "…", "bottom": -1.25, "top": 3.1 }]
+}
+```
+
+Readers treat a missing version as 1; such extractions still load for WWR, and the
+envelope says they predate storeys and slabs.
 
 ## Generic Format Reusability
 
@@ -150,6 +196,53 @@ IFC wall orientation is extracted from the placement matrix (local coordinate sy
 
 Walls with "CURTAIN" in their ObjectType are automatically flagged and have their orientation inverted (same as Revit logic).
 
+### Storeys, Floor Plates and Roofs
+
+The extractor also records what an energy model needs beyond walls and windows:
+
+- **Storeys** (`storeys`): every `IfcBuildingStorey` with its elevation in metres and
+  the `floorArea` of its plates.
+- **Floor plates** (`slabs` of kind `floor`): every `IfcSlab` that is not a roof, a
+  landing or a part of something else. A plate's `area` is the plan footprint of its
+  up-facing faces, and it joins the storey whose elevation is within 0.3 m of its top
+  face (finish floors sit a few centimetres above a level, structural slabs at it).
+  A storey's `floorArea` is the footprint **union** of its plates, so a finish floor
+  laid over a structural floor counts once. A plate at no storey's level (a building
+  pad buried under the floor, say) keeps `storey: null`; the analyses report it and
+  leave it out.
+- **Roofs** (`slabs` of kind `roof`): each `IfcRoof` (its own geometry when it has
+  one, else its decomposed parts, never both) and each `ROOF` slab outside any
+  `IfcRoof`. A roof's `area` is its up-facing surface (faces whose normal has
+  z > 0.5), so a gable counts its slopes, not its footprint.
+- **Landings** and other slab parts are kept for the record (`landing`, `other`) and
+  counted nowhere.
+- **Wall elevations**: each wall carries `bottom` and `top` in metres (from its
+  geometry, else its placement and Height quantity), for the split above and
+  below grade.
+- **Windows** take their area from quantities, else from `OverallHeight × OverallWidth`,
+  else from their geometry.
+
+Slab classification uses IFC types, aggregation and geometry only, never names.
+
+### Energy Envelope
+
+`makit analyze model.ifc -t envelope` (and `murb-simulate --model`) derive from the
+extraction:
+
+| Quantity | From |
+|---|---|
+| GFA | the sum of the storeys' `floorArea`, listed per storey with plate counts |
+| Walls above / below grade | each exterior wall's net area split where it crosses `--grade` (metres, project z, default 0); a wall without elevations counts above grade |
+| Windows | windows in exterior walls plus windows in no wall |
+| Roof | the roofs' up-facing surface |
+
+`murb-simulate` fills every area you did not type from the model and prints each with
+its source. A zero from the model is an error for GFA, above-grade walls and roof
+(a building has all three; the message names the option to type) and a value for
+windows and below-grade walls. The breakdown is printed on purpose: a messy model
+(the Revit sample house exports building pads and pile caps as slabs) shows up in
+it, and a typed option always wins.
+
 ## Adding New Platform Support
 
 Want to add Rhino, ArchiCAD, or another platform? Follow this pattern:
@@ -198,7 +291,7 @@ Add tasks in `internal/tools/{platform}/` following the Revit pattern.
 - [ ] Add DXF/DWG support for 2D plans
 - [ ] Web viewer for generic models
 - [ ] Batch analysis of multiple files
-- [ ] Energy analysis integration
+- [x] Energy analysis integration (MURB envelope from the extraction)
 - [ ] Daylighting analysis
 - [ ] Cost estimation based on orientations
 
