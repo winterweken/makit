@@ -1668,6 +1668,8 @@ mod tests {
             ghgi_kg_m2: 5.0,
             gfa: 100.0,
             weather_file: "x.epw".into(),
+            report_path: None,
+            report_error: None,
         };
         update(&mut s, Msg::MurbLoaded(Some(results)));
         assert_eq!(s.murb_results.as_ref().map(|r| r.tedi_kwh_m2), Some(12.0));
