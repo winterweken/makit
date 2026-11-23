@@ -175,19 +175,28 @@ pub fn draw_arrow<P: Plotter + ?Sized>(canvas: &mut P, x0: f64, y0: f64, x1: f64
     }
 }
 
+/// cos 30°, the horizontal spread of a 30° isometric.
+const COS30: f64 = 0.866_025_403_8;
+
 /// Project a 3D point to 2D screen coordinates using 30° dimetric
 /// isometric projection.
 ///
 /// - `x`, `y`, `z`: world coordinates (y is up)
-/// - Returns `(screen_x, screen_y)` in canvas coordinates
+/// - Returns `(screen_x, screen_y)` in canvas coordinates, y up on screen
 pub fn isometric_project(x: f64, y: f64, z: f64) -> (f64, f64) {
     // Standard 30° isometric: cos(30°) ≈ 0.866, sin(30°) = 0.5
-    let cos30 = 0.866_025_403_8_f64;
     let sin30 = 0.5_f64;
 
-    let sx = (x - z) * cos30;
-    let sy = (x + z) * sin30 - y;
+    let sx = (x - z) * COS30;
+    let sy = (x + z) * sin30 + y;
     (sx, sy)
+}
+
+/// Project a point in project coordinates (x east, y north, z up) into a
+/// 30° isometric seen from the south-west: east runs right and up, north
+/// left and up, heights straight up. Screen y points up, one unit per metre.
+pub fn isometric_z_up(x: f64, y: f64, z: f64) -> (f64, f64) {
+    ((x - y) * COS30, (x + y) * 0.5 + z)
 }
 
 /// Draw an isometric wireframe box on the canvas.
@@ -293,9 +302,20 @@ mod tests {
         let (sx, _sy) = isometric_project(10.0, 0.0, 0.0);
         assert!(sx > 0.0);
 
-        // Moving up (Y) should decrease screen Y (move up on screen)
+        // Moving up (Y) moves up on a y-up screen
         let (_sx, sy) = isometric_project(0.0, 10.0, 0.0);
-        assert!(sy < 0.0);
+        assert!(sy > 0.0);
+    }
+
+    #[test]
+    fn z_up_isometric_puts_east_right_north_left_and_heights_straight_up() {
+        let (ex, ey) = isometric_z_up(10.0, 0.0, 0.0);
+        assert!(ex > 0.0 && ey > 0.0);
+        let (nx, ny) = isometric_z_up(0.0, 10.0, 0.0);
+        assert!(nx < 0.0 && ny > 0.0);
+        assert_eq!(isometric_z_up(0.0, 0.0, 3.0), (0.0, 3.0));
+        // A square in plan projects to a 2:1 diamond.
+        assert!((ex - 8.660_254_038).abs() < 1e-9 && (ey - 5.0).abs() < 1e-9);
     }
 
     #[test]
