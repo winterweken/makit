@@ -1177,7 +1177,7 @@ mod tests {
             "{}",
             house.walls_bg
         );
-        assert_eq!((house.storeys.len(), house.format_version), (1, 2));
+        assert_eq!((house.storeys.len(), house.format_version), (1, 3));
 
         let duplex = envelope(
             &load_model(&dir.join("Ifc2x3_Duplex_Architecture.json")).unwrap(),

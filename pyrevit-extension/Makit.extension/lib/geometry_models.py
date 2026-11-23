@@ -2,8 +2,9 @@
 """Generic geometry models for cross-platform analysis"""
 
 # Version of the generic JSON format this module writes. Version 2 added
-# storeys, slabs and wall elevations; readers treat a missing version as 1.
-FORMAT_VERSION = 2
+# storeys, slabs and wall elevations; version 3 added wall axes and put every
+# wall and window length in metres. Readers treat a missing version as 1.
+FORMAT_VERSION = 3
 
 
 class GeometricVector(object):

@@ -617,11 +617,11 @@ class GenericModelTest(unittest.TestCase):
         self.assertEqual(back.slabs[0].storey, "L1")
         self.assertEqual(back.slabs[0].bottom, 2.8)
 
-    def test_to_dict_stamps_format_version_2(self):
+    def test_to_dict_stamps_format_version_3(self):
         model = geometry_models.BuildingModel()
         model.metadata["projectName"] = "p"
-        self.assertEqual(model.to_dict()["metadata"]["formatVersion"], 2)
-        self.assertEqual(geometry_models.FORMAT_VERSION, 2)
+        self.assertEqual(model.to_dict()["metadata"]["formatVersion"], 3)
+        self.assertEqual(geometry_models.FORMAT_VERSION, 3)
         self.assertNotIn("formatVersion", model.metadata)
 
     def test_wall_elevations_round_trip(self):
