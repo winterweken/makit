@@ -9,6 +9,7 @@
 //! | here | murb |
 //! |---|---|
 //! | `solar.rs` | `solarpos.py`, `solargains.py` |
+//! | `weather.rs` | `epw.py`, the weather half of `utilities.py` |
 //!
 //! The tests check every function against what murb's Python computes on a
 //! synthetic weather file (`testdata/parity.json`, made by
@@ -25,6 +26,43 @@ pub(crate) mod test_support;
 
 /// A value for each month, January first.
 pub type Monthly = [f64; 12];
+
+/// Glass facing one way.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(test, derive(serde::Deserialize), serde(default))]
+pub struct WindowGroup {
+    /// Share of the building's window area, 0 to 1.
+    pub pct_window_area: f64,
+    /// Degrees clockwise from north.
+    pub window_azimuth: f64,
+    /// Solar heat gain coefficient.
+    pub shgc: f64,
+    /// Share of the sun the shading keeps out, 0 to 1.
+    pub shading: f64,
+}
+
+impl Default for WindowGroup {
+    fn default() -> Self {
+        Self {
+            pct_window_area: 0.0,
+            window_azimuth: 0.0,
+            shgc: 0.4,
+            shading: 0.0,
+        }
+    }
+}
+
+/// How much thermal mass the building has, which sets how much of the sun's
+/// heat is useful (murb's `mass_level`; murb reads anything other than
+/// `low` or `medium` as high).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(test, derive(serde::Deserialize), serde(rename_all = "lowercase"))]
+pub enum MassLevel {
+    Low,
+    #[default]
+    Medium,
+    High,
+}
 
 /// Why the engine could not run.
 #[derive(Debug, thiserror::Error)]

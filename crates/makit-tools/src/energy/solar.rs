@@ -1,6 +1,9 @@
 //! The sun: where it is each hour (`solarpos.py`), what it puts through the
 //! windows each month (`solargains.py`).
 
+use super::weather::Weather;
+use super::{EnergyError, MassLevel, Monthly, WindowGroup};
+
 /// Days since 0001-01-01 (which is day 1) in the proleptic Gregorian
 /// calendar: Python's `date.toordinal()`.
 pub(crate) fn day_ordinal(year: i32, month: u32, day: u32) -> i64 {
@@ -89,10 +92,131 @@ pub fn solar_position(
     (elevation, azimuth)
 }
 
+/// The sun's heat through the windows each month, kWh: murb's
+/// `get_solar_gains`, pvlib's isotropic sky with no ground reflection on
+/// vertical glass. Beam light counts while the sun is in front of the glass,
+/// half the diffuse light always; 0.93 allows for light arriving off the
+/// normal (RETScreen Passive Solar).
+pub fn solar_gains(window_groups: &[WindowGroup], area_windows: f64, weather: &Weather) -> Monthly {
+    let mut total = [0.0; 12];
+    for group in window_groups {
+        let scale =
+            area_windows * group.pct_window_area * group.shgc * (1.0 - group.shading) * 0.93
+                / 1000.0;
+        let monthly = weather.monthly_sum(|h| {
+            let cos_aoi = h.sun_elevation.to_radians().cos()
+                * (h.sun_azimuth - group.window_azimuth).to_radians().cos();
+            let beam = if cos_aoi > 0.0 { h.dni * cos_aoi } else { 0.0 };
+            (beam + h.dhi * 0.5) * scale
+        });
+        for m in 0..12 {
+            total[m] += monthly[m];
+        }
+    }
+    total
+}
+
+/// The share of each month's solar gains that offsets heat losses (murb's
+/// `utilisation_factors`, a RETScreen fit by thermal mass), from the ratio of
+/// gains to losses net of internal gains. A month where either denominator is
+/// zero is an error, as it is in murb.
+pub fn utilisation_factors(
+    solar_gains: &Monthly,
+    heat_losses: &Monthly,
+    internal_gains: &Monthly,
+    mass: MassLevel,
+) -> Result<Monthly, EnergyError> {
+    let (a, b, c, d) = match mass {
+        MassLevel::Low => (1.156, -0.3479, 1.117, -0.4476),
+        MassLevel::Medium => (1.0, 4.8380, 4.533, 3.6320),
+        MassLevel::High => (1.0, 0.2792, 0.245, 0.4230),
+    };
+    let mut out = [0.0; 12];
+    for m in 0..12 {
+        let glr = solar_gains[m] / (heat_losses[m] - internal_gains[m]);
+        let f = (a + (b * glr)) / (1.0 + (c * glr) + (d * glr.powi(2)));
+        if !glr.is_finite() || !f.is_finite() {
+            return Err(EnergyError::Utilisation { month: m + 1 });
+        }
+        out[m] = f;
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::energy::test_support::{assert_close, parity};
+    use crate::energy::test_support::{
+        assert_close, assert_monthly, monthly, parity, synthetic_epw,
+    };
+    use crate::energy::weather::Weather;
+    use crate::energy::{EnergyError, MassLevel, WindowGroup};
+
+    #[test]
+    fn solar_gains_match_the_python_port() {
+        let f = &parity()["functions"];
+        let groups: Vec<WindowGroup> = serde_json::from_value(f["window_groups"].clone()).unwrap();
+        assert_eq!(groups.len(), 4);
+        let weather = Weather::read(&synthetic_epw()).unwrap();
+        let gains = solar_gains(&groups, f["area_windows"].as_f64().unwrap(), &weather);
+        assert_monthly("solar_gains", &gains, &f["solar_gains"]);
+    }
+
+    #[test]
+    fn utilisation_factors_match_for_every_mass_level() {
+        let f = &parity()["functions"];
+        let sum = |keys: &[&str]| -> Monthly {
+            let mut out = [0.0; 12];
+            for key in keys {
+                let series = monthly(&f[*key]);
+                for m in 0..12 {
+                    out[m] += series[m];
+                }
+            }
+            out
+        };
+        let losses = sum(&["transmission_htg", "ventilation_htg", "infiltration_htg"]);
+        let gains = sum(&["internal_gains_htg", "internal_gains_clg"]);
+        let solar = monthly(&f["solar_gains"]);
+        for (name, mass) in [
+            ("low", MassLevel::Low),
+            ("medium", MassLevel::Medium),
+            ("high", MassLevel::High),
+        ] {
+            let factors = utilisation_factors(&solar, &losses, &gains, mass).unwrap();
+            assert_monthly(
+                &format!("utilisation {name}"),
+                &factors,
+                &f["utilisation"][name],
+            );
+        }
+    }
+
+    #[test]
+    fn a_zero_denominator_is_an_error_not_nan() {
+        let solar = [100.0; 12];
+        let err =
+            utilisation_factors(&solar, &[50.0; 12], &[50.0; 12], MassLevel::Medium).unwrap_err();
+        assert!(
+            matches!(err, EnergyError::Utilisation { month: 1 }),
+            "{err:?}"
+        );
+        let mut gains = [50.0; 12];
+        gains[2] = 80.0;
+        let err = utilisation_factors(&solar, &[80.0; 12], &gains, MassLevel::Low).unwrap_err();
+        assert!(
+            matches!(err, EnergyError::Utilisation { month: 3 }),
+            "{err:?}"
+        );
+        assert!(err.to_string().contains("month 3"));
+    }
+
+    #[test]
+    fn window_groups_default_as_murbs_do() {
+        let group = WindowGroup::default();
+        assert_eq!((group.shgc, group.shading), (0.4, 0.0));
+        assert_eq!(MassLevel::default(), MassLevel::Medium);
+    }
 
     #[test]
     fn day_ordinal_matches_pythons_toordinal() {

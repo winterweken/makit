@@ -54,3 +54,10 @@ pub fn assert_monthly(label: &str, got: &Monthly, want: &Value) {
         );
     }
 }
+
+/// A 12-month list from parity.json.
+pub fn monthly(value: &Value) -> Monthly {
+    let list = value.as_array().expect("a list in parity.json");
+    assert_eq!(list.len(), 12);
+    std::array::from_fn(|m| list[m].as_f64().expect("a number"))
+}
