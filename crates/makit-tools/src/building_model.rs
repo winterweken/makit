@@ -364,7 +364,7 @@ pub fn window_area_by_facing(model: &BuildingModel) -> Vec<(f64, f64)> {
 // ---------------------------------------------------------------------------
 
 /// One storey's share of the gross floor area.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StoreyArea {
     pub name: String,
     /// Metres, project z.
@@ -377,7 +377,7 @@ pub struct StoreyArea {
 
 /// The envelope quantities an energy model takes, derived from a building
 /// model: see [`envelope`].
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Envelope {
     /// Grade elevation used for the wall split, metres, project z.
     pub grade: f64,

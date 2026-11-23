@@ -146,7 +146,7 @@ fn apply(state: &mut AppState, msg: Msg) -> Vec<Cmd> {
         Msg::MurbLoaded(results) => {
             // An unreadable file leaves the results already shown in place.
             if let Some(results) = results {
-                state.murb_results = Some(results);
+                state.murb_results = Some(*results);
             }
             Vec::new()
         }
@@ -1670,8 +1670,13 @@ mod tests {
             weather_file: "x.epw".into(),
             report_path: None,
             report_error: None,
+            input: None,
+            envelope: None,
+            model: None,
+            even_glass: None,
+            command: None,
         };
-        update(&mut s, Msg::MurbLoaded(Some(results)));
+        update(&mut s, Msg::MurbLoaded(Some(Box::new(results))));
         assert_eq!(s.murb_results.as_ref().map(|r| r.tedi_kwh_m2), Some(12.0));
         update(&mut s, Msg::MurbLoaded(None));
         assert!(s.murb_results.is_some());

@@ -286,6 +286,11 @@ mod tests {
             weather_file: String::new(),
             report_path: None,
             report_error: None,
+            input: None,
+            envelope: None,
+            model: None,
+            even_glass: None,
+            command: None,
         }
     }
 
