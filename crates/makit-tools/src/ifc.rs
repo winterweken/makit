@@ -9,6 +9,7 @@
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -35,6 +36,19 @@ pub struct Resolved {
     pub note: Option<String>,
 }
 
+/// A temporary file beside `output` for one extraction, unique per process
+/// and call: two extractions of one file (the picker and a task, say) must
+/// never share it, or one truncates the other's output.
+fn temp_output(output: &Path) -> PathBuf {
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let stem = output
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "extraction".to_string());
+    output.with_file_name(format!("{stem}.{}-{n}.json.tmp", std::process::id()))
+}
+
 /// Run the extractor on `ifc`, writing `output` (`<name>.json` beside the
 /// IFC by default). The JSON is written to a temporary file and renamed into
 /// place, so a reader never sees a partial one. `cancel` stops it early.
@@ -49,7 +63,7 @@ pub fn extract(
     let output = output
         .map(Path::to_path_buf)
         .unwrap_or_else(|| building_model::extraction_path(ifc));
-    let tmp = output.with_extension("json.tmp");
+    let tmp = temp_output(&output);
     let python = python::find("ifcopenshell")?;
     let script = python::repo_file(EXTRACTOR)?;
     let cancelled = || cancel.is_some_and(CancelToken::is_cancelled);
@@ -192,22 +206,30 @@ pub fn run_extract(
     force: bool,
     cancel: Option<&CancelToken>,
 ) -> anyhow::Result<Resolved> {
-    let resolved = if force || output.is_some() {
-        Resolved {
+    // A fresh extraction is kept unless asked otherwise; anything else is
+    // extracted now, and a failure is this command's failure (the stale
+    // fallback with a note is for consumers of the JSON, not for extract).
+    let fresh = if force || output.is_some() {
+        None
+    } else {
+        building_model::find_json_for_ifc(ifc).filter(|json| !is_stale(ifc, json))
+    };
+    let resolved = match fresh {
+        Some(json) => Resolved {
+            json,
+            extracted: false,
+            note: None,
+        },
+        None => Resolved {
             json: extract(ifc, output, cancel)?,
             extracted: true,
             note: None,
-        }
-    } else {
-        extraction_for(ifc, cancel)?
+        },
     };
     if resolved.extracted {
         println!("Extracted to {}", resolved.json.display());
     } else {
-        println!("Already extracted: {}", resolved.json.display());
-    }
-    if let Some(note) = &resolved.note {
-        println!("  {note}");
+        println!("Already extracted (fresh): {}", resolved.json.display());
     }
     let model = building_model::load_model(&resolved.json)?;
     println!(
@@ -393,6 +415,18 @@ mod tests {
         );
     }
 
+    /// Names of the temporary files left in `dir`.
+    fn temp_files(dir: &Path) -> Vec<String> {
+        let mut names: Vec<String> = std::fs::read_dir(dir)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|n| n.ends_with(".tmp"))
+            .collect();
+        names.sort();
+        names
+    }
+
     #[test]
     fn a_failed_extraction_leaves_no_temp_file() {
         // Whether or not a Python with IfcOpenShell exists, extracting a
@@ -400,8 +434,62 @@ mod tests {
         let dir = folder("tmpfile");
         let ifc = dir.join("missing.ifc");
         assert!(extract(&ifc, None, None).is_err());
-        assert!(!dir.join("missing.json.tmp").exists());
+        assert_eq!(temp_files(&dir), Vec::<String>::new());
         assert!(!dir.join("missing.json").exists());
+    }
+
+    #[test]
+    fn an_extractor_failure_after_spawning_leaves_no_temp_file() {
+        // Needs a Python with IfcOpenShell: the extractor must run and fail
+        // on a file that is not really IFC.
+        if python::find("ifcopenshell").is_err() {
+            eprintln!("no Python with ifcopenshell; skipping");
+            return;
+        }
+        let dir = folder("spawned");
+        let ifc = dir.join("bogus.ifc");
+        touch(&ifc);
+        let err = extract(&ifc, None, None).unwrap_err().to_string();
+        assert!(err.contains("analyze_ifc.py"), "{err}");
+        assert_eq!(temp_files(&dir), Vec::<String>::new());
+        assert!(!dir.join("bogus.json").exists());
+    }
+
+    #[test]
+    fn each_extraction_writes_its_own_temp_file() {
+        // Two extractions of one file at once (the picker and a task, say)
+        // must not share a temp file, or one truncates the other's output.
+        let output = Path::new("models/arc.json");
+        let a = temp_output(output);
+        let b = temp_output(output);
+        assert_ne!(a, b);
+        for tmp in [&a, &b] {
+            assert_eq!(tmp.parent(), output.parent());
+            let name = tmp.file_name().unwrap().to_string_lossy().into_owned();
+            assert!(
+                name.starts_with("arc.") && name.ends_with(".json.tmp"),
+                "{name}"
+            );
+            assert!(name.contains(&std::process::id().to_string()), "{name}");
+        }
+    }
+
+    #[test]
+    fn makit_extract_fails_when_a_stale_extraction_cannot_be_redone() {
+        // The command whose job is to extract must not report success and
+        // exit 0 when it could not; the stale JSON is a consumer's fallback.
+        let dir = folder("stale-extract");
+        let ifc = dir.join("house.ifc");
+        write_model(&dir.join("house.json"), None); // a format-1 extraction
+        touch(&ifc);
+        // With a Python the extractor fails on the bogus file; without one
+        // extraction fails before it: either way, an error.
+        assert!(run_extract(&ifc, None, false, None).is_err());
+
+        // A fresh extraction is reported as such and left alone.
+        write_model(&dir.join("house.json"), Some(2));
+        let r = run_extract(&ifc, None, false, None).unwrap();
+        assert!(!r.extracted && r.note.is_none());
     }
 
     #[test]
