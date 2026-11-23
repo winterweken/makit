@@ -624,6 +624,12 @@ class GenericModelTest(unittest.TestCase):
         self.assertEqual(geometry_models.FORMAT_VERSION, 3)
         self.assertNotIn("formatVersion", model.metadata)
 
+    def test_a_loaded_dict_keeps_its_format_version(self):
+        two = geometry_models.BuildingModel.from_dict({"walls": [], "metadata": {"formatVersion": 2}})
+        self.assertEqual(two.to_dict()["metadata"]["formatVersion"], 2)
+        one = geometry_models.BuildingModel.from_dict({"walls": [], "metadata": {}})
+        self.assertEqual(one.to_dict()["metadata"]["formatVersion"], 1)
+
     def test_wall_elevations_round_trip(self):
         wall = geometry_models.GenericWall("w", "wall")
         wall.bottom = -1.5
@@ -902,6 +908,19 @@ class WallAxisTest(TempDirTest):
         start, end = ifc_extractors.get_ifc_wall_geometry(wall, f)
         self.assertAlmostEqual(math.hypot(end.x - start.x, end.y - start.y), 4.0, places=3)
         self.assertAlmostEqual(start.x, end.x, places=6)
+
+    def test_an_indexed_axis_follows_its_segments(self):
+        import ifcopenshell.api.context
+        f = new_file(None)
+        model = ifcopenshell.api.context.add_context(f, context_type="Model")
+        wall = f.createIfcWall(ifcopenshell.guid.new(), None, "w", None, None, place(f, (0, 0), (1, 0)), None, None, None)
+        # The point pool is not in traversal order: the segments run (0,0) -> (1,0) -> (4,0).
+        pool = f.createIfcCartesianPointList2D([(1.0, 0.0), (0.0, 0.0), (4.0, 0.0)])
+        segments = [f.create_entity("IfcLineIndex", (2, 1)), f.create_entity("IfcLineIndex", (1, 3))]
+        curve = f.createIfcIndexedPolyCurve(pool, segments, False)
+        rep = f.createIfcShapeRepresentation(model, "Axis", "Curve2D", [curve])
+        wall.Representation = f.createIfcProductDefinitionShape(None, None, [rep])
+        self.assertEqual(self.ends(wall, f), ((0.0, 0.0, 0.0), (4.0, 0.0, 0.0)))
 
     def test_a_wall_with_nothing_to_go_on_has_no_axis(self):
         f = new_file(None)

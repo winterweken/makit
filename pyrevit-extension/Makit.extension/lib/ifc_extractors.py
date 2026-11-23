@@ -150,7 +150,19 @@ def get_axis_points(wall):
         if item.is_a('IfcPolyline'):
             points = [p.Coordinates for p in item.Points]
         elif item.is_a('IfcIndexedPolyCurve'):
-            points = list(item.Points.CoordList)
+            # The point list is a pool; with Segments, the curve runs from
+            # the first segment's first index to the last segment's last
+            # (1-based). Without them the list is the traversal.
+            pool = list(item.Points.CoordList)
+            segments = getattr(item, 'Segments', None)
+            points = pool
+            if segments:
+                try:
+                    first = segments[0].wrappedValue[0]
+                    last = segments[-1].wrappedValue[-1]
+                    points = [pool[first - 1], pool[last - 1]]
+                except (AttributeError, IndexError, TypeError):
+                    points = pool
         else:
             return None
         if len(points) < 2:

@@ -3,7 +3,8 @@
 
 # Version of the generic JSON format this module writes. Version 2 added
 # storeys, slabs and wall elevations; version 3 added wall axes and put every
-# wall and window length in metres. Readers treat a missing version as 1.
+# wall and window length in metres. Readers treat a missing version as 1,
+# and a model loaded from a dict keeps the version it was written in.
 FORMAT_VERSION = 3
 
 
@@ -233,7 +234,9 @@ class BuildingModel(object):
 
     def to_dict(self):
         metadata = dict(self.metadata)
-        metadata['formatVersion'] = FORMAT_VERSION
+        # A model loaded from a dict keeps the version it was written in; a
+        # freshly extracted one is this module's.
+        metadata['formatVersion'] = self.metadata.get('formatVersion', FORMAT_VERSION)
         return {
             'walls': [w.to_dict() for w in self.walls],
             'windows': [w.to_dict() for w in self.windows],
@@ -253,5 +256,8 @@ class BuildingModel(object):
         model.slabs = [GenericSlab.from_dict(s) for s in data.get('slabs', [])]
         model.project_north = data.get('projectNorth', 0.0)
         model.units = data.get('units', 'm')
-        model.metadata = data.get('metadata', {})
+        model.metadata = dict(data.get('metadata', {}))
+        # Remember the format the dict was written in (missing means 1), so a
+        # round trip never relabels old data as the current format.
+        model.metadata.setdefault('formatVersion', 1)
         return model
