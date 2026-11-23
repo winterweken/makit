@@ -16,6 +16,12 @@ pub struct BuildingModel {
     pub walls: Vec<GenericWall>,
     #[serde(default)]
     pub windows: Vec<GenericWindow>,
+    /// Building storeys with the floor area of their plates (format 2).
+    #[serde(default)]
+    pub storeys: Vec<Storey>,
+    /// Floor plates, roofs and other slabs (format 2).
+    #[serde(default)]
+    pub slabs: Vec<Slab>,
     #[serde(default, rename = "projectNorth")]
     pub project_north: f64,
     #[serde(default)]
@@ -52,6 +58,12 @@ pub struct GenericWall {
     pub is_external: Option<bool>,
     #[serde(default)]
     pub level: String,
+    /// Project z of the wall's underside and top, in metres, when the
+    /// extractor could tell (format 2).
+    #[serde(default)]
+    pub bottom: Option<f64>,
+    #[serde(default)]
+    pub top: Option<f64>,
     #[serde(default)]
     pub windows: Vec<WallWindow>,
     #[serde(default)]
@@ -87,6 +99,66 @@ pub struct GenericWindow {
     pub host_wall_id: String,
 }
 
+/// A building storey: its elevation and the floor area of its plates.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Storey {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    /// Metres, project z.
+    #[serde(default)]
+    pub elevation: f64,
+    /// Square metres: the footprint union of the storey's floor plates.
+    #[serde(default, rename = "floorArea")]
+    pub floor_area: f64,
+    /// Ids of the slabs that make up the floor.
+    #[serde(default, rename = "slabIds")]
+    pub slab_ids: Vec<String>,
+}
+
+/// What a slab is for. Anything a newer extractor names that this build
+/// does not know reads as `Other`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum SlabKind {
+    #[default]
+    Floor,
+    Roof,
+    Landing,
+    #[serde(other)]
+    Other,
+}
+
+/// A slab or roof: a floor plate (footprint area, assigned to a storey), a
+/// roof (up-facing surface area), a stair landing, or another part.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Slab {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub kind: SlabKind,
+    /// Square metres: footprint for floors, surface for roofs.
+    #[serde(default)]
+    pub area: f64,
+    #[serde(default)]
+    pub top: Option<f64>,
+    #[serde(default)]
+    pub bottom: Option<f64>,
+    /// The storey a floor plate belongs to; `None` for a plate at no
+    /// storey's level, which the envelope leaves out.
+    #[serde(default)]
+    pub storey: Option<String>,
+    #[serde(default, rename = "type")]
+    pub slab_type: String,
+    #[serde(default, rename = "isExternal")]
+    pub is_external: Option<bool>,
+    #[serde(default)]
+    pub properties: serde_json::Value,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelMetadata {
     #[serde(default, rename = "projectName")]
@@ -101,6 +173,24 @@ pub struct ModelMetadata {
         skip_serializing_if = "String::is_empty"
     )]
     pub source_file: String,
+    /// Version of the generic format the extractor wrote. 1, the default
+    /// when missing, predates storeys, slabs and wall elevations.
+    #[serde(default = "format_one", rename = "formatVersion")]
+    pub format_version: u32,
+}
+
+fn format_one() -> u32 {
+    1
+}
+
+impl BuildingModel {
+    /// The generic format version this model was written in (1 when its
+    /// metadata does not say).
+    pub fn format_version(&self) -> u32 {
+        self.metadata
+            .as_ref()
+            .map_or(1, |metadata| metadata.format_version)
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -259,6 +349,231 @@ pub fn window_area_by_facing(model: &BuildingModel) -> Vec<(f64, f64)> {
         .collect()
 }
 
+// ---------------------------------------------------------------------------
+// The MURB envelope
+// ---------------------------------------------------------------------------
+
+/// One storey's share of the gross floor area.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct StoreyArea {
+    pub name: String,
+    /// Metres, project z.
+    pub elevation: f64,
+    /// Square metres: the footprint union of the storey's plates.
+    pub area: f64,
+    /// How many floor plates make it up.
+    pub plates: usize,
+}
+
+/// The envelope quantities an energy model takes, derived from a building
+/// model: see [`envelope`].
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Envelope {
+    /// Grade elevation used for the wall split, metres, project z.
+    pub grade: f64,
+    /// Gross floor area: the sum of the storeys' plate areas.
+    pub gfa: f64,
+    pub storeys: Vec<StoreyArea>,
+    /// Storeys with no floor plate at their level.
+    pub empty_storeys: usize,
+    /// Net exterior wall area above and below `grade`.
+    pub walls_ag: f64,
+    pub walls_bg: f64,
+    /// Exterior walls without elevations, counted above grade.
+    pub walls_without_height: usize,
+    /// Window area in exterior walls plus windows in no wall.
+    pub windows: f64,
+    /// (azimuth, m²) pairs, as [`window_area_by_facing`].
+    pub windows_by_facing: Vec<(f64, f64)>,
+    /// Up-facing roof surface.
+    pub roof: f64,
+    pub roofs: Vec<(String, f64)>,
+    /// Floor plates at no storey's level: (name, m²). Not in `gfa`.
+    pub left_out: Vec<(String, f64)>,
+    pub format_version: u32,
+}
+
+/// The share of a wall standing between `bottom` and `top` that lies below
+/// `grade`, in `[0, 1]`. A wall with no height, or an inverted one, counts
+/// as above grade.
+pub fn below_grade_fraction(bottom: f64, top: f64, grade: f64) -> f64 {
+    let height = top - bottom;
+    if height <= 0.0 {
+        return 0.0;
+    }
+    ((grade.min(top) - bottom) / height).clamp(0.0, 1.0)
+}
+
+/// The windows of the envelope: those listed in a wall not flagged interior,
+/// and the model's windows listed in no wall at all (skylights, say). The
+/// IFC extractor puts a hosted window in both its wall and the model's list,
+/// so a window counts once, and a window in an interior wall not at all.
+fn envelope_windows(model: &BuildingModel) -> (Vec<&WallWindow>, Vec<&GenericWindow>) {
+    let in_walls: Vec<&WallWindow> = model
+        .walls
+        .iter()
+        .filter(|w| w.is_external != Some(false))
+        .flat_map(|w| &w.windows)
+        .collect();
+    let listed: std::collections::HashSet<&str> = model
+        .walls
+        .iter()
+        .flat_map(|w| &w.windows)
+        .map(|win| win.id.as_str())
+        .filter(|id| !id.is_empty())
+        .collect();
+    let loose: Vec<&GenericWindow> = model
+        .windows
+        .iter()
+        .filter(|win| win.id.is_empty() || !listed.contains(win.id.as_str()))
+        .collect();
+    (in_walls, loose)
+}
+
+/// The envelope of `model` with `grade` (metres, project z) as the ground
+/// line: GFA from the storeys' plate areas, exterior wall area split where
+/// each wall crosses grade (walls without elevations count above it),
+/// window area as [`envelope_windows`], roof area from the roofs' up-facing
+/// surfaces. Floor plates at no storey's level are reported, not counted.
+pub fn envelope(model: &BuildingModel, grade: f64) -> Envelope {
+    let storeys: Vec<StoreyArea> = model
+        .storeys
+        .iter()
+        .map(|s| StoreyArea {
+            name: s.name.clone(),
+            elevation: s.elevation,
+            area: s.floor_area,
+            plates: s.slab_ids.len(),
+        })
+        .collect();
+    let gfa = storeys.iter().map(|s| s.area).sum();
+    let empty_storeys = storeys.iter().filter(|s| s.plates == 0).count();
+
+    let roofs: Vec<(String, f64)> = model
+        .slabs
+        .iter()
+        .filter(|s| s.kind == SlabKind::Roof)
+        .map(|s| (s.name.clone(), s.area))
+        .collect();
+    let roof = roofs.iter().map(|(_, area)| area).sum();
+    let left_out = model
+        .slabs
+        .iter()
+        .filter(|s| s.kind == SlabKind::Floor && s.storey.is_none())
+        .map(|s| (s.name.clone(), s.area))
+        .collect();
+
+    let mut walls_ag = 0.0;
+    let mut walls_bg = 0.0;
+    let mut walls_without_height = 0;
+    for wall in model.walls.iter().filter(|w| w.is_external != Some(false)) {
+        match (wall.bottom, wall.top) {
+            (Some(bottom), Some(top)) => {
+                let below = below_grade_fraction(bottom, top, grade);
+                walls_bg += wall.area * below;
+                walls_ag += wall.area * (1.0 - below);
+            }
+            _ => {
+                walls_without_height += 1;
+                walls_ag += wall.area;
+            }
+        }
+    }
+
+    let (in_walls, loose) = envelope_windows(model);
+    let windows =
+        in_walls.iter().map(|w| w.area).sum::<f64>() + loose.iter().map(|w| w.area).sum::<f64>();
+
+    Envelope {
+        grade,
+        gfa,
+        storeys,
+        empty_storeys,
+        walls_ag,
+        walls_bg,
+        walls_without_height,
+        windows,
+        windows_by_facing: window_area_by_facing(model),
+        roof,
+        roofs,
+        left_out,
+        format_version: model.format_version(),
+    }
+}
+
+/// `68% 143°, 20% 233°`, or `none` without windows.
+pub fn describe_facings(facings: &[(f64, f64)]) -> String {
+    let total: f64 = facings.iter().map(|(_, area)| area).sum();
+    if total <= 0.0 {
+        return "none".to_string();
+    }
+    facings
+        .iter()
+        .map(|(azimuth, area)| format!("{:.0}% {azimuth:.0}°", area / total * 100.0))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// Print an envelope as the table `makit analyze` and `murb-simulate` show.
+pub fn print_envelope(env: &Envelope) {
+    println!();
+    println!("  Envelope (grade {:.1} m)", env.grade);
+    println!("  GFA:      {:>8.1} m²", env.gfa);
+    for storey in &env.storeys {
+        let plates = match storey.plates {
+            1 => "1 plate".to_string(),
+            n => format!("{n} plates"),
+        };
+        println!(
+            "    {:<20.20} {:>7.2} m {:>8.1} m²  ({plates})",
+            storey.name, storey.elevation, storey.area
+        );
+    }
+    if env.empty_storeys > 0 {
+        println!(
+            "    {} storey(s) with no floor plate at their level",
+            env.empty_storeys
+        );
+    }
+    if !env.left_out.is_empty() {
+        let total: f64 = env.left_out.iter().map(|(_, area)| area).sum();
+        let names: Vec<&str> = env
+            .left_out
+            .iter()
+            .take(5)
+            .map(|(name, _)| name.as_str())
+            .collect();
+        let more = if env.left_out.len() > 5 { ", …" } else { "" };
+        println!(
+            "    Left out, at no storey's level: {} plate(s), {total:.1} m² ({}{more})",
+            env.left_out.len(),
+            names.join(", ")
+        );
+    }
+    if env.format_version < 2 {
+        println!("    (extraction predates storeys and slabs: re-extract for GFA and roof)");
+    }
+    println!(
+        "  Walls:    {:>8.1} m² above grade, {:.1} m² below",
+        env.walls_ag, env.walls_bg
+    );
+    if env.walls_without_height > 0 {
+        println!(
+            "    {} wall(s) without elevations counted above grade",
+            env.walls_without_height
+        );
+    }
+    println!(
+        "  Windows:  {:>8.1} m²  ({})",
+        env.windows,
+        describe_facings(&env.windows_by_facing)
+    );
+    println!("  Roof:     {:>8.1} m²", env.roof);
+    for (name, area) in &env.roofs {
+        println!("    {:<40.40} {:>8.1} m²", name, area);
+    }
+}
+
 /// Convert generic walls to the WallData format used by analyze_orientations.
 fn to_wall_data(walls: &[GenericWall], project_north: f64) -> Vec<WallData> {
     walls
@@ -292,22 +607,7 @@ pub fn analyze_wwr(model: &BuildingModel) -> WwrAnalysis {
 
     let total_wall_area: f64 = walls.iter().map(|w| w.area).sum();
 
-    // Windows listed in an envelope wall, plus top-level windows not listed
-    // in any wall: the IFC extractor puts a hosted window in both lists, and
-    // a window in an interior wall is not part of the envelope either.
-    let in_walls: Vec<&WallWindow> = walls.iter().flat_map(|w| &w.windows).collect();
-    let listed: std::collections::HashSet<&str> = model
-        .walls
-        .iter()
-        .flat_map(|w| &w.windows)
-        .map(|win| win.id.as_str())
-        .filter(|id| !id.is_empty())
-        .collect();
-    let loose: Vec<&GenericWindow> = model
-        .windows
-        .iter()
-        .filter(|win| win.id.is_empty() || !listed.contains(win.id.as_str()))
-        .collect();
+    let (in_walls, loose) = envelope_windows(model);
     let total_window_area: f64 = in_walls.iter().map(|win| win.area).sum::<f64>()
         + loose.iter().map(|win| win.area).sum::<f64>();
 
@@ -646,5 +946,161 @@ mod tests {
         // Any other IFC file dropped into the examples folder, such as a
         // local download, must not borrow it.
         assert_eq!(find_json_for_ifc(&dir.join("Other-Model.ifc")), None);
+    }
+
+    // ─── The MURB envelope ──────────────────────────────────────────────
+
+    fn round1(x: f64) -> f64 {
+        (x * 10.0).round() / 10.0
+    }
+
+    #[test]
+    fn below_grade_fraction_clamps_and_handles_degenerate_walls() {
+        assert_eq!(below_grade_fraction(-1.5, 2.0, 0.0), 1.5 / 3.5);
+        assert_eq!(below_grade_fraction(0.0, 3.0, 0.0), 0.0);
+        assert_eq!(below_grade_fraction(-2.0, -1.0, 0.0), 1.0);
+        // a wall with no height, or an inverted one, counts above grade
+        assert_eq!(below_grade_fraction(1.0, 1.0, 0.0), 0.0);
+        assert_eq!(below_grade_fraction(2.0, 1.0, 0.0), 0.0);
+        assert_eq!(below_grade_fraction(-1.0, 1.0, 0.5), 0.75);
+    }
+
+    /// Two storeys and an empty one, a roof, a pad at no storey level, a
+    /// landing, a wall straddling grade, a wall without elevations, an
+    /// interior wall with a window, and a skylight in no wall.
+    fn envelope_model() -> BuildingModel {
+        serde_json::from_value(serde_json::json!({
+            "storeys": [
+                { "id": "l1", "name": "L1", "elevation": 0.0, "floorArea": 100.0, "slabIds": ["p1", "p2"] },
+                { "id": "l2", "name": "L2", "elevation": 3.0, "floorArea": 80.0, "slabIds": ["p3"] },
+                { "id": "rl", "name": "Roof line", "elevation": 6.0, "floorArea": 0.0, "slabIds": [] }
+            ],
+            "slabs": [
+                { "id": "p1", "name": "slab", "kind": "floor", "area": 100.0, "top": 0.0, "bottom": -0.2, "storey": "L1" },
+                { "id": "p2", "name": "finish", "kind": "floor", "area": 30.0, "top": 0.02, "bottom": 0.0, "storey": "L1" },
+                { "id": "p3", "name": "upper", "kind": "floor", "area": 80.0, "top": 3.0, "bottom": 2.7, "storey": "L2" },
+                { "id": "r", "name": "r", "kind": "roof", "area": 60.0, "top": 6.3, "bottom": 6.0, "storey": "Roof line" },
+                { "id": "pad", "name": "pad", "kind": "floor", "area": 50.0, "top": -1.5, "bottom": -1.8, "storey": null },
+                { "id": "landing", "name": "landing", "kind": "landing", "area": 4.0, "storey": "L1" }
+            ],
+            "walls": [
+                { "id": "a", "orientation": { "x": 1.0, "y": 0.0, "z": 0.0 }, "area": 30.0, "isExternal": true,
+                  "bottom": -1.5, "top": 2.0, "windows": [{ "id": "wa", "area": 4.0 }] },
+                { "id": "b", "orientation": { "x": 0.0, "y": -1.0, "z": 0.0 }, "area": 20.0 },
+                { "id": "in", "orientation": { "x": -1.0, "y": 0.0, "z": 0.0 }, "area": 9.0, "isExternal": false,
+                  "bottom": 0.0, "top": 3.0, "windows": [{ "id": "wi", "area": 1.0 }] }
+            ],
+            "windows": [
+                { "id": "wa", "area": 4.0 }, { "id": "wi", "area": 1.0 }, { "id": "skylight", "area": 2.0 }
+            ],
+            "metadata": { "projectName": "p", "formatVersion": 2 }
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn storeys_slabs_and_elevations_load_from_the_format() {
+        let model = envelope_model();
+        assert_eq!(model.format_version(), 2);
+        assert_eq!(model.slabs[3].kind, SlabKind::Roof);
+        assert_eq!(model.slabs[5].kind, SlabKind::Landing);
+        assert_eq!(model.slabs[4].storey, None);
+        assert_eq!(model.walls[0].top, Some(2.0));
+        assert_eq!(model.walls[1].bottom, None);
+        assert_eq!(model.storeys[1].slab_ids, vec!["p3".to_string()]);
+        // an unknown kind from a newer extractor is kept as Other
+        let slab: Slab =
+            serde_json::from_value(serde_json::json!({ "id": "x", "kind": "ramp" })).unwrap();
+        assert_eq!(slab.kind, SlabKind::Other);
+    }
+
+    #[test]
+    fn envelope_sums_storeys_roofs_and_splits_walls_at_grade() {
+        let env = envelope(&envelope_model(), 0.0);
+        assert_eq!(env.gfa, 180.0);
+        assert_eq!(env.storeys.len(), 3);
+        assert_eq!(
+            env.storeys[0],
+            StoreyArea {
+                name: "L1".into(),
+                elevation: 0.0,
+                area: 100.0,
+                plates: 2
+            }
+        );
+        assert_eq!(env.empty_storeys, 1);
+        assert_eq!(round1(env.walls_bg), round1(30.0 * 1.5 / 3.5));
+        assert_eq!(round1(env.walls_ag), round1(30.0 * 2.0 / 3.5 + 20.0));
+        assert_eq!(env.walls_without_height, 1);
+        // the window in the exterior wall and the skylight, not the interior wall's
+        assert_eq!(env.windows, 6.0);
+        assert_eq!(env.windows_by_facing, vec![(90.0, 4.0)]);
+        assert_eq!(env.roof, 60.0);
+        assert_eq!(env.roofs, vec![("r".to_string(), 60.0)]);
+        assert_eq!(env.left_out, vec![("pad".to_string(), 50.0)]);
+        assert_eq!((env.grade, env.format_version), (0.0, 2));
+    }
+
+    #[test]
+    fn grade_moves_wall_area_between_above_and_below() {
+        let env = envelope(&envelope_model(), 2.0);
+        // the wall from -1.5 to 2.0 is wholly below a grade of 2.0; the one
+        // without elevations stays above
+        assert_eq!(round1(env.walls_bg), 30.0);
+        assert_eq!(round1(env.walls_ag), 20.0);
+    }
+
+    #[test]
+    fn a_format_one_model_has_no_envelope_areas() {
+        let model: BuildingModel = serde_json::from_value(serde_json::json!({
+            "walls": [{ "id": "e", "orientation": { "x": 1.0, "y": 0.0, "z": 0.0 }, "area": 10.0,
+                        "isExternal": true, "windows": [{ "id": "w", "area": 3.0 }] }]
+        }))
+        .unwrap();
+        assert_eq!(model.format_version(), 1);
+        let env = envelope(&model, 0.0);
+        assert_eq!((env.gfa, env.roof, env.format_version), (0.0, 0.0, 1));
+        assert_eq!(
+            (env.walls_ag, env.walls_bg, env.walls_without_height),
+            (10.0, 0.0, 1)
+        );
+        assert_eq!(env.windows, 3.0);
+        assert!(env.storeys.is_empty() && env.left_out.is_empty());
+    }
+
+    #[test]
+    fn the_sample_extractions_match_the_probed_figures() {
+        let dir = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples/IFC"));
+        let house = envelope(&load_model(&dir.join("building-model.json")).unwrap(), 0.0);
+        assert_eq!(round1(house.gfa), 25.8);
+        assert_eq!(round1(house.roof), 53.6);
+        assert_eq!(round1(house.walls_ag + house.walls_bg), 36.4);
+        assert!(
+            house.walls_bg > 2.5 && house.walls_bg < 3.5,
+            "{}",
+            house.walls_bg
+        );
+        assert_eq!((house.storeys.len(), house.format_version), (1, 2));
+
+        let duplex = envelope(
+            &load_model(&dir.join("Ifc2x3_Duplex_Architecture.json")).unwrap(),
+            0.0,
+        );
+        assert_eq!(round1(duplex.gfa), 299.3);
+        assert_eq!(round1(duplex.roof), 137.4);
+        assert!(duplex.windows > 60.0, "{}", duplex.windows);
+        assert_eq!((duplex.storeys.len(), duplex.empty_storeys), (4, 2));
+
+        let arc = envelope(&load_model(&dir.join("Ifc4_ARC.json")).unwrap(), 0.0);
+        assert_eq!(round1(arc.gfa), 718.8);
+        assert_eq!(round1(arc.roof), 244.3);
+        assert_eq!(round1(arc.walls_ag + arc.walls_bg), 707.2);
+        assert!(
+            arc.walls_bg > 150.0 && arc.walls_bg < 200.0,
+            "{}",
+            arc.walls_bg
+        );
+        assert_eq!(arc.left_out.len(), 10); // Pad:Pad 2 and nine pile stubs
+        assert_eq!(arc.walls_without_height, 0);
     }
 }
