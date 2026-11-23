@@ -13,7 +13,6 @@ use crate::layout;
 use crate::msg::{Cmd, EditKey, IfcOutcome, Msg, Pane};
 use crate::node::NodeId;
 use crate::options::OptionSpec;
-use makit_tools::building_model;
 
 /// Logo rotation per tick (radians).
 const LOGO_STEP: f64 = 0.04;
@@ -62,6 +61,7 @@ fn is_background(msg: &Msg) -> bool {
             | Msg::Tick
             | Msg::Output(_)
             | Msg::TaskFinished { .. }
+            | Msg::IfcExtracting { .. }
             | Msg::IfcLoaded { .. }
             | Msg::MurbLoaded(_)
     )
@@ -131,14 +131,14 @@ fn apply(state: &mut AppState, msg: Msg) -> Vec<Cmd> {
             Vec::new()
         }
         Msg::Output(line) => {
-            state.push_log(line);
-            if !state.show_output && !state.output_auto_opened {
-                state.show_output = true;
-                state.output_auto_opened = true;
-            }
+            output(state, line);
             Vec::new()
         }
         Msg::TaskFinished { id, result } => task_finished(state, id, result),
+        Msg::IfcExtracting { path } => {
+            ifc_extracting(state, &path);
+            Vec::new()
+        }
         Msg::IfcLoaded { path, result } => {
             ifc_loaded(state, path, result);
             Vec::new()
@@ -399,6 +399,9 @@ fn run_or_prompt(state: &mut AppState, task: NodeId) -> Vec<Cmd> {
     running.results = task
         .results_option()
         .and_then(|opt| options.get(opt).cloned());
+    if task == NodeId::Source("ifc".into()) {
+        running.reload_ifc = options.get("file").cloned();
+    }
     state.tasks.insert(id, running);
     state.status = format!("▸ Executing: {name}");
     let given: String = options
@@ -459,9 +462,18 @@ fn task_finished(state: &mut AppState, id: u64, result: Result<String, String>) 
         (Ok(msg), None) => format!("✓ {msg}"),
         (Err(err), _) => format!("✗ {err}"),
     };
-    if result.is_ok() && stopped.is_none() {
-        if let Some(path) = task.and_then(|task| task.results) {
+    let was_stopped = stopped.is_some();
+    if let (Ok(_), false, Some(task)) = (&result, was_stopped, task) {
+        if let Some(path) = task.results {
             cmds.push(Cmd::LoadMurb { path });
+        }
+        // The ifc source wrote the picked file's extraction: show it.
+        if let Some(path) = task
+            .reload_ifc
+            .filter(|path| state.ifc.loaded.as_deref() == Some(path.as_str()))
+        {
+            state.ifc.loading = Some(path.clone());
+            cmds.push(Cmd::LoadIfc { path });
         }
     }
     let line = format!("── {}", state.status);
@@ -478,6 +490,23 @@ fn load_ifc(state: &mut AppState, index: usize) -> Vec<Cmd> {
     vec![Cmd::LoadIfc { path }]
 }
 
+/// A line for the Output pane, opening it the first time.
+fn output(state: &mut AppState, line: String) {
+    state.push_log(line);
+    if !state.show_output && !state.output_auto_opened {
+        state.show_output = true;
+        state.output_auto_opened = true;
+    }
+}
+
+/// The worker is running the extractor on `path`; say so while it is still
+/// the selection being loaded.
+fn ifc_extracting(state: &mut AppState, path: &str) {
+    if state.ifc.loading.as_deref() == Some(path) {
+        state.status = format!("◌ Extracting {}… (Python)", file_name(path));
+    }
+}
+
 fn ifc_loaded(state: &mut AppState, path: String, result: Result<IfcOutcome, String>) {
     // Ignore results for a selection that has since been superseded.
     if state.ifc.loading.as_deref() != Some(path.as_str()) {
@@ -485,20 +514,41 @@ fn ifc_loaded(state: &mut AppState, path: String, result: Result<IfcOutcome, Str
     }
     state.ifc.loading = None;
     state.ifc.analysis = None;
+    state.ifc.envelope = None;
     state.ifc.json = None;
     state.ifc.error = None;
+    state.ifc.note = None;
     match result {
-        Ok(IfcOutcome::Analysis { analysis, json }) => {
-            state.status = format!(
+        Ok(IfcOutcome::Analysis {
+            analysis,
+            envelope,
+            json,
+            extracted,
+            note,
+        }) => {
+            let mut status = format!(
                 "◆ {} walls, WWR {:.1}% — {}",
                 analysis.wall_count, analysis.overall_wwr, path
             );
+            if extracted {
+                status.push_str(&format!(" (extracted to {})", file_name(&json)));
+            }
+            if let Some(note) = &note {
+                status.push_str(&format!(" · {note}"));
+                // one row cannot hold it all; the Output pane can
+                output(state, format!("── ◆ {path}: {note}"));
+            }
+            state.status = status;
             state.ifc.analysis = Some(analysis);
+            state.ifc.envelope = Some(envelope);
             state.ifc.json = Some(json);
+            state.ifc.note = note;
         }
-        Ok(IfcOutcome::NeedsExtraction) => {
-            let json = building_model::extraction_path(Path::new(&path));
-            state.status = format!("◆ {path} is not extracted yet (no {})", json.display());
+        Ok(IfcOutcome::NeedsExtraction { reason }) => {
+            state.status = format!("◆ {path} is not extracted: {reason}");
+            // the setup hint at the end of the reason needs the Output pane's width
+            output(state, format!("── ◆ {path}: {reason}"));
+            state.ifc.note = Some(reason);
         }
         Err(err) => {
             state.status = format!("✗ Error loading {path}: {err}");
@@ -721,6 +771,15 @@ mod tests {
         building_model::analyze_wwr(&model)
     }
 
+    fn sample_envelope() -> building_model::Envelope {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../examples/IFC/building-model.json"
+        );
+        let model = building_model::load_model(Path::new(path)).expect("example model");
+        building_model::envelope(&model, 0.0)
+    }
+
     #[test]
     fn arrow_keys_move_the_tree_cursor() {
         let mut s = state();
@@ -843,7 +902,9 @@ mod tests {
             &mut s,
             Msg::IfcLoaded {
                 path: "examples/IFC/a.ifc".into(),
-                result: Ok(IfcOutcome::NeedsExtraction),
+                result: Ok(IfcOutcome::NeedsExtraction {
+                    reason: "stale".into(),
+                }),
             },
         );
         assert!(s.ifc.loading.is_some());
@@ -856,7 +917,10 @@ mod tests {
                 path: "examples/IFC/b.ifc".into(),
                 result: Ok(IfcOutcome::Analysis {
                     analysis,
+                    envelope: sample_envelope(),
                     json: "examples/IFC/building-model.json".into(),
+                    extracted: false,
+                    note: None,
                 }),
             },
         );
@@ -894,11 +958,159 @@ mod tests {
             &mut s,
             Msg::IfcLoaded {
                 path: "m/y.ifc".into(),
-                result: Ok(IfcOutcome::NeedsExtraction),
+                result: Ok(IfcOutcome::NeedsExtraction {
+                    reason: "no Python with ifcopenshell".into(),
+                }),
             },
         );
-        assert_eq!(s.status, "◆ m/y.ifc is not extracted yet (no m/y.json)");
+        assert_eq!(
+            s.status,
+            "◆ m/y.ifc is not extracted: no Python with ifcopenshell"
+        );
+        assert_eq!(s.ifc.note.as_deref(), Some("no Python with ifcopenshell"));
         assert!(s.ifc.error.is_none());
+        assert!(s.ifc.envelope.is_none());
+    }
+
+    #[test]
+    fn extracting_shows_while_the_selection_is_loading() {
+        let mut s = state();
+        s.ifc.loading = Some("examples/IFC/b.ifc".into());
+        update(
+            &mut s,
+            Msg::IfcExtracting {
+                path: "examples/IFC/b.ifc".into(),
+            },
+        );
+        assert!(s.status.starts_with("◌ Extracting b.ifc"), "{}", s.status);
+        // a message for another file is stale and changes nothing
+        update(
+            &mut s,
+            Msg::IfcExtracting {
+                path: "examples/IFC/a.ifc".into(),
+            },
+        );
+        assert!(s.status.starts_with("◌ Extracting b.ifc"), "{}", s.status);
+    }
+
+    #[test]
+    fn an_extracted_result_says_so_and_keeps_the_envelope() {
+        let mut s = state();
+        s.ifc.loading = Some("examples/IFC/b.ifc".into());
+        update(
+            &mut s,
+            Msg::IfcLoaded {
+                path: "examples/IFC/b.ifc".into(),
+                result: Ok(IfcOutcome::Analysis {
+                    analysis: sample_analysis(),
+                    envelope: sample_envelope(),
+                    json: "examples/IFC/b.json".into(),
+                    extracted: true,
+                    note: Some("using stale examples/IFC/b.json: no python".into()),
+                }),
+            },
+        );
+        assert!(s.status.contains("extracted to b.json"), "{}", s.status);
+        assert!(s.status.contains("no python"), "{}", s.status);
+        assert_eq!(
+            s.ifc
+                .envelope
+                .as_ref()
+                .map(|e| (e.gfa * 10.0).round() / 10.0),
+            Some(25.8)
+        );
+        assert_eq!(
+            s.ifc.note.as_deref(),
+            Some("using stale examples/IFC/b.json: no python")
+        );
+        // the note is also in the Output pane, in full
+        assert!(s.log.iter().any(|l| l.contains("no python")), "{:?}", s.log);
+    }
+
+    #[test]
+    fn a_missing_extraction_reason_goes_to_the_output_pane_in_full() {
+        let mut s = state();
+        s.ifc.loading = Some("m/y.ifc".into());
+        let reason = "m/y.ifc is not extracted and extraction failed: no Python with \
+                      ifcopenshell found (tried python3, python); set up a Python with \
+                      IfcOpenShell once: uv venv .venv --python 3.13 …"
+            .to_string();
+        update(
+            &mut s,
+            Msg::IfcLoaded {
+                path: "m/y.ifc".into(),
+                result: Ok(IfcOutcome::NeedsExtraction { reason }),
+            },
+        );
+        // one status row cannot hold the setup hint; the Output pane can
+        assert!(s.log.iter().any(|l| l.contains("uv venv")), "{:?}", s.log);
+        assert!(s.show_output);
+    }
+
+    #[test]
+    fn running_the_ifc_source_remembers_the_file_to_reload() {
+        let mut s = state();
+        s.tree.select(1); // source:ifc
+        s.ifc.loaded = Some("examples/IFC/a.ifc".into());
+        let cmds = update(&mut s, Msg::Execute);
+        let [Cmd::RunTask { id, options, .. }] = &cmds[..] else {
+            panic!("{cmds:?}");
+        };
+        assert_eq!(
+            options.get("file").map(String::as_str),
+            Some("examples/IFC/a.ifc")
+        );
+        assert_eq!(
+            s.tasks[id].reload_ifc.as_deref(),
+            Some("examples/IFC/a.ifc")
+        );
+    }
+
+    #[test]
+    fn finishing_the_ifc_source_reloads_the_picked_file() {
+        let mut s = state();
+        s.ifc.loaded = Some("examples/IFC/a.ifc".into());
+        let mut task = crate::app::RunningTask::new(NodeId::Source("ifc".into()));
+        task.reload_ifc = Some("examples/IFC/a.ifc".into());
+        s.tasks.insert(7, task);
+        let cmds = update(
+            &mut s,
+            Msg::TaskFinished {
+                id: 7,
+                result: Ok("Success: ifc".into()),
+            },
+        );
+        assert_eq!(
+            cmds,
+            vec![Cmd::LoadIfc {
+                path: "examples/IFC/a.ifc".into()
+            }]
+        );
+        assert_eq!(s.ifc.loading.as_deref(), Some("examples/IFC/a.ifc"));
+
+        // another file, or a failure, reloads nothing
+        let mut other = crate::app::RunningTask::new(NodeId::Source("ifc".into()));
+        other.reload_ifc = Some("examples/IFC/b.ifc".into());
+        s.tasks.insert(8, other);
+        let cmds = update(
+            &mut s,
+            Msg::TaskFinished {
+                id: 8,
+                result: Ok("Success: ifc".into()),
+            },
+        );
+        assert!(cmds.is_empty(), "{cmds:?}");
+        let mut failed = crate::app::RunningTask::new(NodeId::Source("ifc".into()));
+        failed.reload_ifc = Some("examples/IFC/a.ifc".into());
+        s.tasks.insert(9, failed);
+        let cmds = update(
+            &mut s,
+            Msg::TaskFinished {
+                id: 9,
+                result: Err("Error: ifc: boom".into()),
+            },
+        );
+        assert!(cmds.is_empty(), "{cmds:?}");
     }
 
     #[test]

@@ -7,7 +7,7 @@
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::path::Path;
 
-use makit_tools::building_model::WwrAnalysis;
+use makit_tools::building_model::{Envelope, WwrAnalysis};
 use makit_tools::murb::MurbResults;
 use ratatui::layout::Rect;
 
@@ -40,6 +40,9 @@ pub struct RunningTask {
     pub stopping: bool,
     /// Results file to re-read when the task succeeds.
     pub results: Option<String>,
+    /// IFC file to reload in the picker when the task succeeds (the `ifc`
+    /// source's `--file`).
+    pub reload_ifc: Option<String>,
 }
 
 impl RunningTask {
@@ -50,6 +53,7 @@ impl RunningTask {
             node,
             stopping: false,
             results: None,
+            reload_ifc: None,
         }
     }
 }
@@ -163,10 +167,14 @@ pub struct IfcState {
     pub loaded: Option<String>,
     /// WWR analysis for `loaded`, when its JSON extraction exists.
     pub analysis: Option<WwrAnalysis>,
+    /// The MURB envelope of `loaded` at grade 0, with `analysis`.
+    pub envelope: Option<Envelope>,
     /// Path of the JSON extraction `analysis` was read from.
     pub json: Option<String>,
     /// Why loading `loaded` failed, if it did.
     pub error: Option<String>,
+    /// Why `loaded` has no extraction, or why a stale one is in use.
+    pub note: Option<String>,
 }
 
 /// Data gathered once at startup (kept separate so tests can inject it).

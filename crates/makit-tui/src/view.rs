@@ -457,6 +457,33 @@ fn render_ifc_details(frame: &mut Frame, state: &AppState, area: Rect) {
                     ..area
                 },
             );
+            y += 1;
+        }
+        if let Some(env) = state.ifc.envelope.as_ref().filter(|_| y < bottom) {
+            let line = Line::from(format!(
+                "GFA {:.0} m² · walls {:.0} / {:.0} m² · windows {:.0} m² · roof {:.0} m²",
+                env.gfa, env.walls_ag, env.walls_bg, env.windows, env.roof
+            ))
+            .fg(THEME.text);
+            frame.render_widget(
+                Paragraph::new(line),
+                Rect {
+                    y,
+                    height: 1,
+                    ..area
+                },
+            );
+            y += 1;
+        }
+        if let Some(note) = state.ifc.note.as_ref().filter(|_| y < bottom) {
+            frame.render_widget(
+                Paragraph::new(Line::from(note.clone()).fg(THEME.dim)),
+                Rect {
+                    y,
+                    height: 1,
+                    ..area
+                },
+            );
         }
     } else if let Some(loading) = &state.ifc.loading {
         let line = Line::from(format!(
@@ -475,13 +502,15 @@ fn render_ifc_details(frame: &mut Frame, state: &AppState, area: Rect) {
             ],
             None => {
                 let json = building_model::extraction_path(Path::new(loaded));
-                vec![
-                    Line::from(vec![Span::styled("◆ ", Style::new().fg(THEME.dim)), name]),
-                    Line::from(format!(
+                let why = state.ifc.note.clone().unwrap_or_else(|| {
+                    format!(
                         "Not extracted yet: no {} beside it",
                         file_name(&json.to_string_lossy())
-                    ))
-                    .fg(THEME.dim),
+                    )
+                });
+                vec![
+                    Line::from(vec![Span::styled("◆ ", Style::new().fg(THEME.dim)), name]),
+                    Line::from(why).fg(THEME.dim),
                 ]
             }
         };
@@ -1308,6 +1337,48 @@ mod tests {
         assert!(lines
             .iter()
             .any(|l| l.contains("Not extracted yet: no Building-Architecture.json")));
+    }
+
+    #[test]
+    fn a_missing_extraction_shows_its_reason() {
+        let mut s = state(120, 40);
+        s.tree.select(1);
+        s.ifc.loaded = Some(s.ifc.files[0].clone());
+        s.ifc.note = Some("no Python with ifcopenshell: set MAKIT_PYTHON".into());
+        let lines = text(&render(&s));
+        assert!(lines
+            .iter()
+            .any(|l| l.contains("no Python with ifcopenshell")));
+        assert!(!lines.iter().any(|l| l.contains("Not extracted yet")));
+    }
+
+    fn sample_model() -> building_model::BuildingModel {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../examples/IFC/building-model.json"
+        );
+        building_model::load_model(Path::new(path)).expect("example model")
+    }
+
+    #[test]
+    fn the_detail_shows_the_envelope_line_and_a_note() {
+        let mut s = state(120, 40);
+        s.tree.select(1);
+        s.ifc.loaded = Some(s.ifc.files[0].clone());
+        let model = sample_model();
+        s.ifc.analysis = Some(building_model::analyze_wwr(&model));
+        s.ifc.envelope = Some(building_model::envelope(&model, 0.0));
+        s.ifc.note = Some("using stale building-model.json: no python".into());
+        let lines = text(&render(&s));
+        assert!(
+            lines
+                .iter()
+                .any(|l| l.contains("GFA 26 m²") && l.contains("roof 54 m²")),
+            "{lines:#?}"
+        );
+        assert!(lines
+            .iter()
+            .any(|l| l.contains("using stale building-model.json")));
     }
 
     // ─── Honest previews ────────────────────────────────────────────────

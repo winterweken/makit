@@ -24,9 +24,9 @@ Built in Rust with [ratatui](https://ratatui.rs) for the interactive TUI and a d
 |---------|-------------|
 | **Interactive TUI** | ratatui tree explorer, option forms, an IFC picker that fills task inputs, braille previews that scale to the pane, Output pane for task logs, stop with `x`, mouse support |
 | **Live Revit Bridge** | Extract walls, floors, rooms via pyRevit HTTP; run orientation & WWR analysis |
-| **IFC Analysis** | Wall directions and window-to-wall ratio from IFC files, no Revit needed: a Python extractor (IfcOpenShell) reads walls, windows and curtain walls with the file's units, and the analysis counts exterior walls only |
+| **IFC Analysis** | Wall directions, window-to-wall ratio and the energy envelope (GFA by storey, walls above and below grade, windows, roof) from IFC files, no Revit needed: makit runs the Python extractor (IfcOpenShell) itself when an IFC has no extraction beside it or a stale one; it reads walls with their elevations, windows, curtain walls, storeys, floor plates and roofs with the file's units, and the analysis counts exterior walls only |
 | **Blender Sync** | HTTP server that receives geometry from the Blender add-on (not drawn in the TUI yet) |
-| **MURB Energy** | Monthly heat balance (TEDI / TEUI / GHGI) through murb_energy_tool, with the glazing split by facing, typed or taken from an IFC model |
+| **MURB Energy** | Monthly heat balance (TEDI / TEUI / GHGI) through murb_energy_tool, with every envelope area and the glazing split by facing taken from an IFC model unless you type them |
 | **Braille Canvas** | Floor plans, elevations, bar charts, and data sheets in braille characters |
 | **3D Logo** | The makit symbol on the TUI home screen: a braille kit of blocks with one block hovering above its socket |
 | **Generic JSON Format** | Extract from any source into one schema, run the same analysis everywhere |
@@ -63,7 +63,7 @@ cargo run -p makit
 | `Esc` / `q` | Close help · quit |
 | Mouse | Wheel scrolls the pane under the cursor · click selects / opens |
 
-**Option values.** Expand a source or action to see its options. `Enter` on an option opens a one-line form (`Enter` saves, `Esc` cancels, `Ctrl-U` clears, an empty value restores the default); a leading `~` is expanded to your home directory. Values are kept for the session and passed to the task when you press `e`. The file loaded in the IFC picker fills `ifc --file`, `wall-orientation-wwr --input` and `murb-simulate --model` unless you type something else.
+**Option values.** Expand a source or action to see its options. `Enter` on an option opens a one-line form (`Enter` saves, `Esc` cancels, `Ctrl-U` clears, an empty value restores the default); a leading `~` is expanded to your home directory. Values are kept for the session and passed to the task when you press `e`. The file loaded in the IFC picker fills `ifc --file`, `wall-orientation-wwr --input` and `murb-simulate --model` unless you type something else. Loading an IFC file extracts it first when it has no JSON beside it, or one older than the file, with a Python that has IfcOpenShell (`MAKIT_PYTHON`, the repository's `.venv`, or `python3`); the picker then shows its WWR and envelope figures.
 
 **Previews.** Charts and drawings built from your data are titled plainly (`heating demand`, `wall area by orientation`); stock drawings are marked `· illustration`, and a chart with nothing to show stays empty (`· no results`). When the pane is too short for a readable drawing, the preview is left out.
 
@@ -76,26 +76,28 @@ makit list
 # Execute a specific action
 makit exec revit analysis revit-wall-orientations
 
-# Extract an IFC file to JSON beside it (Python with IfcOpenShell, see Development)
-.venv/bin/python pyrevit-extension/Makit.extension/lib/analyze_ifc.py model.ifc \
-  --extract-only --output model.json
+# Extract an IFC file to JSON beside it. Needs a Python with IfcOpenShell (see
+# Development); makit finds it through MAKIT_PYTHON, the repository's .venv or python3.
+makit extract model.ifc
 
-# Analyze an IFC file (reads its extraction)
+# Analyze an IFC file: WWR by direction and the energy envelope (GFA by storey,
+# walls above and below grade, windows, roof). Extracts first when the JSON
+# beside the file is missing or older than it.
 makit analyze examples/IFC/Building-Architecture.ifc
+makit analyze model.ifc -t envelope --grade -1.5   # grade in metres, project z
 
-# Run a MURB energy simulation (needs the murb repository on PYTHONPATH).
-# window-directions splits the glazing by facing: azimuth (degrees clockwise
-# from north, or N/NE/E/SE/S/SW/W/NW) and share in any unit. Without it, model
-# (an IFC file or its extraction) gives the split of its windows by wall facing;
-# with neither, 25% each way.
+# Run a MURB energy simulation from a model (needs the murb repository on
+# PYTHONPATH). Every envelope area and the glazing split by facing come from the
+# IFC file or its extraction; a typed value wins over the model.
 PYTHONPATH=../murb makit exec murb analysis murb-simulate \
-  -o epw=weather.epw -o gfa=335.5 -o walls-ag=307.4 -o windows=182.8 -o roof=244.3 \
-  -o window-directions=SE:68,SW:20,NE:12
+  -o model=path/to/model.ifc -o epw=weather.epw
 
-# The same, taking the window split from the IFC model
+# Override anything. window-directions splits the glazing by facing: azimuth
+# (degrees clockwise from north, or N/NE/E/SE/S/SW/W/NW) and share in any unit;
+# without it and without a model, 25% each way.
 PYTHONPATH=../murb makit exec murb analysis murb-simulate \
-  -o epw=weather.epw -o gfa=335.5 -o walls-ag=307.4 -o windows=182.8 -o roof=244.3 \
-  -o model=path/to/model.ifc
+  -o epw=weather.epw -o gfa=299.3 -o walls-ag=345.7 -o walls-bg=77 -o windows=65.2 \
+  -o roof=137.4 -o window-directions=SE:68,SW:20,NE:12
 
 # Show help
 makit --help
@@ -166,7 +168,7 @@ graph LR
 ```
 makit/
 ├── crates/
-│   ├── makit-cli/           # Binary — clap CLI (list, exec, analyze, tui, status, init)
+│   ├── makit-cli/           # Binary — clap CLI (list, exec, analyze, extract, tui, status, init)
 │   ├── makit-core/          # Registry singleton, config (figment/YAML), model types
 │   ├── makit-geometry/      # Point, Line, Rectangle + Plotter/BrailleGrid drawing + SDF
 │   ├── makit-tools/         # Tool implementations (revit, blender, ifc, murb)
@@ -177,7 +179,7 @@ makit/
 │   ├── blender/             # Python Blender addon
 │   ├── murb_runner.py       # Python bridge for MURB energy tool
 │   └── tests/               # Runner tests
-├── examples/IFC/            # Sample IFC file, its extraction and analysis scripts
+├── examples/IFC/            # Sample IFC file, three extractions and analysis scripts
 └── docs/                    # Architecture docs, brand/ (the makit symbol), media/ (README GIF)
 ```
 
@@ -200,11 +202,11 @@ Tools register **sources** (inputs and connections) and **actions** (operations)
 <tr><td><code>makit-geometry</code></td><td>Working</td><td>Primitives, <code>Plotter</code> drawing, braille grid, recordings, SDF engine. No external dependencies.</td></tr>
 <tr><td><code>makit-tui</code></td><td>Working</td><td>Explorer, option forms, IFC picker, previews, Output pane, stop, mouse, terminal restore on signals.</td></tr>
 <tr><td colspan="3"><b>IFC</b></td></tr>
-<tr><td>IFC extractor (<code>analyze_ifc.py</code>, Python)</td><td>Working</td><td>Walls, windows and curtain walls with the file's units, outward facing, true north and exterior flags. Needs IfcOpenShell; run by hand.</td></tr>
-<tr><td><code>ifc</code> source</td><td>Placeholder</td><td>Prints "Loading IFC file". Loading happens in the TUI picker and <code>makit analyze</code>.</td></tr>
-<tr><td><code>wall-orientation-wwr</code></td><td>Partial</td><td>Direction table and WWR for exterior walls. Takes the extraction JSON; given an <code>.ifc</code> path it fails (the TUI picker passes the JSON).</td></tr>
+<tr><td>IFC extractor (<code>analyze_ifc.py</code>, Python)</td><td>Working</td><td>Walls with their elevations, windows, curtain walls, storeys, floor plates (footprint union per storey) and roofs (up-facing surface) with the file's units, outward facing, true north and exterior flags. Needs IfcOpenShell; makit runs it on demand.</td></tr>
+<tr><td><code>ifc</code> source</td><td>Working</td><td>Extracts an IFC file to JSON beside it with the Python extractor (<code>makit extract</code> on the command line). The picker, <code>makit analyze</code>, <code>wall-orientation-wwr</code> and <code>murb-simulate</code> extract on their own when the JSON is missing or older than the IFC, and keep a stale JSON with a note when no Python with IfcOpenShell is found.</td></tr>
+<tr><td><code>wall-orientation-wwr</code></td><td>Working</td><td>Direction table and WWR for exterior walls, from an extraction JSON or an IFC file (extracted on demand).</td></tr>
 <tr><td colspan="3"><b>Energy</b></td></tr>
-<tr><td><code>murb-simulate</code></td><td>Working</td><td>Monthly TEDI / TEUI / GHGI through murb_energy_tool (put the murb repository on <code>PYTHONPATH</code>). Window directions typed or from an IFC model. Checked with Toronto TMYx weather.</td></tr>
+<tr><td><code>murb-simulate</code></td><td>Working</td><td>Monthly TEDI / TEUI / GHGI through murb_energy_tool (put the murb repository on <code>PYTHONPATH</code>). Envelope areas (GFA by storey, walls above and below <code>--grade</code>, windows, roof) and window directions from an IFC model, each printed with its source; typed values win. Checked with Toronto TMYx weather on the three sample models.</td></tr>
 <tr><td><code>murb-report</code></td><td>Working</td><td>Prints a results JSON as a report.</td></tr>
 <tr><td><code>murb</code> source</td><td>Partial</td><td>Checks that murb_energy_tool imports, but reports success either way.</td></tr>
 <tr><td colspan="3"><b>Revit</b> (pyRevit HTTP on port 48884)</td></tr>
@@ -237,10 +239,12 @@ Tools register **sources** (inputs and connections) and **actions** (operations)
 # Build
 cargo build
 
-# Run all 279 tests (10 core, 40 geometry, 47 tools, 182 tui)
+# Run all 325 tests (3 cli, 10 core, 40 geometry, 81 tools, 191 tui). They read the
+# three committed extractions in examples/IFC and need no Python.
 cargo test
 
-# Python IFC extractor: set up once, then run its 22 tests
+# Python IFC extractor: set up once, then run its 50 tests. makit finds this
+# Python on its own (MAKIT_PYTHON, then .venv/bin/python, then python3).
 uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell
 .venv/bin/python -m unittest discover -s pyrevit-extension/tests
 

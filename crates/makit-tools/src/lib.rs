@@ -8,6 +8,7 @@ pub mod blender;
 pub mod building_model;
 pub mod ifc;
 pub mod murb;
+pub mod python;
 pub mod revit;
 pub mod rhino;
 

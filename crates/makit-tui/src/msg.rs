@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use makit_tools::building_model::WwrAnalysis;
+use makit_tools::building_model::{Envelope, WwrAnalysis};
 use makit_tools::murb::MurbResults;
 
 use crate::node::NodeId;
@@ -18,16 +18,25 @@ pub enum Pane {
 }
 
 /// Result of loading an IFC selection on a worker thread.
+// Built once per load; boxing the analysis would only move the allocation.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum IfcOutcome {
-    /// The JSON extraction was found and analysed.
+    /// The JSON extraction was found (or made) and analysed.
     Analysis {
         analysis: WwrAnalysis,
+        /// The MURB envelope at grade 0.
+        envelope: Envelope,
         /// Path of the JSON extraction the analysis came from.
         json: String,
+        /// The extractor ran for this load.
+        extracted: bool,
+        /// Why a stale extraction had to do, when it did.
+        note: Option<String>,
     },
-    /// No JSON extraction exists next to the IFC file yet.
-    NeedsExtraction,
+    /// No JSON extraction exists next to the IFC file and none could be
+    /// made; `reason` says why.
+    NeedsExtraction { reason: String },
 }
 
 /// A key press while the option editor is open.
@@ -98,6 +107,10 @@ pub enum Msg {
     TaskFinished {
         id: u64,
         result: Result<String, String>,
+    },
+    /// The IFC worker is about to run the extractor on `path`.
+    IfcExtracting {
+        path: String,
     },
     IfcLoaded {
         path: String,

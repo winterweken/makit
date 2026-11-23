@@ -36,14 +36,17 @@ This document uses **progressive disclosure**. Level 1 (this file) is loaded eve
 ---
 
 ## Project Structure & Module Organization
-- `crates/makit-cli/`: Binary crate — clap CLI entrypoint with `list`, `exec`, `analyze`, `tui`, `status`, `init` subcommands.
+- `crates/makit-cli/`: Binary crate — clap CLI entrypoint with `list`, `exec`, `analyze`, `extract`, `tui`, `status`, `init` subcommands.
 - `crates/makit-core/`: Registry singleton, config loading (figment/YAML), and core model types (`Tool`, `Category`, `Task`, `Source`, `Action`).
 - `crates/makit-geometry/`: Geometry primitives (`Point`, `Line`, `Rectangle`, `Room`, `Floor`), drawing utilities generic over the `Plotter` trait (`plot.rs`; scanline fill, wall rendering, isometric projection), a dependency-free `BrailleGrid` (`braille.rs`, y-up, used by examples), `Recording` (replayed by the TUI), and SDF engine (`sdf.rs`). No external dependencies.
 - `crates/makit-tools/`: Tool implementations registered via `register_tasks()`:
   - `murb.rs` — MURB energy modelling bridge (Python subprocess, JSON IPC)
   - `revit/` — Revit HTTP bridge (`client.rs` async reqwest, `models.rs` wall/floor/room types, `mod.rs` handlers)
   - `blender.rs` — Blender geometry sync server (axum, `Arc<RwLock>` shared state)
-  - `ifc.rs`, `rhino.rs`, `analysis.rs`, `architect.rs` — other tool registrations
+  - `ifc.rs` — IFC extraction on demand: runs `analyze_ifc.py`, decides staleness, the `ifc` source (`extraction_for` is the one entry point)
+  - `building_model.rs` — the generic JSON model, WWR analysis and the MURB envelope (`envelope`, `print_envelope`)
+  - `python.rs` — finds a Python for the bridges (`MAKIT_PYTHON`, the repository's `.venv`, `python3`) and repository files
+  - `rhino.rs`, `analysis.rs`, `architect.rs` — other tool registrations
 - `crates/makit-tui/`: ratatui 0.29 + crossterm 0.28 TUI, Elm architecture: `app.rs` (AppState, option values, `Editor` form), `msg.rs` (Msg/Cmd), `update.rs` (pure), `view.rs`, `layout.rs` (shared by view + mouse hit-tests), `keymap.rs`, `runtime.rs` (event loop, worker threads, cancel tokens), `terminal.rs` (stderr backend, panic hook, terminal check), `capture.rs` (stdout → Output pane, task results in output order), `signals.rs` (restore the terminal on SIGTERM), `node.rs` (typed `NodeId`, `PreviewKind` routing, picker/results bindings), `options.rs` (option `Catalog` copied from the registry), `help.rs` (help text), `logo.rs` (the makit symbol: header icon, braille preview, `mini`), `tree.rs`, `task.rs`, `preview.rs`.
 - `docs/brand/`: The makit symbol as SVG (marks for dark and light backgrounds, app icons) and notes on using it.
 - `examples/`: Canvas demo and sample IFC files; use these for reproducible tests.
@@ -56,11 +59,12 @@ This document uses **progressive disclosure**. Level 1 (this file) is loaded eve
 - `cargo run -p makit -- --help`: Smoke-test the binary and check available commands.
 - `cargo run -p makit -- tui`: Launch the interactive TUI.
 - `cargo run -p makit -- list`: List all registered tools/sources/actions.
+- `cargo run -p makit -- extract examples/IFC/Building-Architecture.ifc`: Extract an IFC file to JSON beside it (needs a Python with IfcOpenShell; `makit analyze`, the TUI picker and `murb-simulate --model` do this on their own when the JSON is missing or stale).
 - `cargo run -p makit --example canvas_demo`: Run the braille canvas demo.
-- `cargo test`: Run the full test suite across all crates (279 tests: 10 core, 40 geometry, 47 tools, 182 tui).
+- `cargo test`: Run the full test suite across all crates (325 tests: 3 cli, 10 core, 40 geometry, 81 tools, 191 tui). The tools tests read the three committed extractions in `examples/IFC`.
 - `cargo fmt`: Enforce standard Rust formatting; required for all changes.
 - `cargo clippy`: Run lints; address all warnings before opening a PR.
-- `.venv/bin/python -m unittest discover -s pyrevit-extension/tests`: Python IFC extractor and analysis tests (22). They need `ifcopenshell`; set up `.venv` once with `uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell`.
+- `.venv/bin/python -m unittest discover -s pyrevit-extension/tests`: Python IFC extractor and analysis tests (50). They need `ifcopenshell`; set up `.venv` once with `uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell`.
 - `python3 -m unittest discover -s scripts/tests`: MURB runner tests (2); they stand in for `murb_energy_tool`, so they need no extra packages.
 
 ## Coding Style & Naming Conventions
@@ -90,7 +94,7 @@ This document uses **progressive disclosure**. Level 1 (this file) is loaded eve
 | You want to change | Read first | Key trap |
 |--------------------|-----------|----------|
 | Revit bridge / extraction | `docs/WALL_ORIENTATION_ANALYSIS.md` | atan2 axis convention; pyRevit HTTP on port 48884; a wall's `orientation` is its outward normal in project coordinates and `projectNorth` turns it to true north (both Python and Rust apply it); an IFC wall's local X runs along the wall; walls with `isExternal: false` (and their windows) are left out of the analysis |
-| IFC parsing / analysis | `docs/IFC_SUPPORT.md` | IfcOpenShell import; storey filtering edge cases; scale quantities by the file's units (`get_unit_scales`), and Revit writes a bogus mm² `NetSideArea` before the real one; curtain walls are measured from their parts' geometry and stored with an inward normal, like Revit's |
+| IFC parsing / analysis | `docs/IFC_SUPPORT.md` | IfcOpenShell import; storey filtering edge cases; scale quantities by the file's units (`get_unit_scales`), and Revit writes a bogus mm² `NetSideArea` before the real one; curtain walls are measured from their parts' geometry and stored with an inward normal, like Revit's; a floor plate joins the storey within 0.3 m of its top face and a storey's `floorArea` is the footprint union of its plates (finish floors over structural floors count once), a plate at no storey's level is kept with `storey: null` and reported, never counted; roofs are `IfcRoof` elements (own geometry, else their parts) plus `ROOF` slabs outside any roof, measured as up-facing surface (normal z > 0.5), and a slab anywhere under an `IfcRoof` is never measured on its own (`has_ancestor`); `--unit sqf` applies to every area and `building_model::envelope` converts a `units: ft` model back to m²; `metadata.formatVersion` 2 marks extractions with storeys, slabs and wall `bottom`/`top`; extraction is on demand through `ifc::extraction_for` (missing or stale JSON: IFC newer by more than 2 s, or format 1), and a stale JSON is kept with a note when no Python can be found |
 | Bridge architecture / JSON schema | `docs/HYBRID_ARCHITECTURE.md` | 3-layer separation; generic format is platform-agnostic |
 | TUI canvas / preview rendering | `crates/makit-tui/src/preview.rs`, `node.rs` | Routing is `PreviewKind::for_node` (matches the task name, not option names); previews are drawn into a `Recording` and scaled by `fit_bounds`; the logo preview is coloured from `logo::segments` in `view.rs`, so change its shape in `logo.rs` |
 | TUI layout / mouse | `crates/makit-tui/src/layout.rs` | `view` and `keymap` must both use `layout::compute` so clicks hit what is drawn; on short screens `detail_rows` drops the preview whole and the picker may be absent (then it cannot take focus); list scroll offsets are set in one place, `sync_scroll` at the end of `update`, because the mouse hit-tests read them |
@@ -99,7 +103,7 @@ This document uses **progressive disclosure**. Level 1 (this file) is loaded eve
 | TUI signals / shutdown | `crates/makit-tui/src/signals.rs`, `lib.rs` | The event loop may never see the signal flag (crossterm's poll spins once the tty is gone); the watchdog thread must stay able to end the process by itself |
 | Geometry / SDF / isometric | `crates/makit-geometry/src/` | SDF needs subpixel for braille; use line-based for TUI |
 | Registry / task wiring | `crates/makit-core/src/registry.rs` | Global singleton; `register_tasks()` called at startup |
-| MURB energy bridge | `scripts/murb_runner.py` + `crates/makit-tools/src/murb.rs` | Subprocess JSON IPC; needs `murb_energy_tool` on the Python path (stdlib-only, not pip-installable: set `PYTHONPATH` to the murb repo); its results are `Vec` lists, not numpy arrays; `murb-simulate --window-directions` (`azimuth:share` pairs, e.g. `S:60,W:40`) splits the glazing by facing; without it `--model` (IFC or extraction; the IFC picker fills it) takes the split from windows in exterior walls, curtain-wall glass included (`building_model::window_area_by_facing`); with neither, 25% each way |
+| MURB energy bridge | `scripts/murb_runner.py` + `crates/makit-tools/src/murb.rs` | Subprocess JSON IPC; needs `murb_energy_tool` on the Python path (set `PYTHONPATH` to the murb repo); its results are `Vec` lists, not numpy arrays; `--model` (IFC or extraction; the IFC picker fills it) fills every envelope area a typed option does not: GFA, walls above and below `--grade` (metres, project z, default 0), windows, roof (`building_model::envelope`); a zero from the model is an error for `gfa`/`walls-ag`/`roof` and a value for `windows`/`walls-bg`; `walls-bg` has no registered default on purpose (the TUI lays defaults over a run's options, and one would mask the model's value); `--window-directions` (`azimuth:share` pairs, e.g. `S:60,W:40`) splits the glazing by facing; without it the model's windows in exterior walls do, curtain-wall glass included (`building_model::window_area_by_facing`); with neither, 25% each way |
 
 ---
 

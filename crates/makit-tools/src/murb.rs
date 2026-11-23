@@ -17,10 +17,12 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use makit_core::models::TaskContext;
+use makit_core::models::{CancelToken, TaskContext};
 use makit_core::registry::Registry;
 
-use crate::building_model;
+use crate::building_model::{self, Envelope};
+use crate::ifc;
+use crate::python;
 
 // ---------------------------------------------------------------------------
 // Data Types (M2)
@@ -205,63 +207,198 @@ pub fn parse_window_directions(spec: &str) -> anyhow::Result<Vec<WindowGroupInpu
         .collect())
 }
 
-/// Window groups from a building model's windows by facing. `path` is an
-/// extraction JSON, or an IFC file whose extraction makit can find. Returns
-/// the groups, the JSON read and the window area that faces somewhere.
-pub fn window_groups_from_model(
-    path: &Path,
-) -> anyhow::Result<(Vec<WindowGroupInput>, PathBuf, f64)> {
-    let is_ifc = path
-        .extension()
-        .is_some_and(|e| e.eq_ignore_ascii_case("ifc"));
-    let json = if is_ifc {
-        building_model::find_json_for_ifc(path).ok_or_else(|| {
-            anyhow::anyhow!(
-                "{} is not extracted yet (no {}): extract it, or give window-directions",
-                path.display(),
-                building_model::extraction_path(path).display()
-            )
-        })?
-    } else {
-        path.to_path_buf()
-    };
-    let model = building_model::load_model(&json)
-        .map_err(|e| anyhow::anyhow!("cannot read model {}: {e}", json.display()))?;
-    let facings = building_model::window_area_by_facing(&model);
+/// Window groups for window areas by facing: shares of the total, or the
+/// even split when nothing faces anywhere.
+fn groups_from_facings(facings: &[(f64, f64)]) -> Vec<WindowGroupInput> {
     let total: f64 = facings.iter().map(|(_, area)| area).sum();
     if total <= 0.0 {
-        anyhow::bail!(
-            "{} has no windows in exterior walls to take directions from",
-            json.display()
-        );
+        return default_window_groups();
     }
-    let groups = facings
-        .into_iter()
-        .map(|(azimuth, area)| WindowGroupInput {
+    facings
+        .iter()
+        .map(|&(azimuth, area)| WindowGroupInput {
             pct_window_area: area / total,
             window_azimuth: azimuth,
             shgc: default_shgc(),
             shading: 0.0,
         })
-        .collect();
-    Ok((groups, json, total))
+        .collect()
+}
+
+/// The JSON for a `--model` path: the file itself, or an IFC file's
+/// extraction, made or refreshed when needed (a note says when a stale one
+/// had to do).
+fn model_json(path: &Path, cancel: Option<&CancelToken>) -> anyhow::Result<PathBuf> {
+    let is_ifc = path
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("ifc"));
+    if !is_ifc {
+        return Ok(path.to_path_buf());
+    }
+    let resolved = ifc::extraction_for(path, cancel)?;
+    if let Some(note) = resolved.note {
+        println!("  {note}");
+    }
+    Ok(resolved.json)
+}
+
+/// Window groups from a building model's windows by facing. `path` is an
+/// extraction JSON, or an IFC file (extracted on demand). Returns the
+/// groups, the JSON read and the window area that faces somewhere; without
+/// any, the even split and 0.
+pub fn window_groups_from_model(
+    path: &Path,
+) -> anyhow::Result<(Vec<WindowGroupInput>, PathBuf, f64)> {
+    let json = model_json(path, None)?;
+    let model = building_model::load_model(&json)
+        .map_err(|e| anyhow::anyhow!("cannot read model {}: {e}", json.display()))?;
+    let facings = building_model::window_area_by_facing(&model);
+    let total: f64 = facings.iter().map(|(_, area)| area).sum();
+    Ok((groups_from_facings(&facings), json, total))
+}
+
+/// The model named by `--model`, loaded once: its envelope at `grade` and
+/// the JSON it came from. `None` without a model.
+fn model_envelope(ctx: &TaskContext, grade: f64) -> anyhow::Result<Option<(Envelope, PathBuf)>> {
+    let option = ctx.get_option("model", "");
+    let path = option.trim();
+    if path.is_empty() {
+        return Ok(None);
+    }
+    let json = model_json(Path::new(path), Some(&ctx.cancel))?;
+    let model = building_model::load_model(&json)
+        .map_err(|e| anyhow::anyhow!("cannot read model {}: {e}", json.display()))?;
+    Ok(Some((building_model::envelope(&model, grade), json)))
+}
+
+/// One envelope area `murb-simulate` needs and how it resolves.
+struct Quantity {
+    option: &'static str,
+    /// Column label in the summary.
+    label: &'static str,
+    /// What the model lacks when it gives zero, for the error.
+    what: &'static str,
+    pick: fn(&Envelope) -> f64,
+    /// A zero from the model is a gap (every building has this), not a value.
+    zero_is_gap: bool,
+    /// What to use without a model or a typed value; `None` is an error.
+    default: Option<f64>,
+}
+
+/// The five areas, in the order they are resolved and reported.
+fn quantities() -> [Quantity; 5] {
+    [
+        Quantity {
+            option: "gfa",
+            label: "GFA",
+            what: "storeys",
+            pick: |e| e.gfa,
+            zero_is_gap: true,
+            default: None,
+        },
+        Quantity {
+            option: "walls-ag",
+            label: "Walls AG",
+            what: "above-grade walls",
+            pick: |e| e.walls_ag,
+            zero_is_gap: true,
+            default: None,
+        },
+        Quantity {
+            option: "walls-bg",
+            label: "Walls BG",
+            what: "below-grade walls",
+            pick: |e| e.walls_bg,
+            zero_is_gap: false,
+            default: Some(0.0),
+        },
+        Quantity {
+            option: "windows",
+            label: "Windows",
+            what: "windows",
+            pick: |e| e.windows,
+            zero_is_gap: false,
+            default: None,
+        },
+        Quantity {
+            option: "roof",
+            label: "Roof",
+            what: "roof",
+            pick: |e| e.roof,
+            zero_is_gap: true,
+            default: None,
+        },
+    ]
+}
+
+/// What one quantity is and where it came from: typed wins, else the model,
+/// else the default; a gap names the option.
+fn resolve_area(
+    ctx: &TaskContext,
+    quantity: &Quantity,
+    model: Option<&(Envelope, PathBuf)>,
+) -> anyhow::Result<(f64, String)> {
+    let option = quantity.option;
+    let typed = ctx.get_option(option, "");
+    let typed = typed.trim();
+    if !typed.is_empty() {
+        let value: f64 = typed
+            .parse()
+            .map_err(|_| anyhow::anyhow!("--{option} must be a number, not '{typed}'"))?;
+        return Ok((value, "typed".to_string()));
+    }
+    match model {
+        Some((envelope, json)) => {
+            let value = (quantity.pick)(envelope);
+            if value <= 0.0 && quantity.zero_is_gap {
+                if envelope.format_version < 2 {
+                    anyhow::bail!(
+                        "{option}: {} predates storeys and slabs; re-extract it with makit extract",
+                        json.display()
+                    );
+                }
+                anyhow::bail!(
+                    "{option}: the model {} has no {}; give --{option}",
+                    json.display(),
+                    quantity.what
+                );
+            }
+            Ok((value, format!("from {}", json.display())))
+        }
+        None => match quantity.default {
+            Some(value) => Ok((value, "default".to_string())),
+            None => anyhow::bail!("{option}: give --{option} or --model"),
+        },
+    }
 }
 
 /// The window split for `ctx` and where it came from: `window-directions`
-/// when given, else the windows of `model` by facing, else 25% each way.
-fn window_groups(ctx: &TaskContext) -> anyhow::Result<(Vec<WindowGroupInput>, String)> {
+/// when given, else the windows of the model by facing, else 25% each way.
+fn window_groups(
+    ctx: &TaskContext,
+    model: Option<&(Envelope, PathBuf)>,
+) -> anyhow::Result<(Vec<WindowGroupInput>, String)> {
     let spec = ctx.get_option("window-directions", "");
     if !spec.trim().is_empty() {
         return Ok((parse_window_directions(&spec)?, "as given".to_string()));
     }
-    let model = ctx.get_option("model", "");
-    if model.trim().is_empty() {
+    let Some((envelope, json)) = model else {
         return Ok((default_window_groups(), "even split".to_string()));
+    };
+    let total: f64 = envelope
+        .windows_by_facing
+        .iter()
+        .map(|(_, area)| area)
+        .sum();
+    if total <= 0.0 {
+        return Ok((
+            default_window_groups(),
+            format!("even split: no windows with a facing in {}", json.display()),
+        ));
     }
-    let (groups, json, area) = window_groups_from_model(Path::new(model.trim()))?;
     Ok((
-        groups,
-        format!("from the {area:.1} m² of windows in {}", json.display()),
+        groups_from_facings(&envelope.windows_by_facing),
+        format!("from the {total:.1} m² of windows in {}", json.display()),
     ))
 }
 
@@ -278,55 +415,10 @@ fn describe_window_groups(groups: &[WindowGroupInput]) -> String {
 // Subprocess Bridge (M3-M5)
 // ---------------------------------------------------------------------------
 
-/// Locate the murb_runner.py script relative to the makit binary.
-fn find_runner_script() -> anyhow::Result<PathBuf> {
-    // Check relative to current executable
-    if let Ok(exe) = std::env::current_exe() {
-        let exe_dir = exe.parent().unwrap_or(std::path::Path::new("."));
-        // Development: binary is in target/debug, script is in scripts/
-        for candidate in &[
-            exe_dir.join("../../scripts/murb_runner.py"),
-            exe_dir.join("../scripts/murb_runner.py"),
-            exe_dir.join("scripts/murb_runner.py"),
-        ] {
-            if candidate.exists() {
-                return Ok(candidate.canonicalize()?);
-            }
-        }
-    }
-
-    // Check relative to CWD
-    let cwd_script = PathBuf::from("scripts/murb_runner.py");
-    if cwd_script.exists() {
-        return Ok(cwd_script.canonicalize()?);
-    }
-
-    anyhow::bail!(
-        "murb_runner.py not found. Ensure the makit repository is intact \
-         and scripts/murb_runner.py exists."
-    )
-}
-
-/// Find a Python interpreter on the system.
-fn find_python() -> anyhow::Result<String> {
-    for candidate in &["python3", "python"] {
-        if Command::new(candidate)
-            .arg("--version")
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .is_ok()
-        {
-            return Ok(candidate.to_string());
-        }
-    }
-    anyhow::bail!("Python not found — MURB requires Python 3.10+ with murb_energy_tool installed")
-}
-
 /// Run a MURB simulation via the Python subprocess bridge.
 pub fn run_simulation(input: &MurbInput) -> anyhow::Result<MurbResults> {
-    let python = find_python()?;
-    let script = find_runner_script()?;
+    let python = python::find("murb_energy_tool")?;
+    let script = python::repo_file("scripts/murb_runner.py")?;
     let input_json = serde_json::to_string(input)?;
 
     let mut child = Command::new(&python)
@@ -414,19 +506,42 @@ pub fn format_report(results: &MurbResults) -> String {
 // Handler Bodies (M5, M6)
 // ---------------------------------------------------------------------------
 
-/// The simulation input `murb-simulate` sends for `ctx`'s options, and
-/// where its window split came from.
-fn simulation_input(ctx: &TaskContext) -> anyhow::Result<(MurbInput, String)> {
-    let (window_groups, window_source) = window_groups(ctx)?;
+/// The simulation input `murb-simulate` sends for `ctx`'s options, one line
+/// per quantity saying where it came from, and the model's envelope when a
+/// model was given.
+fn simulation_input(
+    ctx: &TaskContext,
+) -> anyhow::Result<(MurbInput, Vec<String>, Option<Envelope>)> {
+    let grade_text = ctx.get_option("grade", "0");
+    let grade: f64 = grade_text.trim().parse().map_err(|_| {
+        anyhow::anyhow!("--grade must be a number (metres, project z), not '{grade_text}'")
+    })?;
+    let model = model_envelope(ctx, grade)?;
+
+    let mut sources = Vec::new();
+    let mut areas = [0.0; 5];
+    for (slot, quantity) in areas.iter_mut().zip(quantities().iter()) {
+        let (value, source) = resolve_area(ctx, quantity, model.as_ref())?;
+        sources.push(format!("{:<9}{value:>9.1} m²  {source}", quantity.label));
+        *slot = value;
+    }
+    let [gfa, walls_ag, walls_bg, windows, roof] = areas;
+    let (window_groups, window_source) = window_groups(ctx, model.as_ref())?;
+    sources.push(format!(
+        "{:<9}{}  {window_source}",
+        "Split",
+        describe_window_groups(&window_groups)
+    ));
+
     let input = MurbInput {
         epw_path: ctx.get_option("epw", ""),
         name: ctx.get_option("name", "makit_run"),
         province: ctx.get_option("province", "ON"),
-        gfa: ctx.get_option("gfa", "0").parse()?,
-        area_walls_ag: ctx.get_option("walls-ag", "0").parse()?,
-        area_walls_bg: ctx.get_option("walls-bg", "0").parse()?,
-        area_windows: ctx.get_option("windows", "0").parse()?,
-        area_roof: ctx.get_option("roof", "0").parse()?,
+        gfa,
+        area_walls_ag: walls_ag,
+        area_walls_bg: walls_bg,
+        area_windows: windows,
+        area_roof: roof,
         u_walls_ag: ctx.get_option("u-walls", "0.273").parse()?,
         u_windows: ctx.get_option("u-windows", "2.56").parse()?,
         u_roof: ctx.get_option("u-roof", "0.164").parse()?,
@@ -443,28 +558,28 @@ fn simulation_input(ctx: &TaskContext) -> anyhow::Result<(MurbInput, String)> {
     if input.gfa <= 0.0 {
         anyhow::bail!("--gfa must be a positive number (gross floor area in m²)");
     }
-    Ok((input, window_source))
+    Ok((input, sources, model.map(|(envelope, _)| envelope)))
 }
 
 /// Handle `murb-simulate` — runs the full subprocess bridge.
 fn handle_simulate(ctx: &TaskContext) -> anyhow::Result<()> {
-    let (input, window_source) = simulation_input(ctx)?;
+    let (input, sources, envelope) = simulation_input(ctx)?;
 
     println!("Running MURB energy simulation...");
     println!("  EPW:      {}", input.epw_path);
-    println!("  GFA:      {} m²", input.gfa);
     println!("  Province: {}", input.province);
-    println!(
-        "  Windows:  {} m² ({}; {})",
-        input.area_windows,
-        describe_window_groups(&input.window_groups),
-        window_source
-    );
+    if let Some(envelope) = &envelope {
+        building_model::print_envelope(envelope);
+    }
+    println!();
+    for line in &sources {
+        println!("  {line}");
+    }
+    println!();
 
     let results = run_simulation(&input)?;
 
     // Print summary
-    println!();
     print!("{}", format_report(&results));
 
     // Save to file if requested
@@ -505,22 +620,20 @@ fn handle_report(ctx: &TaskContext) -> anyhow::Result<()> {
 }
 
 /// Handle `murb` source connection check.
-fn handle_connect(ctx: &TaskContext) -> anyhow::Result<()> {
-    // Verify Python + murb_energy_tool are available
-    let python = find_python()?;
-    let check = Command::new(&python)
-        .args(["-c", "import murb_energy_tool; print('ok')"])
-        .output()?;
-
-    if check.status.success() {
-        println!("✓ MURB energy model available (Python: {})", python);
-    } else {
-        let stderr = String::from_utf8_lossy(&check.stderr);
-        println!("✗ murb_energy_tool not found: {}", stderr.trim());
-        println!("  Install: pip install -r requirements.txt (from murb repo)");
+fn handle_connect(_ctx: &TaskContext) -> anyhow::Result<()> {
+    match python::find("murb_energy_tool") {
+        Ok(python) => println!(
+            "✓ MURB energy model available (Python: {})",
+            python.display()
+        ),
+        Err(err) => {
+            println!("✗ {err}");
+            println!(
+                "  Install: put the murb repository on PYTHONPATH, or point MAKIT_PYTHON \
+                 at a Python that has murb_energy_tool"
+            );
+        }
     }
-
-    let _ = ctx; // suppress unused warning
     Ok(())
 }
 
@@ -549,22 +662,34 @@ pub fn register_tasks(reg: &mut Registry) {
         false,
         Some("makit_run"),
     )
-    .add_option("gfa", "Gross floor area [m²]", "float", true, None)
+    .add_option(
+        "gfa",
+        "Gross floor area [m²] (from the model when not given)",
+        "float",
+        false,
+        None,
+    )
     .add_option(
         "walls-ag",
-        "Above-grade wall area [m²]",
+        "Above-grade wall area [m²] (from the model when not given)",
         "float",
-        true,
+        false,
         None,
     )
     .add_option(
         "walls-bg",
-        "Below-grade wall area [m²]",
+        "Below-grade wall area [m²] (from the model when not given, else 0)",
         "float",
         false,
-        Some("0"),
+        None,
     )
-    .add_option("windows", "Window area [m²]", "float", true, None)
+    .add_option(
+        "windows",
+        "Window area [m²] (from the model when not given)",
+        "float",
+        false,
+        None,
+    )
     .add_option(
         "window-directions",
         "Window share by facing, azimuth:share (e.g. S:60,W:40)",
@@ -574,12 +699,25 @@ pub fn register_tasks(reg: &mut Registry) {
     )
     .add_option(
         "model",
-        "IFC file or extraction to take window directions from",
+        "IFC file or extraction: envelope areas and window directions come from it",
         "string",
         false,
         None,
     )
-    .add_option("roof", "Roof area [m²]", "float", true, None)
+    .add_option(
+        "grade",
+        "Grade elevation [m] in project coordinates; wall area below it counts as below-grade",
+        "float",
+        false,
+        Some("0"),
+    )
+    .add_option(
+        "roof",
+        "Roof area [m²] (from the model when not given)",
+        "float",
+        false,
+        None,
+    )
     .add_option(
         "u-walls",
         "Wall U-value [W/m²K]",
@@ -701,7 +839,7 @@ mod tests {
         ] {
             ctx.options.insert(key.into(), value.into());
         }
-        let (input, _) = simulation_input(&ctx).unwrap();
+        let (input, _, _) = simulation_input(&ctx).unwrap();
         assert_eq!(
             facings(&input.window_groups),
             vec![(135.0, 0.75), (225.0, 0.25)]
@@ -709,14 +847,31 @@ mod tests {
 
         let mut reg = Registry::default();
         register_tasks(&mut reg);
-        for name in ["window-directions", "model"] {
-            let option = reg.actions["murb-simulate"]
+        let option = |name: &str| {
+            reg.actions["murb-simulate"]
                 .options
                 .iter()
                 .find(|o| o.name == name)
-                .expect("option registered");
-            assert!(!option.required, "{name}");
+                .unwrap_or_else(|| panic!("{name} registered"))
+                .clone()
+        };
+        for name in [
+            "window-directions",
+            "model",
+            "gfa",
+            "walls-ag",
+            "walls-bg",
+            "windows",
+            "roof",
+            "grade",
+        ] {
+            assert!(!option(name).required, "{name}");
         }
+        // A registered default would reach the handler as if typed and mask
+        // the model's below-grade area.
+        assert_eq!(option("walls-bg").default, None);
+        assert_eq!(option("grade").default.as_deref(), Some("0"));
+        assert!(option("epw").required);
     }
 
     /// A fresh, empty folder for one test.
@@ -769,13 +924,16 @@ mod tests {
         let dir = folder("from-model");
         let json = dir.join("house.json");
         write_model(&json, true);
-        let (input, source) =
+        let (input, sources, _) =
             simulation_input(&context(&[("model", json.to_str().unwrap())])).unwrap();
         assert_eq!(
             facings(&input.window_groups),
             vec![(90.0, 0.75), (180.0, 0.25)]
         );
-        assert!(source.contains("house.json"), "{source}");
+        assert!(
+            sources.iter().any(|s| s.contains("house.json")),
+            "{sources:?}"
+        );
     }
 
     #[test]
@@ -783,22 +941,28 @@ mod tests {
         let dir = folder("given-wins");
         let json = dir.join("house.json");
         write_model(&json, true);
-        let (input, source) = simulation_input(&context(&[
+        let (input, sources, _) = simulation_input(&context(&[
             ("model", json.to_str().unwrap()),
             ("window-directions", "N:1"),
         ]))
         .unwrap();
         assert_eq!(facings(&input.window_groups), vec![(0.0, 1.0)]);
-        assert!(!source.contains("house.json"), "{source}");
+        // the split line says so and does not credit the model
+        let split = sources.last().unwrap();
+        assert!(
+            split.contains("as given") && !split.contains("house.json"),
+            "{split}"
+        );
     }
 
     #[test]
     fn an_ifc_model_uses_its_extraction() {
         let dir = folder("ifc");
         std::fs::write(dir.join("house.ifc"), "ISO-10303-21;").unwrap();
-        write_model(&dir.join("house.json"), true);
+        write_envelope_model(&dir.join("house.json"), true, true, true);
         let ifc = dir.join("house.ifc");
-        let (input, _) = simulation_input(&context(&[("model", ifc.to_str().unwrap())])).unwrap();
+        let (input, _, _) =
+            simulation_input(&context(&[("model", ifc.to_str().unwrap())])).unwrap();
         assert_eq!(
             facings(&input.window_groups),
             vec![(90.0, 0.75), (180.0, 0.25)]
@@ -806,21 +970,213 @@ mod tests {
     }
 
     #[test]
-    fn a_model_that_cannot_give_directions_is_an_error() {
+    fn a_model_without_windows_gives_the_even_split() {
         let dir = folder("no-directions");
         let json = dir.join("blind.json");
         write_model(&json, false);
-        let err = simulation_input(&context(&[("model", json.to_str().unwrap())]))
-            .unwrap_err()
-            .to_string();
-        assert!(err.contains("no windows"), "{err}");
+        let (input, sources, _) =
+            simulation_input(&context(&[("model", json.to_str().unwrap())])).unwrap();
+        assert_eq!(input.window_groups.len(), 4);
+        assert!(
+            sources.iter().any(|s| s.contains("even split")),
+            "{sources:?}"
+        );
+    }
 
+    #[test]
+    fn an_ifc_that_cannot_be_extracted_is_an_error() {
+        let dir = folder("unextracted");
         std::fs::write(dir.join("other.ifc"), "ISO-10303-21;").unwrap();
         let ifc = dir.join("other.ifc");
         let err = simulation_input(&context(&[("model", ifc.to_str().unwrap())]))
             .unwrap_err()
             .to_string();
         assert!(err.contains("not extracted"), "{err}");
+    }
+
+    // ─── Envelope areas from the model ──────────────────────────────────
+
+    fn round1(x: f64) -> f64 {
+        (x * 10.0).round() / 10.0
+    }
+
+    /// A format-2 model: storey L1 with a 120 m² plate and a 90 m² roof
+    /// (each unless told otherwise); walls e (−1 to 3 m, 10 m², 3 m² of
+    /// windows facing east) and s (0 to 3 m, 10 m², 1 m² facing south).
+    fn write_envelope_model(path: &std::path::Path, storeys: bool, roof: bool, windows: bool) {
+        let win = |area: f64| {
+            if windows {
+                serde_json::json!([{ "id": format!("w{area}"), "area": area }])
+            } else {
+                serde_json::json!([])
+            }
+        };
+        let mut storey_list = Vec::new();
+        let mut slabs = Vec::new();
+        if storeys {
+            storey_list.push(serde_json::json!({
+                "id": "l1", "name": "L1", "elevation": 0.0, "floorArea": 120.0, "slabIds": ["p"]
+            }));
+            slabs.push(serde_json::json!({
+                "id": "p", "name": "plate", "kind": "floor", "area": 120.0,
+                "top": 0.0, "bottom": -0.2, "storey": "L1"
+            }));
+        }
+        if roof {
+            slabs.push(
+                serde_json::json!({ "id": "r", "name": "roof", "kind": "roof", "area": 90.0 }),
+            );
+        }
+        let model = serde_json::json!({
+            "storeys": storey_list,
+            "slabs": slabs,
+            "walls": [
+                { "id": "e", "orientation": { "x": 1.0, "y": 0.0, "z": 0.0 }, "area": 10.0,
+                  "isExternal": true, "bottom": -1.0, "top": 3.0, "windows": win(3.0) },
+                { "id": "s", "orientation": { "x": 0.0, "y": -1.0, "z": 0.0 }, "area": 10.0,
+                  "isExternal": true, "bottom": 0.0, "top": 3.0, "windows": win(1.0) }
+            ],
+            "metadata": { "projectName": "p", "formatVersion": 2 }
+        });
+        std::fs::write(path, model.to_string()).unwrap();
+    }
+
+    /// An EPW and a model, plus `extra`: nothing else typed.
+    fn model_context(json: &std::path::Path, extra: &[(&str, &str)]) -> TaskContext {
+        let mut ctx = TaskContext::new();
+        ctx.options.insert("epw".into(), "toronto.epw".into());
+        ctx.options
+            .insert("model".into(), json.to_str().unwrap().into());
+        for (key, value) in extra {
+            ctx.options.insert(key.to_string(), value.to_string());
+        }
+        ctx
+    }
+
+    #[test]
+    fn the_model_fills_every_untyped_area() {
+        let dir = folder("fills");
+        let json = dir.join("house.json");
+        write_envelope_model(&json, true, true, true);
+        let (input, sources, envelope) = simulation_input(&model_context(&json, &[])).unwrap();
+        assert_eq!(
+            (input.gfa, input.area_roof, input.area_windows),
+            (120.0, 90.0, 4.0)
+        );
+        assert_eq!(round1(input.area_walls_bg), 2.5);
+        assert_eq!(round1(input.area_walls_ag), 17.5);
+        assert_eq!(
+            facings(&input.window_groups),
+            vec![(90.0, 0.75), (180.0, 0.25)]
+        );
+        assert!(
+            sources
+                .iter()
+                .any(|s| s.starts_with("GFA") && s.contains("house.json")),
+            "{sources:?}"
+        );
+        assert_eq!(envelope.map(|e| e.gfa), Some(120.0));
+    }
+
+    #[test]
+    fn typed_areas_win_over_the_model() {
+        let dir = folder("typed-wins");
+        let json = dir.join("house.json");
+        write_envelope_model(&json, true, true, true);
+        let (input, sources, _) =
+            simulation_input(&model_context(&json, &[("gfa", "500"), ("walls-bg", "7")])).unwrap();
+        assert_eq!((input.gfa, input.area_walls_bg), (500.0, 7.0));
+        assert_eq!(input.area_roof, 90.0);
+        assert!(
+            sources
+                .iter()
+                .any(|s| s.starts_with("GFA") && s.contains("typed")),
+            "{sources:?}"
+        );
+    }
+
+    #[test]
+    fn grade_moves_the_split() {
+        let dir = folder("grade");
+        let json = dir.join("house.json");
+        write_envelope_model(&json, true, true, true);
+        // grade 1 m: wall e (-1 to 3) is half below it, wall s (0 to 3) a third
+        let (input, _, _) = simulation_input(&model_context(&json, &[("grade", "1")])).unwrap();
+        assert_eq!(round1(input.area_walls_bg), 8.3);
+        assert_eq!(round1(input.area_walls_ag), 11.7);
+        // a grade above every wall leaves no above-grade walls, which is a gap
+        let err = simulation_input(&model_context(&json, &[("grade", "3")]))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("walls-ag: the model"), "{err}");
+    }
+
+    #[test]
+    fn without_a_model_missing_areas_name_their_option() {
+        let mut ctx = TaskContext::new();
+        ctx.options.insert("epw".into(), "toronto.epw".into());
+        let err = simulation_input(&ctx).unwrap_err().to_string();
+        assert!(err.contains("gfa: give --gfa or --model"), "{err}");
+        // below-grade walls default to none without a model
+        let (input, _, _) = simulation_input(&context(&[])).unwrap();
+        assert_eq!(input.area_walls_bg, 0.0);
+    }
+
+    #[test]
+    fn a_model_zero_is_a_gap_for_gfa_walls_and_roof_but_not_windows() {
+        let dir = folder("zero");
+        let json = dir.join("bare.json");
+        write_envelope_model(&json, false, false, false);
+        let err = simulation_input(&model_context(&json, &[]))
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.contains("gfa: the model") && err.contains("no storeys"),
+            "{err}"
+        );
+        let err = simulation_input(&model_context(&json, &[("gfa", "100")]))
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.contains("roof: the model") && err.contains("no roof"),
+            "{err}"
+        );
+        let (input, _, _) =
+            simulation_input(&model_context(&json, &[("gfa", "100"), ("roof", "40")])).unwrap();
+        assert_eq!(input.area_windows, 0.0);
+        assert_eq!(round1(input.area_walls_bg), 2.5);
+        assert_eq!(input.window_groups.len(), 4);
+    }
+
+    #[test]
+    fn a_format_one_extraction_says_to_re_extract() {
+        let dir = folder("format1");
+        let json = dir.join("old.json");
+        write_model(&json, true);
+        let err = simulation_input(&model_context(&json, &[]))
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.contains("predates storeys") && err.contains("makit extract"),
+            "{err}"
+        );
+        // with every area typed it still runs, taking only the window split
+        let (input, _, _) =
+            simulation_input(&context(&[("model", json.to_str().unwrap())])).unwrap();
+        assert_eq!(
+            facings(&input.window_groups),
+            vec![(90.0, 0.75), (180.0, 0.25)]
+        );
+    }
+
+    #[test]
+    fn a_json_model_never_needs_python() {
+        // A .json model loads directly: no interpreter is looked for, so this
+        // holds with MAKIT_PYTHON unset and no .venv anywhere near the file.
+        let dir = folder("json-only");
+        let json = dir.join("house.json");
+        write_envelope_model(&json, true, true, true);
+        assert!(simulation_input(&model_context(&json, &[])).is_ok());
     }
 
     #[test]

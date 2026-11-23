@@ -256,8 +256,11 @@ fn ifc_list_rows(state: &AppState) -> u16 {
 pub fn ifc_details_height(state: &AppState) -> u16 {
     if let Some(a) = &state.ifc.analysis {
         let project = u16::from(!a.project_name.is_empty());
+        let envelope = u16::from(state.ifc.envelope.is_some());
+        let note = u16::from(state.ifc.note.is_some());
         // project + table header + one row per orientation + summary line
-        project + 1 + a.orientations.len() as u16 + 1
+        // + the envelope line + a note on the extraction
+        project + 1 + a.orientations.len() as u16 + 1 + envelope + note
     } else if state.ifc.loading.is_some() {
         1
     } else if state.ifc.loaded.is_some() {
@@ -521,6 +524,28 @@ mod tests {
         s.tree.expand();
         s.tree.select(1);
         assert_eq!(compute(s.viewport, &s).info.height, 3);
+    }
+
+    #[test]
+    fn the_envelope_and_a_note_take_a_row_each() {
+        let mut s = state(120, 40);
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../examples/IFC/building-model.json"
+        );
+        let model = makit_tools::building_model::load_model(std::path::Path::new(path)).unwrap();
+        s.ifc.loaded = Some("a.ifc".into());
+        s.ifc.analysis = Some(makit_tools::building_model::analyze_wwr(&model));
+        // project + header + two directions + summary
+        assert_eq!(ifc_details_height(&s), 5);
+        s.ifc.envelope = Some(makit_tools::building_model::envelope(&model, 0.0));
+        assert_eq!(ifc_details_height(&s), 6);
+        s.ifc.note = Some("using stale a.json: no python".into());
+        assert_eq!(ifc_details_height(&s), 7);
+        // without an analysis the note takes the hint's row
+        s.ifc.analysis = None;
+        s.ifc.envelope = None;
+        assert_eq!(ifc_details_height(&s), 2);
     }
 
     #[test]

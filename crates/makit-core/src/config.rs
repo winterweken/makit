@@ -81,7 +81,9 @@ impl Config {
 
         figment = figment.merge(Env::prefixed("MAKIT_"));
 
-        let config: Config = figment.extract().map_err(|e| anyhow::anyhow!("Config parsing error: {}", e))?;
+        let config: Config = figment
+            .extract()
+            .map_err(|e| anyhow::anyhow!("Config parsing error: {}", e))?;
         Ok(config)
     }
 }
@@ -119,7 +121,10 @@ mod tests {
         std::fs::write(path, "general:\n  editor: [unclosed list").unwrap();
         let result = Config::load(Some(path));
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Config parsing error"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Config parsing error"));
         std::fs::remove_file(path).ok();
     }
 }
