@@ -410,22 +410,22 @@ def extract_ifc_wall_to_generic(wall, ifc_file, area_unit='sqm', centre=None):
     except:
         pass
 
-    # Get dimensions from quantities
+    # Dimensions from quantities, in metres; the axis is the better length
     try:
-        for rel in wall.IsDefinedBy:
-            if rel.is_a('IfcRelDefinesByProperties'):
-                prop_def = rel.RelatingPropertyDefinition
-                if prop_def.is_a('IfcElementQuantity'):
-                    for quantity in prop_def.Quantities:
-                        if quantity.is_a('IfcQuantityLength'):
-                            if 'Height' in quantity.Name:
-                                generic_wall.height = quantity.LengthValue
-                            elif 'Length' in quantity.Name or 'Width' in quantity.Name:
-                                generic_wall.length = quantity.LengthValue
-                        elif quantity.is_a('IfcQuantityLength') and 'Width' in quantity.Name:
-                            generic_wall.width = quantity.LengthValue
-    except:
-        pass
+        length_scale, _ = get_unit_scales(ifc_file)
+        for quantity in get_element_quantities(wall):
+            if not quantity.is_a('IfcQuantityLength'):
+                continue
+            if 'Height' in quantity.Name:
+                generic_wall.height = quantity.LengthValue * length_scale
+            elif 'Width' in quantity.Name:
+                generic_wall.width = quantity.LengthValue * length_scale
+            elif 'Length' in quantity.Name:
+                generic_wall.length = quantity.LengthValue * length_scale
+    except Exception as e:
+        print("Warning: no dimensions for wall {}: {}".format(wall.GlobalId, str(e)))
+    if start and end:
+        generic_wall.length = math.hypot(end.x - start.x, end.y - start.y)
 
     # Check if curtain wall
     generic_wall.is_curtain_wall = 'CURTAIN' in (wall.ObjectType or '').upper()
@@ -877,7 +877,8 @@ def extract_ifc_window_to_generic(window, ifc_file, area_unit='sqm'):
     # Get Position
     pos = get_element_position(window)
     if pos:
-        generic_window.position = pos
+        generic_window.position = GeometricVector(
+            pos.x * length_scale, pos.y * length_scale, pos.z * length_scale)
 
     # Try to find host wall
     try:
@@ -900,9 +901,9 @@ def extract_ifc_window_to_generic(window, ifc_file, area_unit='sqm'):
                     for quantity in prop_def.Quantities:
                         if quantity.is_a('IfcQuantityLength'):
                             if 'Height' in quantity.Name:
-                                generic_window.height = quantity.LengthValue
+                                generic_window.height = quantity.LengthValue * length_scale
                             elif 'Width' in quantity.Name:
-                                generic_window.width = quantity.LengthValue
+                                generic_window.width = quantity.LengthValue * length_scale
                         elif quantity.is_a('IfcQuantityArea'):
                             area_sqm = quantity.AreaValue * area_scale
                             if area_unit == 'sqm':
@@ -914,13 +915,13 @@ def extract_ifc_window_to_generic(window, ifc_file, area_unit='sqm'):
 
     # The window's overall size when the quantities gave none
     if generic_window.height == 0 and getattr(window, 'OverallHeight', None):
-        generic_window.height = window.OverallHeight
+        generic_window.height = window.OverallHeight * length_scale
     if generic_window.width == 0 and getattr(window, 'OverallWidth', None):
-        generic_window.width = window.OverallWidth
+        generic_window.width = window.OverallWidth * length_scale
 
     # Calculate area if not found
     if generic_window.area == 0 and generic_window.height > 0 and generic_window.width > 0:
-        area_sqm = generic_window.height * generic_window.width * length_scale ** 2
+        area_sqm = generic_window.height * generic_window.width
         if area_unit == 'sqm':
             generic_window.area = round(area_sqm, 1)
         else:

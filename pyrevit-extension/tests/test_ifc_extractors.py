@@ -909,5 +909,40 @@ class WallAxisTest(TempDirTest):
         self.assertAlmostEqual(cw.start_point.y, cw.end_point.y, places=6)
 
 
+@unittest.skipIf(ifcopenshell is None, "needs ifcopenshell")
+class LengthUnitsTest(TempDirTest):
+    """Format 3 writes every wall and window length in metres."""
+
+    def test_wall_dimensions_are_scaled_and_length_is_the_axis(self):
+        import ifcopenshell.api.context
+        f = new_file("MILLI")
+        model = ifcopenshell.api.context.add_context(f, context_type="Model")
+        wall = wall_with_axis(f, model, (0, 0), (1, 0), [(0, 0), (6404, 0)])
+        add_quantities(f, wall, "Qto_WallBaseQuantities",
+                       lengths=[("Height", 2700.0), ("Length", 6404.0), ("Width", 202.0)])
+        w = self.extract(f).walls[0]
+        self.assertAlmostEqual(w.height, 2.7)
+        self.assertAlmostEqual(w.length, 6.404)
+        self.assertAlmostEqual(w.width, 0.202)
+
+    def test_a_wall_without_an_axis_takes_the_scaled_length_quantity(self):
+        f = new_file("MILLI")
+        wall = f.createIfcWall(ifcopenshell.guid.new(), None, "w", None, None, None, None, None, None)
+        add_quantities(f, wall, "Qto_WallBaseQuantities", lengths=[("Length", 3200.0), ("Width", 202.0)])
+        w = self.extract(f).walls[0]
+        self.assertAlmostEqual(w.length, 3.2)
+        self.assertAlmostEqual(w.width, 0.202)
+
+    def test_window_size_and_position_are_scaled(self):
+        f = new_file("MILLI")
+        window = f.createIfcWindow(ifcopenshell.guid.new(), None, "win", None, None, place(f, (1500, 0), (1, 0)),
+                                   None, None, 2420.0, 4835.0, None, None, None)
+        win = self.extract(f).windows[0]
+        self.assertAlmostEqual(win.height, 2.42)
+        self.assertAlmostEqual(win.width, 4.835)
+        self.assertAlmostEqual(win.position.x, 1.5)
+        self.assertAlmostEqual(win.area, 11.7, places=1)
+
+
 if __name__ == "__main__":
     unittest.main()
