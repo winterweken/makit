@@ -1,8 +1,10 @@
-//! Finding a Python for the bridges: the IFC extractor needs IfcOpenShell,
-//! the MURB bridge needs murb_energy_tool.
+//! Finding a Python for the IFC extractor, which needs IfcOpenShell.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+
+/// The IFC extractor, relative to the repository root: how the root is found.
+const EXTRACTOR: &str = "pyrevit-extension/Makit.extension/lib/analyze_ifc.py";
 
 /// How to get a Python the IFC extractor can use, for error messages.
 pub const SETUP_HINT: &str = "set up a Python with IfcOpenShell once: \
@@ -113,7 +115,7 @@ pub fn find_with(
 }
 
 /// The makit repository root: the nearest ancestor of the executable's
-/// folder, then of the working directory, that holds `scripts/murb_runner.py`.
+/// folder, then of the working directory, that holds the IFC extractor.
 pub fn repo_root() -> anyhow::Result<PathBuf> {
     let mut starts = Vec::new();
     if let Some(dir) = std::env::current_exe()
@@ -127,7 +129,7 @@ pub fn repo_root() -> anyhow::Result<PathBuf> {
     }
     for start in &starts {
         for dir in start.ancestors() {
-            if dir.join("scripts").join("murb_runner.py").is_file() {
+            if dir.join(EXTRACTOR).is_file() {
                 return Ok(dir.to_path_buf());
             }
         }
@@ -196,14 +198,12 @@ mod tests {
 
     #[test]
     fn the_hint_names_the_package_that_is_missing() {
-        // murb_energy_tool does not come with IfcOpenShell: its hint is PYTHONPATH
-        let err = find_with(vec![cand("python3", false)], "murb_energy_tool", &|_, _| {
-            false
-        })
-        .unwrap_err()
-        .to_string();
+        // a package that does not come with IfcOpenShell: its hint is PYTHONPATH
+        let err = find_with(vec![cand("python3", false)], "some_package", &|_, _| false)
+            .unwrap_err()
+            .to_string();
         assert!(
-            err.contains("PYTHONPATH") && err.contains("murb_energy_tool"),
+            err.contains("PYTHONPATH") && err.contains("some_package"),
             "{err}"
         );
         assert!(!err.contains("IfcOpenShell"), "{err}");
@@ -259,10 +259,7 @@ mod tests {
     }
 
     #[test]
-    fn repo_file_finds_the_runner_from_the_test_cwd() {
-        assert!(repo_file("scripts/murb_runner.py")
-            .unwrap()
-            .ends_with("scripts/murb_runner.py"));
+    fn repo_file_finds_the_extractor_from_the_test_cwd() {
         assert!(
             repo_file("pyrevit-extension/Makit.extension/lib/analyze_ifc.py")
                 .unwrap()

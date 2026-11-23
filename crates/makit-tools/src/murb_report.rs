@@ -591,7 +591,6 @@ mod tests {
             cop_dhw: 0.85,
             hrv_efficiency: 0.55,
             window_groups: vec![group(143.0, 0.67), group(233.0, 0.21), group(53.0, 0.12)],
-            report_dir: None,
         };
         let envelope: crate::building_model::Envelope = serde_json::from_value(serde_json::json!({
             "grade": 0.0, "gfa": 718.8,
@@ -627,8 +626,7 @@ mod tests {
             ghgi_kg_m2: 31.67,
             gfa: 718.8,
             weather_file: "Toronto.City-Univ.of.Toronto".into(),
-            report_path: None,
-            report_error: None,
+            breakdown: None,
             input: Some(input),
             envelope: Some(envelope),
             model: Some("examples/IFC/Ifc4_ARC.ifc".into()),
