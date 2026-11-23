@@ -388,6 +388,12 @@ pub struct Envelope {
     pub format_version: u32,
 }
 
+/// Add up areas from `0.0`: `Iterator::sum` starts from `-0.0`, which would
+/// print as "-0.0 m²" for an empty model.
+fn total(areas: impl Iterator<Item = f64>) -> f64 {
+    areas.fold(0.0, |sum, area| sum + area)
+}
+
 /// The share of a wall standing between `bottom` and `top` that lies below
 /// `grade`, in `[0, 1]`. A wall with no height, or an inverted one, counts
 /// as above grade.
@@ -441,7 +447,7 @@ pub fn envelope(model: &BuildingModel, grade: f64) -> Envelope {
             plates: s.slab_ids.len(),
         })
         .collect();
-    let gfa = storeys.iter().map(|s| s.area).sum();
+    let gfa = total(storeys.iter().map(|s| s.area));
     let empty_storeys = storeys.iter().filter(|s| s.plates == 0).count();
 
     let roofs: Vec<(String, f64)> = model
@@ -450,7 +456,7 @@ pub fn envelope(model: &BuildingModel, grade: f64) -> Envelope {
         .filter(|s| s.kind == SlabKind::Roof)
         .map(|s| (s.name.clone(), s.area))
         .collect();
-    let roof = roofs.iter().map(|(_, area)| area).sum();
+    let roof = total(roofs.iter().map(|(_, area)| *area));
     let left_out = model
         .slabs
         .iter()
@@ -476,8 +482,7 @@ pub fn envelope(model: &BuildingModel, grade: f64) -> Envelope {
     }
 
     let (in_walls, loose) = envelope_windows(model);
-    let windows =
-        in_walls.iter().map(|w| w.area).sum::<f64>() + loose.iter().map(|w| w.area).sum::<f64>();
+    let windows = total(in_walls.iter().map(|w| w.area)) + total(loose.iter().map(|w| w.area));
 
     Envelope {
         grade,
@@ -1062,6 +1067,26 @@ mod tests {
         );
         assert_eq!(env.windows, 3.0);
         assert!(env.storeys.is_empty() && env.left_out.is_empty());
+    }
+
+    #[test]
+    fn an_empty_envelope_has_positive_zeros() {
+        // Rust sums nothing to -0.0, which would print as "-0.0 m²".
+        let model: BuildingModel =
+            serde_json::from_value(serde_json::json!({ "walls": [] })).unwrap();
+        let env = envelope(&model, 0.0);
+        for (name, value) in [
+            ("gfa", env.gfa),
+            ("roof", env.roof),
+            ("windows", env.windows),
+            ("walls_ag", env.walls_ag),
+            ("walls_bg", env.walls_bg),
+        ] {
+            assert!(
+                value == 0.0 && value.is_sign_positive(),
+                "{name} = {value:?}"
+            );
+        }
     }
 
     #[test]
