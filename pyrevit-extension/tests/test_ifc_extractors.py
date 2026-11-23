@@ -720,5 +720,85 @@ class WindowFallbackTest(unittest.TestCase):
         self.assertAlmostEqual(generic.area, 1.5, places=1)
 
 
+@unittest.skipIf(ifcopenshell is None, "needs ifcopenshell")
+class ExtractionEconomyTest(TempDirTest):
+
+    def test_geometry_is_tessellated_once_per_element(self):
+        import ifcopenshell.geom
+        from unittest import mock
+        f, body = geometry_file()
+        wall = wall_with_geometry(f, body, "w", (0, 0), 0.0, length=4.0, height=3.0)
+        wall_id = wall.id()
+        path = os.path.join(self.tmp, "once.ifc")
+        f.write(path)
+        real = ifcopenshell.geom.create_shape
+        calls = []
+
+        def counting(settings, element, *args, **kwargs):
+            calls.append(element.id())
+            return real(settings, element, *args, **kwargs)
+
+        with mock.patch.object(ifcopenshell.geom, "create_shape", counting):
+            model = ifc_extractors.extract_building_model_from_ifc(path)
+        # The wall has no quantities: its area and its elevations both need
+        # its faces, which must be tessellated once.
+        self.assertEqual(calls.count(wall_id), 1, calls)
+        self.assertAlmostEqual(model.walls[0].area, 12.0)
+        self.assertAlmostEqual(model.walls[0].top, 3.0, places=2)
+
+    def test_faces_are_not_cached_outside_an_extraction(self):
+        # Two files reuse entity ids; a cache that outlived an extraction
+        # would hand one file's geometry to the other.
+        f, body = geometry_file()
+        wall_with_geometry(f, body, "a", (0, 0), 0.0, length=4.0, height=3.0)
+        g, body2 = geometry_file()
+        wall_with_geometry(g, body2, "b", (0, 0), 0.0, length=2.0, height=3.0)
+        a = f.by_type("IfcWall")[0]
+        b = g.by_type("IfcWall")[0]
+        self.assertEqual(a.id(), b.id())
+        self.assertAlmostEqual(ifc_extractors.get_side_area_from_geometry(a), 12.0)
+        self.assertAlmostEqual(ifc_extractors.get_side_area_from_geometry(b), 6.0)
+
+
+@unittest.skipIf(ifcopenshell is None, "needs ifcopenshell")
+class StoreyElevationTest(unittest.TestCase):
+
+    def test_storey_elevation_prefers_the_placement_frame(self):
+        f = new_file(None)
+        # Plates are matched in world coordinates, so a storey whose Elevation
+        # says 0 but which sits at z = 10 in the world is at 10.
+        storey = f.createIfcBuildingStorey(ifcopenshell.guid.new(), None, "L", None, None,
+                                           place3(f, (0, 0), 10.0), None, None, "ELEMENT", 0.0)
+        self.assertAlmostEqual(ifc_extractors.get_storey_elevation(storey, f), 10.0)
+        # Without a placement the attribute is all there is.
+        bare = f.createIfcBuildingStorey(ifcopenshell.guid.new(), None, "B", None, None,
+                                         None, None, None, "ELEMENT", 3.0)
+        self.assertAlmostEqual(ifc_extractors.get_storey_elevation(bare, f), 3.0)
+
+
+@unittest.skipIf(ifcopenshell is None, "needs ifcopenshell")
+class WithoutShapelyTest(TempDirTest):
+
+    def test_plates_measure_their_surface_and_say_so(self):
+        import io
+        from contextlib import redirect_stdout
+        from unittest import mock
+        f, body = geometry_file()
+        level = new_storey(f, "L1", 0.0)
+        slab_box(f, body, "structural", (0, 0), (10, 10), top=0.0, storey=level)
+        slab_box(f, body, "finish", (2, 2), (4, 4), top=0.02, thickness=0.02, storey=level)
+        out = io.StringIO()
+        with mock.patch.object(ifc_extractors, "has_shapely", return_value=False), \
+                mock.patch.object(ifc_extractors, "get_footprint", return_value=None), \
+                redirect_stdout(out):
+            model = self.extract(f)
+        warnings = [line for line in out.getvalue().splitlines() if "shapely" in line]
+        self.assertEqual(len(warnings), 1, out.getvalue())
+        self.assertIn("footprint", warnings[0])
+        # surfaces instead of footprints, and a sum instead of a union
+        self.assertEqual(sorted(round(s.area, 1) for s in model.slabs), [16.0, 100.0])
+        self.assertAlmostEqual(model.storeys[0].floor_area, 116.0, places=1)
+
+
 if __name__ == "__main__":
     unittest.main()

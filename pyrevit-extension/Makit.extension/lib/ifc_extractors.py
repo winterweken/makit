@@ -173,15 +173,12 @@ def get_ifc_wall_geometry(wall):
                                 
         # If length not found properties, try geometry
         if length == 0:
-            settings = ifcopenshell.geom.settings()
             try:
-                shape = ifcopenshell.geom.create_shape(settings, wall)
-                # Bounds
-                verts = shape.geometry.verts
-                # Simple approximation if no explicit length
-                # This is complex without proper BRep analysis, but for 2D start/end:
-                length = 1.0 # Fallback
-            except:
+                if get_faces(wall):
+                    # Simple approximation if no explicit length
+                    # This is complex without proper BRep analysis, but for 2D start/end:
+                    length = 1.0 # Fallback
+            except Exception:
                 pass
                 
         # Calculate End point based on direction and length
@@ -416,11 +413,26 @@ def get_storey_name(element):
         pass
     return None
 
+# Faces by entity id, kept only while extract_building_model_from_ifc runs:
+# a wall's area, elevations and axis all need them, and tessellation is the
+# slow part. Entity ids repeat across files, so the cache never outlives one
+# extraction.
+_FACES_CACHE = None
+
 def get_faces(element):
     """
     An element's surface as triangles in world coordinates, in metres:
     a list of (unit normal, area, (a, b, c) vertices)
     """
+    if _FACES_CACHE is not None and element.id() in _FACES_CACHE:
+        return _FACES_CACHE[element.id()]
+    faces = tessellate(element)
+    if _FACES_CACHE is not None:
+        _FACES_CACHE[element.id()] = faces
+    return faces
+
+def tessellate(element):
+    """get_faces without the cache"""
     settings = ifcopenshell.geom.settings()
     settings.set('use-world-coords', True)
     shape = ifcopenshell.geom.create_shape(settings, element)
@@ -520,16 +532,20 @@ def get_wall_elevations(wall, ifc_file):
     return bottom, bottom + height * length_scale
 
 def get_storey_elevation(storey, ifc_file):
-    """A storey's elevation in metres: its Elevation attribute, else its placement's z"""
+    """
+    A storey's elevation in metres, project z: its placement's z, the frame
+    the plates' geometry is matched in, else its Elevation attribute
+    """
     length_scale, _ = get_unit_scales(ifc_file)
+    placement = getattr(storey, 'ObjectPlacement', None)
+    if placement is not None:
+        try:
+            matrix = ifcopenshell.util.placement.get_local_placement(placement)
+            return matrix[2][3] * length_scale
+        except Exception:
+            pass
     elevation = getattr(storey, 'Elevation', None)
-    if elevation is not None:
-        return elevation * length_scale
-    try:
-        matrix = ifcopenshell.util.placement.get_local_placement(storey.ObjectPlacement)
-        return matrix[2][3] * length_scale
-    except Exception:
-        return 0.0
+    return elevation * length_scale if elevation is not None else 0.0
 
 def slab_kind(slab):
     """
@@ -547,6 +563,14 @@ def slab_kind(slab):
     if parent is not None:
         return 'other'
     return 'floor'
+
+def has_shapely():
+    """Whether shapely, which comes with IfcOpenShell, can be imported"""
+    try:
+        import shapely  # noqa: F401
+        return True
+    except ImportError:
+        return False
 
 def nearest_storey(top, storeys):
     """The storey whose elevation is nearest `top`, within PLATE_STOREY_TOLERANCE, or None"""
@@ -631,6 +655,10 @@ def extract_storeys_and_slabs(ifc_file, building_model, storey_filter=None):
     and ROOF slabs outside any IfcRoof, each counted once. With a storey
     filter, only that storey and its slabs are kept.
     """
+    if not has_shapely():
+        print("Warning: shapely not available: floor plates measure their surface, "
+              "not their footprint, and storey floor areas are sums, not unions")
+
     storeys = []
     for ifc_storey in ifc_file.by_type('IfcBuildingStorey'):
         if storey_filter and ifc_storey.Name != storey_filter:
@@ -673,15 +701,11 @@ def extract_storeys_and_slabs(ifc_file, building_model, storey_filter=None):
         from shapely.ops import unary_union
     except ImportError:
         unary_union = None
-    warned = False
     for storey in storeys:
         shapes = [footprints.get(i) for i in storey.slab_ids]
         if unary_union is not None and shapes and all(shape is not None for shape in shapes):
             storey.floor_area = round(unary_union(shapes).area, 2)
         else:
-            if storey.slab_ids and not warned:
-                print("Warning: shapely not available, storey floor areas are sums, not unions")
-                warned = True
             ids = set(storey.slab_ids)
             storey.floor_area = round(sum(s.area for s in slabs if s.id in ids), 2)
 
@@ -869,6 +893,20 @@ def extract_ifc_window_to_generic(window, ifc_file, area_unit='sqm'):
 
 
 def extract_building_model_from_ifc(ifc_path, options=None):
+    """
+    Extract a complete building model from IFC in generic format (see
+    build_building_model). Faces are tessellated once per element while
+    this runs.
+    """
+    global _FACES_CACHE
+    _FACES_CACHE = {}
+    try:
+        return build_building_model(ifc_path, options)
+    finally:
+        _FACES_CACHE = None
+
+
+def build_building_model(ifc_path, options=None):
     """
     Extract a complete building model from IFC in generic format
 
