@@ -193,6 +193,28 @@ def axis_from_faces(faces, direction, z=None):
 
     return point(min(along)), point(max(along))
 
+def facade_normal(faces):
+    """
+    The horizontal unit normal carrying the most face area among a wall's
+    triangles (its sign folded so x > 0, or y > 0 when x is 0): the way its
+    sides look. None when no face is near-vertical.
+    """
+    weights = {}
+    for n, area, _ in faces:
+        if abs(n[2]) > 0.1:
+            continue
+        key = (round(n[0], 2), round(n[1], 2))
+        if key[0] < 0 or (key[0] == 0 and key[1] < 0):
+            key = (-key[0], -key[1])
+        weights[key] = weights.get(key, 0.0) + area
+    if not weights:
+        return None
+    nx, ny = max(weights, key=weights.get)
+    length = math.hypot(nx, ny)
+    if length == 0:
+        return None
+    return nx / length, ny / length
+
 def get_ifc_wall_geometry(wall, ifc_file):
     """
     A wall's axis as (start, end) GeometricVectors in metres, project
@@ -227,7 +249,19 @@ def get_ifc_wall_geometry(wall, ifc_file):
             faces = get_faces(wall)
         except Exception:
             faces = []
-        axis = axis_from_faces(faces, (matrix[0][0], matrix[1][0]))
+        # Along the wall is across its facade; the placement's X axis only
+        # when the geometry has no vertical face to tell. The axis runs the
+        # placement's way, so start and end mean the same whichever source
+        # gave them.
+        px, py = matrix[0][0], matrix[1][0]
+        normal = facade_normal(faces)
+        if normal:
+            direction = (-normal[1], normal[0])
+            if direction[0] * px + direction[1] * py < 0:
+                direction = (-direction[0], -direction[1])
+        else:
+            direction = (px, py)
+        axis = axis_from_faces(faces, direction)
         if axis:
             return GeometricVector(*axis[0]), GeometricVector(*axis[1])
     except Exception as e:
@@ -805,25 +839,14 @@ def extract_ifc_curtain_wall_to_generic(curtain_wall, ifc_file, area_unit='sqm',
         return None
 
     # The facade faces along the horizontal normal that carries most area
-    weights = {}
-    total = 0.0
-    sx = sy = 0.0
-    for part, triangles in meshes:
-        for n, area, (a, b, c) in triangles:
-            total += area
-            sx += (a[0] + b[0] + c[0]) / 3.0 * area
-            sy += (a[1] + b[1] + c[1]) / 3.0 * area
-            if abs(n[2]) > 0.1:
-                continue
-            key = (round(n[0], 2), round(n[1], 2))
-            if key[0] < 0 or (key[0] == 0 and key[1] < 0):
-                key = (-key[0], -key[1])
-            weights[key] = weights.get(key, 0.0) + area
-    if not weights:
+    faces = [face for _, triangles in meshes for face in triangles]
+    normal = facade_normal(faces)
+    if normal is None:
         return None
-    nx, ny = max(weights, key=weights.get)
-    length = math.hypot(nx, ny)
-    nx, ny = nx / length, ny / length
+    nx, ny = normal
+    total = sum(area for _, area, _ in faces)
+    sx = sum((a[0] + b[0] + c[0]) / 3.0 * area for _, area, (a, b, c) in faces)
+    sy = sum((a[1] + b[1] + c[1]) / 3.0 * area for _, area, (a, b, c) in faces)
     if centre is not None and total > 0:
         mx = sx / total - centre[0] * length_scale
         my = sy / total - centre[1] * length_scale
@@ -839,12 +862,12 @@ def extract_ifc_curtain_wall_to_generic(curtain_wall, ifc_file, area_unit='sqm',
     generic_wall.level = level
     generic_wall.wall_type = curtain_wall.ObjectType or ""
     generic_wall.properties['ifcType'] = curtain_wall.is_a()
-    faces = [face for _, triangles in meshes for face in triangles]
     generic_wall.bottom, generic_wall.top = get_z_range(faces)
     axis = axis_from_faces(faces, (-ny, nx))
     if axis:
         generic_wall.start_point = GeometricVector(*axis[0])
         generic_wall.end_point = GeometricVector(*axis[1])
+        generic_wall.length = math.hypot(axis[1][0] - axis[0][0], axis[1][1] - axis[0][1])
 
     opaque = 0.0
     for part, triangles in meshes:

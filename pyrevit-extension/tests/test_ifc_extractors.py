@@ -893,6 +893,16 @@ class WallAxisTest(TempDirTest):
         self.assertAlmostEqual(start.y, end.y, places=6)
         self.assertAlmostEqual(start.z, 0.5, places=3)
 
+    def test_a_body_across_its_placement_is_measured_along_its_faces(self):
+        import math
+        f, body = geometry_file()
+        # A box 0.2 m along local X and 4 m along local Y: the wall runs along Y,
+        # whatever its placement says.
+        wall = wall_with_geometry(f, body, "w", (6, 3), 0.0, length=0.2, height=3.0, thickness=4.0)
+        start, end = ifc_extractors.get_ifc_wall_geometry(wall, f)
+        self.assertAlmostEqual(math.hypot(end.x - start.x, end.y - start.y), 4.0, places=3)
+        self.assertAlmostEqual(start.x, end.x, places=6)
+
     def test_a_wall_with_nothing_to_go_on_has_no_axis(self):
         f = new_file(None)
         wall = f.createIfcWall(ifcopenshell.guid.new(), None, "w", None, None, None, None, None, None)
@@ -907,6 +917,7 @@ class WallAxisTest(TempDirTest):
         self.assertAlmostEqual(xs[0], 2.0, places=2)
         self.assertAlmostEqual(xs[1], 6.05, places=2)
         self.assertAlmostEqual(cw.start_point.y, cw.end_point.y, places=6)
+        self.assertAlmostEqual(cw.length, 4.05, places=2)
 
 
 @unittest.skipIf(ifcopenshell is None, "needs ifcopenshell")
