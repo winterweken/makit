@@ -263,14 +263,9 @@ pub fn extraction_path(ifc_path: &Path) -> PathBuf {
     ifc_path.with_extension("json")
 }
 
-/// The shell command that extracts `ifc_path` to [`extraction_path`]. It
-/// needs Python with `ifcopenshell` and runs from the repository root.
+/// The makit command that extracts `ifc_path` to [`extraction_path`].
 pub fn extraction_command(ifc_path: &Path) -> String {
-    format!(
-        "python3 pyrevit-extension/Makit.extension/lib/analyze_ifc.py {} --extract-only --output {}",
-        ifc_path.display(),
-        extraction_path(ifc_path).display()
-    )
+    format!("makit extract {}", ifc_path.display())
 }
 
 /// The `sourceFile` an extraction names, if it names one. An extraction
@@ -930,10 +925,11 @@ mod tests {
     }
 
     #[test]
-    fn the_extraction_command_writes_beside_the_ifc() {
-        let command = extraction_command(Path::new("examples/IFC/Ifc4_ARC.ifc"));
-        assert!(command.contains("analyze_ifc.py examples/IFC/Ifc4_ARC.ifc"));
-        assert!(command.ends_with("--extract-only --output examples/IFC/Ifc4_ARC.json"));
+    fn the_extraction_command_is_makit_extract() {
+        assert_eq!(
+            extraction_command(Path::new("examples/IFC/Ifc4_ARC.ifc")),
+            "makit extract examples/IFC/Ifc4_ARC.ifc"
+        );
     }
 
     #[test]
