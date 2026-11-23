@@ -26,7 +26,7 @@ Built in Rust with [ratatui](https://ratatui.rs) for the interactive TUI and a d
 | **Live Revit Bridge** | Extract walls, floors, rooms via pyRevit HTTP; run orientation & WWR analysis |
 | **IFC Analysis** | Wall directions, window-to-wall ratio and the energy envelope (GFA by storey, walls above and below grade, windows, roof) from IFC files, no Revit needed: makit runs the Python extractor (IfcOpenShell) itself when an IFC has no extraction beside it or a stale one; it reads walls with their elevations, windows, curtain walls, storeys, floor plates and roofs with the file's units, and the analysis counts exterior walls only |
 | **Blender Sync** | HTTP server that receives geometry from the Blender add-on (not drawn in the TUI yet) |
-| **MURB Energy** | Monthly heat balance (TEDI / TEUI / GHGI) through murb_energy_tool, with every envelope area and the glazing split by facing taken from an IFC model unless you type them |
+| **MURB Energy** | Monthly heat balance (TEDI / TEUI / GHGI) through murb_energy_tool, with every envelope area and the glazing split by facing taken from an IFC model unless you type them; murb's own HTML report lands beside the results JSON |
 | **Braille Canvas** | Floor plans, elevations, bar charts, and data sheets in braille characters |
 | **3D Logo** | The makit symbol on the TUI home screen: a braille kit of blocks with one block hovering above its socket |
 | **Generic JSON Format** | Extract from any source into one schema, run the same analysis everywhere |
@@ -88,7 +88,9 @@ makit analyze model.ifc -t envelope --grade -1.5   # grade in metres, project z
 
 # Run a MURB energy simulation from a model (needs the murb repository on
 # PYTHONPATH). Every envelope area and the glazing split by facing come from the
-# IFC file or its extraction; a typed value wins over the model.
+# IFC file or its extraction; a typed value wins over the model. The run is named
+# after the model and the weather station ("model in Toronto"); the results go to
+# murb_results.json (-o output=…) and murb's HTML report to results/<run>/ beside it.
 PYTHONPATH=../murb makit exec murb analysis murb-simulate \
   -o model=path/to/model.ifc -o epw=weather.epw
 
@@ -206,7 +208,7 @@ Tools register **sources** (inputs and connections) and **actions** (operations)
 <tr><td><code>ifc</code> source</td><td>Working</td><td>Extracts an IFC file to JSON beside it with the Python extractor (<code>makit extract</code> on the command line). The picker, <code>makit analyze</code>, <code>wall-orientation-wwr</code> and <code>murb-simulate</code> extract on their own when the JSON is missing or older than the IFC, and keep a stale JSON with a note when no Python with IfcOpenShell is found.</td></tr>
 <tr><td><code>wall-orientation-wwr</code></td><td>Working</td><td>Direction table and WWR for exterior walls, from an extraction JSON or an IFC file (extracted on demand).</td></tr>
 <tr><td colspan="3"><b>Energy</b></td></tr>
-<tr><td><code>murb-simulate</code></td><td>Working</td><td>Monthly TEDI / TEUI / GHGI through murb_energy_tool (put the murb repository on <code>PYTHONPATH</code>). Envelope areas (GFA by storey, walls above and below <code>--grade</code>, windows, roof) and window directions from an IFC model, each printed with its source; typed values win. Checked with Toronto TMYx weather on the three sample models.</td></tr>
+<tr><td><code>murb-simulate</code></td><td>Working</td><td>Monthly TEDI / TEUI / GHGI through murb_energy_tool (put the murb repository on <code>PYTHONPATH</code>). Envelope areas (GFA by storey, walls above and below <code>--grade</code>, windows, roof) and window directions from an IFC model, each printed with its source; typed values win. Writes the results JSON and murb's own HTML report (<code>results/&lt;run&gt;/</code>) beside it. Checked with Toronto TMYx weather on the three sample models.</td></tr>
 <tr><td><code>murb-report</code></td><td>Working</td><td>Prints a results JSON as a report.</td></tr>
 <tr><td><code>murb</code> source</td><td>Partial</td><td>Checks that murb_energy_tool imports, but reports success either way.</td></tr>
 <tr><td colspan="3"><b>Revit</b> (pyRevit HTTP on port 48884)</td></tr>
@@ -239,7 +241,7 @@ Tools register **sources** (inputs and connections) and **actions** (operations)
 # Build
 cargo build
 
-# Run all 325 tests (3 cli, 10 core, 40 geometry, 81 tools, 191 tui). They read the
+# Run all 328 tests (3 cli, 10 core, 40 geometry, 84 tools, 191 tui). They read the
 # three committed extractions in examples/IFC and need no Python.
 cargo test
 
@@ -248,7 +250,7 @@ cargo test
 uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell
 .venv/bin/python -m unittest discover -s pyrevit-extension/tests
 
-# MURB runner tests (no extra packages)
+# MURB runner tests (3, no extra packages)
 python3 -m unittest discover -s scripts/tests
 
 # Run the CLI

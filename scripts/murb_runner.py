@@ -23,6 +23,7 @@ Input schema:
         "cop_htg": 0.85,
         "cop_clg": 5.2,
         "hrv_efficiency": 0.55,
+        "report_dir": "/absolute/dir",   (optional: murb's HTML report goes under it)
         "window_groups": [
             {"pct_window_area": 0.25, "window_azimuth": 0, "shgc": 0.4, "shading": 0.0},
             {"pct_window_area": 0.25, "window_azimuth": 90, "shgc": 0.4, "shading": 0.0},
@@ -44,10 +45,13 @@ Output schema:
         "teui_kwh_m2": float,
         "ghgi_kg_m2": float,
         "gfa": float,
-        "weather_file": str
+        "weather_file": str,
+        "report_path": "/absolute/dir/results/MyBuilding_TMY/MyBuilding_TMY.html" or null,
+        "report_error": str or null
     }
 """
 
+import contextlib
 import json
 import os
 import shutil
@@ -147,6 +151,27 @@ def main():
     monthly_total = floats(run.total_energy_consumption)
     monthly_ghg = floats(run.total_ghg_emissions)
 
+    # murb's own HTML report (results/<name>/<name>.html and a javascript
+    # folder), written under report_dir when one is given. write_results
+    # prints a table, which must not reach stdout: stdout is the JSON reply.
+    report_path = None
+    report_error = None
+    report_dir = params.get("report_dir")
+    if report_dir:
+        try:
+            from murb_energy_tool import reporting
+            os.makedirs(report_dir, exist_ok=True)
+            os.chdir(report_dir)
+            try:
+                with contextlib.redirect_stdout(sys.stderr):
+                    reporting.write_results(run)
+            finally:
+                os.chdir(original_cwd)
+            report_path = os.path.join(
+                report_dir, "results", run.name, "{}.html".format(run.name))
+        except Exception as e:
+            report_error = "no HTML report: {}".format(e)
+
     tedi = sum(monthly_heating) / gfa if gfa > 0 else 0.0
     teui = sum(monthly_total) / gfa if gfa > 0 else 0.0
     ghgi = sum(monthly_ghg) / gfa if gfa > 0 else 0.0
@@ -164,6 +189,8 @@ def main():
         "ghgi_kg_m2": round(ghgi, 2),
         "gfa": gfa,
         "weather_file": getattr(run, "weather_file", "unknown"),
+        "report_path": report_path,
+        "report_error": report_error,
     }
 
     # Write JSON to stdout

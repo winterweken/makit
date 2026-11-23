@@ -284,6 +284,8 @@ mod tests {
             ghgi_kg_m2: 3.21,
             gfa: 1000.0,
             weather_file: String::new(),
+            report_path: None,
+            report_error: None,
         }
     }
 

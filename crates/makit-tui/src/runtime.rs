@@ -575,6 +575,8 @@ mod tests {
             ghgi_kg_m2: 5.0,
             gfa: 100.0,
             weather_file: "x.epw".into(),
+            report_path: None,
+            report_error: None,
         };
         let dir = std::env::temp_dir().join(format!("makit-tui-murb-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();

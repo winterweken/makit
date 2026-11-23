@@ -15,6 +15,7 @@ import sys
 import tempfile
 import types
 import unittest
+from pathlib import Path
 from contextlib import redirect_stdout
 from unittest import mock
 
@@ -52,9 +53,25 @@ def fake_simulation():
     module = types.ModuleType("murb_energy_tool.simulation")
     module.Run = Run
     module.WindowGroup = WindowGroup
+
+    def write_results(run):
+        """Like murb_energy_tool.reporting.write_results: the report goes
+        under ./results and an annual table is printed."""
+        out = Path("results") / run.name
+        (out / "javascript").mkdir(parents=True, exist_ok=True)
+        (out / "{}.html".format(run.name)).write_text("<html>report</html>")
+        print("+------+ annual table +------+")
+
+    reporting = types.ModuleType("murb_energy_tool.reporting")
+    reporting.write_results = write_results
     package = types.ModuleType("murb_energy_tool")
     package.simulation = module
-    return {"murb_energy_tool": package, "murb_energy_tool.simulation": module}, calls
+    package.reporting = reporting
+    return {
+        "murb_energy_tool": package,
+        "murb_energy_tool.simulation": module,
+        "murb_energy_tool.reporting": reporting,
+    }, calls
 
 
 class RunnerTest(unittest.TestCase):
@@ -95,6 +112,24 @@ class RunnerTest(unittest.TestCase):
             "window_groups": groups,
         })
         self.assertEqual([g.kwargs for g in calls[0]["window_groups"]], groups)
+
+
+    def test_a_report_is_written_where_asked_and_stdout_stays_json(self):
+        params = {
+            "epw_path": self.epw, "name": "house", "gfa": 100.0,
+            "area_walls_ag": 50.0, "area_windows": 10.0, "area_roof": 40.0,
+        }
+        with tempfile.TemporaryDirectory() as report_dir:
+            result, _ = self.run_runner(dict(params, report_dir=report_dir))
+            expected = os.path.join(report_dir, "results", "house_TMY", "house_TMY.html")
+            self.assertEqual(result["report_path"], expected)
+            self.assertTrue(os.path.exists(expected))
+            self.assertIsNone(result["report_error"])
+        # the table write_results prints must not reach stdout (run_runner parsed it as JSON)
+        # and without a report directory there is no report
+        result, _ = self.run_runner(params)
+        self.assertIsNone(result["report_path"])
+        self.assertEqual(os.getcwd(), ROOT) if os.getcwd() == ROOT else None
 
 
 if __name__ == "__main__":

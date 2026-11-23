@@ -56,6 +56,10 @@ pub struct MurbInput {
     pub hrv_efficiency: f64,
     #[serde(default = "default_window_groups")]
     pub window_groups: Vec<WindowGroupInput>,
+    /// Directory under which the runner writes murb's own HTML report
+    /// (`results/<name>/<name>.html`); none, no report.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub report_dir: Option<String>,
 }
 
 /// A window group for solar gain calculation.
@@ -84,6 +88,12 @@ pub struct MurbResults {
     pub ghgi_kg_m2: f64,
     pub gfa: f64,
     pub weather_file: String,
+    /// murb's HTML report, when the runner wrote one.
+    #[serde(default)]
+    pub report_path: Option<String>,
+    /// Why it could not write one, when it could not.
+    #[serde(default)]
+    pub report_error: Option<String>,
 }
 
 // Default value functions for serde
@@ -506,6 +516,64 @@ pub fn format_report(results: &MurbResults) -> String {
 // Handler Bodies (M5, M6)
 // ---------------------------------------------------------------------------
 
+/// The weather station an EPW file is for, from its `LOCATION` header:
+/// the city up to its first dot ("Toronto" for "Toronto.City-Univ.of.Toronto").
+pub fn epw_city(path: &Path) -> Option<String> {
+    use std::io::BufRead;
+    let file = std::fs::File::open(path).ok()?;
+    let first = std::io::BufReader::new(file).lines().next()?.ok()?;
+    let fields = first.strip_prefix("LOCATION,")?;
+    let city = fields.split(',').next()?.split('.').next()?.trim();
+    (!city.is_empty()).then(|| city.to_string())
+}
+
+/// The run's name: as typed, else the model's file name (or `makit_run`)
+/// "in" the EPW's city when the EPW can be read: "Ifc4_ARC in Toronto".
+fn run_name(typed: &str, model: Option<&Path>, epw: &Path) -> String {
+    if !typed.trim().is_empty() {
+        return typed.trim().to_string();
+    }
+    let base = model
+        .and_then(|m| m.file_stem())
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "makit_run".to_string());
+    match epw_city(epw) {
+        Some(city) => format!("{base} in {city}"),
+        None => base,
+    }
+}
+
+/// Where murb's HTML report goes: the directory of the results file
+/// (`--output`), made absolute; none when no results file is written.
+fn report_dir(output: &str) -> Option<String> {
+    let output = output.trim();
+    if output.is_empty() {
+        return None;
+    }
+    let parent = Path::new(output)
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from("."));
+    let dir = if parent.is_absolute() {
+        parent
+    } else {
+        std::env::current_dir().ok()?.join(&parent)
+    };
+    // "." and ".." on the end of an absolute path, without touching the disk
+    let mut clean = PathBuf::new();
+    for part in dir.components() {
+        match part {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                clean.pop();
+            }
+            other => clean.push(other),
+        }
+    }
+    Some(clean.to_string_lossy().into_owned())
+}
+
 /// The simulation input `murb-simulate` sends for `ctx`'s options, one line
 /// per quantity saying where it came from, and the model's envelope when a
 /// model was given.
@@ -533,9 +601,15 @@ fn simulation_input(
         describe_window_groups(&window_groups)
     ));
 
+    let epw_path = ctx.get_option("epw", "");
+    let name = run_name(
+        &ctx.get_option("name", ""),
+        model.as_ref().map(|(_, json)| json.as_path()),
+        Path::new(&epw_path),
+    );
     let input = MurbInput {
-        epw_path: ctx.get_option("epw", ""),
-        name: ctx.get_option("name", "makit_run"),
+        epw_path,
+        name,
         province: ctx.get_option("province", "ON"),
         gfa,
         area_walls_ag: walls_ag,
@@ -550,6 +624,7 @@ fn simulation_input(
         cop_dhw: ctx.get_option("cop-dhw", "0.85").parse()?,
         hrv_efficiency: ctx.get_option("hrv", "0.55").parse()?,
         window_groups,
+        report_dir: report_dir(&ctx.get_option("output", "murb_results.json")),
     };
 
     if input.epw_path.is_empty() {
@@ -581,6 +656,11 @@ fn handle_simulate(ctx: &TaskContext) -> anyhow::Result<()> {
 
     // Print summary
     print!("{}", format_report(&results));
+    if let Some(path) = &results.report_path {
+        println!("\nmurb's HTML report: {path}");
+    } else if let Some(err) = &results.report_error {
+        println!("\n{err}");
+    }
 
     // Save to file if requested
     let output_path = ctx.get_option("output", "murb_results.json");
@@ -1054,6 +1134,83 @@ mod tests {
     }
 
     #[test]
+    fn the_run_is_named_after_the_model_and_the_weather_station() {
+        let dir = folder("naming");
+        let epw = dir.join("CAN_ON_Toronto.epw");
+        std::fs::write(
+            &epw,
+            "LOCATION,Toronto.City-Univ.of.Toronto,ON,CAN,SRC-TMYx,715080,43.6658,-79.3953,-5.0,112.5\nDESIGN CONDITIONS,0\n",
+        )
+        .unwrap();
+        assert_eq!(epw_city(&epw).as_deref(), Some("Toronto"));
+        assert_eq!(epw_city(&dir.join("missing.epw")), None);
+
+        let json = dir.join("Ifc4_ARC.json");
+        write_envelope_model(&json, true, true, true);
+        let mut ctx = model_context(&json, &[]);
+        ctx.options
+            .insert("epw".into(), epw.to_str().unwrap().into());
+        let (input, _, _) = simulation_input(&ctx).unwrap();
+        assert_eq!(input.name, "Ifc4_ARC in Toronto");
+
+        // a typed name wins; without a model the default name takes the station
+        ctx.options.insert("name".into(), "Tower B".into());
+        assert_eq!(simulation_input(&ctx).unwrap().0.name, "Tower B");
+        let mut bare = context(&[]);
+        bare.options
+            .insert("epw".into(), epw.to_str().unwrap().into());
+        assert_eq!(
+            simulation_input(&bare).unwrap().0.name,
+            "makit_run in Toronto"
+        );
+
+        // an EPW that cannot be read leaves the station out
+        let (input, _, _) = simulation_input(&model_context(&json, &[])).unwrap();
+        assert_eq!(input.name, "Ifc4_ARC");
+    }
+
+    #[test]
+    fn the_report_goes_beside_the_results_file() {
+        let dir = folder("report-dir");
+        let json = dir.join("house.json");
+        write_envelope_model(&json, true, true, true);
+        let out = dir.join("out").join("run.json");
+        let (input, _, _) =
+            simulation_input(&model_context(&json, &[("output", out.to_str().unwrap())])).unwrap();
+        assert_eq!(
+            input.report_dir.as_deref(),
+            Some(dir.join("out").to_str().unwrap())
+        );
+        // the default results file is in the working directory, so is the report
+        let (input, _, _) = simulation_input(&model_context(&json, &[])).unwrap();
+        assert_eq!(
+            input.report_dir.as_deref().map(std::path::PathBuf::from),
+            std::env::current_dir().ok()
+        );
+        // no results file, no report
+        let (input, _, _) = simulation_input(&model_context(&json, &[("output", "")])).unwrap();
+        assert_eq!(input.report_dir, None);
+    }
+
+    #[test]
+    fn results_carry_the_report_path_when_the_runner_gives_one() {
+        let base = r#"{"name": "h_TMY", "monthly_heating_demand": [], "monthly_cooling_demand": [],
+            "monthly_heating_consumption": [], "monthly_cooling_consumption": [],
+            "monthly_total_consumption": [], "monthly_ghg_emissions": [], "tedi_kwh_m2": 1.0,
+            "teui_kwh_m2": 2.0, "ghgi_kg_m2": 3.0, "gfa": 4.0, "weather_file": "T""#;
+        let old: MurbResults = serde_json::from_str(&format!("{base}}}")).unwrap();
+        assert_eq!((old.report_path, old.report_error), (None, None));
+        let new: MurbResults = serde_json::from_str(&format!(
+            r#"{base}, "report_path": "/r/results/h_TMY/h_TMY.html", "report_error": null}}"#
+        ))
+        .unwrap();
+        assert_eq!(
+            new.report_path.as_deref(),
+            Some("/r/results/h_TMY/h_TMY.html")
+        );
+    }
+
+    #[test]
     fn the_model_fills_every_untyped_area() {
         let dir = folder("fills");
         let json = dir.join("house.json");
@@ -1198,6 +1355,7 @@ mod tests {
             cop_dhw: 0.85,
             hrv_efficiency: 0.55,
             window_groups: default_window_groups(),
+            report_dir: None,
         };
 
         let json = serde_json::to_string(&input).unwrap();
@@ -1248,6 +1406,8 @@ mod tests {
             ghgi_kg_m2: 13.6,
             gfa: 5000.0,
             weather_file: "TORONTO".to_string(),
+            report_path: None,
+            report_error: None,
         };
 
         let report = format_report(&results);
