@@ -53,6 +53,8 @@ class GenericWall(object):
         self.is_curtain_wall = False
         self.is_external = None  # True, False (interior) or None (not known)
         self.level = ""
+        self.bottom = None  # metres, project z of the wall's underside
+        self.top = None  # metres, project z of the wall's top
         self.windows = []  # List of GenericWindow
         self.properties = {}  # Custom properties
 
@@ -72,6 +74,8 @@ class GenericWall(object):
             'isCurtainWall': self.is_curtain_wall,
             'isExternal': self.is_external,
             'level': self.level,
+            'bottom': self.bottom,
+            'top': self.top,
             'windows': [w.to_dict() for w in self.windows],
             'properties': self.properties
         }
@@ -94,6 +98,8 @@ class GenericWall(object):
         wall.is_curtain_wall = data.get('isCurtainWall', False)
         wall.is_external = data.get('isExternal')
         wall.level = data.get('level', '')
+        wall.bottom = data.get('bottom')
+        wall.top = data.get('top')
         wall.windows = [GenericWindow.from_dict(w) for w in data.get('windows', [])]
         wall.properties = data.get('properties', {})
         return wall

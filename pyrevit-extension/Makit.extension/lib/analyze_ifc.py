@@ -81,9 +81,11 @@ def main():
         print("Error extracting IFC: {}".format(str(e)))
         sys.exit(1)
 
-    print("Extracted {} walls and {} windows".format(
+    print("Extracted {} walls, {} windows, {} slabs and {} storeys".format(
         len(building_model.walls),
-        len(building_model.windows)
+        len(building_model.windows),
+        len(building_model.slabs),
+        len(building_model.storeys)
     ))
 
     # If extract-only, save and exit

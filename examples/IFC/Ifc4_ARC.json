@@ -1,0 +1,3951 @@
+{
+  "walls": [
+    {
+      "id": "3lLx0gNe59vvExhby0Bfew",
+      "name": "Basic Wall:SIP 202mm Wall - conc clad:198694",
+      "orientation": {
+        "x": 0.7986355100472905,
+        "y": 0.6018150231520514,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -11116.90295913283,
+        "y": -8490.418930068816,
+        "z": 2700.0
+      },
+      "endPoint": {
+        "x": -7262.87955086722,
+        "y": -13604.880736411496,
+        "z": 2700.0
+      },
+      "area": 22.4,
+      "height": 6498.67729846129,
+      "length": 202.0,
+      "width": 0.0,
+      "type": "Basic Wall:SIP 202mm Wall - conc clad",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 2",
+      "bottom": 2.7,
+      "top": 9.198677298461291,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "3lLx0gNe59vvExhby0Bff1",
+      "name": "Basic Wall:Wall - Timber Clad:198749",
+      "orientation": {
+        "x": -0.7986355100472905,
+        "y": -0.6018150231520514,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -15070.42563899052,
+        "y": -13549.409285846403,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": -12337.583618857127,
+        "y": -17176.013136971054,
+        "z": 0.0
+      },
+      "area": 6.0,
+      "height": 2700.0,
+      "length": 202.0,
+      "width": 0.0,
+      "type": "Basic Wall:Wall - Timber Clad",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": -2.0169972056493002e-24,
+      "top": 2.7,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "28i3i5WDD8Ju0YHnzXOzdu",
+      "name": "Basic Wall:Wall - Timber Clad:234869",
+      "orientation": {
+        "x": 0.7986355100472905,
+        "y": 0.6018150231520514,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -9908.933032803427,
+        "y": -15345.89365156557,
+        "z": 3000.0
+      },
+      "endPoint": {
+        "x": -12689.318439765735,
+        "y": -11656.19759514731,
+        "z": 3000.0
+      },
+      "area": 21.5,
+      "height": 5913.05965700216,
+      "length": 202.0,
+      "width": 0.0,
+      "type": "Basic Wall:Wall - Timber Clad",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 2",
+      "bottom": 3.0,
+      "top": 8.91305965700216,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "1oPutv5ADAxgWEbAZbN6Wv",
+      "name": "Basic Wall:Wall - Timber Clad:418079",
+      "orientation": {
+        "x": 0.6018150231520514,
+        "y": -0.7986355100472905,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -13532.688358451127,
+        "y": -10437.309503378094,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": -16088.321990602457,
+        "y": -12363.117577464658,
+        "z": 0.0
+      },
+      "area": 8.6,
+      "height": 2699.99999999996,
+      "length": 202.0,
+      "width": 0.0,
+      "type": "Basic Wall:Wall - Timber Clad",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 2.69999999999996,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "1PDnLIM013wvkZO9Lb4$wc",
+      "name": "Basic Wall:Wall - Timber Clad:422243",
+      "orientation": {
+        "x": 0.6018150231520514,
+        "y": -0.7986355100472905,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -12661.653922113117,
+        "y": -11860.735304294147,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": -14928.980135137383,
+        "y": -13569.288155022827,
+        "z": 0.0
+      },
+      "area": 6.0,
+      "height": 2699.99999999987,
+      "length": 202.0,
+      "width": 0.0,
+      "type": "Basic Wall:Wall - Timber Clad",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 2.69999999999987,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "1PDnLIM013wvkZO9Lb4$GV",
+      "name": "Basic Wall:Interior - 165 Partition (1-hr):424922",
+      "orientation": {
+        "x": 0.6018150231520514,
+        "y": -0.7986355100472905,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -11468.525547963134,
+        "y": -13444.070134738264,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": -13735.851760987392,
+        "y": -15152.622985466938,
+        "z": 0.0
+      },
+      "area": 6.0,
+      "height": 2699.99999999987,
+      "length": 165.1,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - 165 Partition (1-hr)",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 2.69999999999987,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "1$p8tACJ938vr1_lKOJJ0t",
+      "name": "Basic Wall:Interior - 165 Partition (1-hr):425745",
+      "orientation": {
+        "x": -0.7986355100472905,
+        "y": -0.6018150231520514,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -13222.524085468242,
+        "y": -14869.166635130412,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": -11793.273586984398,
+        "y": -16765.84610794177,
+        "z": 0.0
+      },
+      "area": 6.4,
+      "height": 2699.99999999987,
+      "length": 165.1,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - 165 Partition (1-hr)",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 2.69999999999987,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "38NblWsDL1I8DljLvn67Sd",
+      "name": "Basic Wall:Wall - Timber Clad:427092",
+      "orientation": {
+        "x": 0.7986355100472905,
+        "y": 0.6018150231520514,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -10164.83159250625,
+        "y": -9753.860306963677,
+        "z": -1200.0
+      },
+      "endPoint": {
+        "x": 1764.3457964137124,
+        "y": -25584.41338712107,
+        "z": -1200.0
+      },
+      "area": 61.1,
+      "height": 3900.00000000008,
+      "length": 202.0,
+      "width": 0.0,
+      "type": "Basic Wall:Wall - Timber Clad",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": -1.2,
+      "top": 2.70000000000008,
+      "windows": [
+        {
+          "id": "20nhVaBTTAJguMI9o6oBQ8",
+          "name": "Single Window:Standard:744522",
+          "area": 5.6,
+          "height": 2700.0,
+          "width": 1500.0,
+          "position": {
+            "x": -5659.663302602395,
+            "y": -15900.24621086239,
+            "z": -550.0
+          },
+          "hostId": "38NblWsDL1I8DljLvn67Sd",
+          "level": "Level 1 Living Rm.",
+          "properties": {}
+        },
+        {
+          "id": "20nhVaBTTAJguMI9o6oBQ9",
+          "name": "Single Window:Standard:744523",
+          "area": 5.6,
+          "height": 2700.0,
+          "width": 1500.0,
+          "position": {
+            "x": -4756.940767874318,
+            "y": -17098.19947593332,
+            "z": -550.0
+          },
+          "hostId": "38NblWsDL1I8DljLvn67Sd",
+          "level": "Level 1 Living Rm.",
+          "properties": {}
+        },
+        {
+          "id": "20nhVaBTTAJguMI9o6oBQE",
+          "name": "Single Window:Standard:744524",
+          "area": 5.6,
+          "height": 2700.0,
+          "width": 1500.0,
+          "position": {
+            "x": -3854.218233146241,
+            "y": -18296.152741004258,
+            "z": -550.0
+          },
+          "hostId": "38NblWsDL1I8DljLvn67Sd",
+          "level": "Level 1 Living Rm.",
+          "properties": {}
+        },
+        {
+          "id": "20nhVaBTTAJguMI9o6oBQF",
+          "name": "Single Window:Standard:744525",
+          "area": 5.6,
+          "height": 2700.0,
+          "width": 1500.0,
+          "position": {
+            "x": -2951.4956984181636,
+            "y": -19494.106006075195,
+            "z": -550.0
+          },
+          "hostId": "38NblWsDL1I8DljLvn67Sd",
+          "level": "Level 1 Living Rm.",
+          "properties": {}
+        }
+      ],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "38NblWsDL1I8DljLvn67bV",
+      "name": "Basic Wall:SIP 202mm Wall - conc clad:428588",
+      "orientation": {
+        "x": 0.6018150231520514,
+        "y": -0.7986355100472905,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -11136.781828309253,
+        "y": -8631.864433921946,
+        "z": 2700.0
+      },
+      "endPoint": {
+        "x": -26710.174274231416,
+        "y": -20367.257385386947,
+        "z": 2700.0
+      },
+      "area": 43.2,
+      "height": 3300.00000000009,
+      "length": 202.0,
+      "width": 0.0,
+      "type": "Basic Wall:SIP 202mm Wall - conc clad",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 2",
+      "bottom": 2.7000000000000006,
+      "top": 6.000000000000091,
+      "windows": [
+        {
+          "id": "0ELdlxJuP1AwzgUXpRT7iS",
+          "name": "Single Window:Standard:485432",
+          "area": 5.5,
+          "height": 2700.0,
+          "width": 1500.0,
+          "position": {
+            "x": -24253.48442675119,
+            "y": -18642.474502445573,
+            "z": 3000.0
+          },
+          "hostId": "38NblWsDL1I8DljLvn67bV",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "1jq3WIaE92UPTHNxmrWmzx",
+          "name": "Single Window:Standard:498006",
+          "area": 5.5,
+          "height": 2700.0,
+          "width": 1500.0,
+          "position": {
+            "x": -18263.718101396513,
+            "y": -14128.861828805184,
+            "z": 3000.0
+          },
+          "hostId": "38NblWsDL1I8DljLvn67bV",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "0c0us5oRfBJgddHOG86fE2",
+          "name": "Single Window:Standard:554383",
+          "area": 5.5,
+          "height": 2700.0,
+          "width": 1500.0,
+          "position": {
+            "x": -17065.764836325576,
+            "y": -13226.139294077106,
+            "z": 3000.0
+          },
+          "hostId": "38NblWsDL1I8DljLvn67bV",
+          "level": "Level 2",
+          "properties": {}
+        }
+      ],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "38NblWsDL1I8DljLvn67cw",
+      "name": "Basic Wall:SIP 202mm Wall - conc clad:428745",
+      "orientation": {
+        "x": 0.6018150231520514,
+        "y": -0.7986355100472905,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -7404.325054720357,
+        "y": -13585.001867235074,
+        "z": 2200.0
+      },
+      "endPoint": {
+        "x": -22977.717500642524,
+        "y": -25320.39481870008,
+        "z": 2200.0
+      },
+      "area": 43.3,
+      "height": 3800.00000000007,
+      "length": 202.0,
+      "width": 0.0,
+      "type": "Basic Wall:SIP 202mm Wall - conc clad",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 2",
+      "bottom": 2.2000000000000006,
+      "top": 6.00000000000007,
+      "windows": [
+        {
+          "id": "1ikhyTwD17yAnDcdaZ57Om",
+          "name": "Single Window:Standard:457479",
+          "area": 5.5,
+          "height": 2700.0,
+          "width": 1500.0,
+          "position": {
+            "x": -19444.64102276807,
+            "y": -22531.56502800107,
+            "z": 3000.0
+          },
+          "hostId": "38NblWsDL1I8DljLvn67cw",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "1ikhyTwD17yAnDcdaZ57O9",
+          "name": "Single Window:Standard:457534",
+          "area": 5.5,
+          "height": 2700.0,
+          "width": 1500.0,
+          "position": {
+            "x": -14652.827962484329,
+            "y": -18920.67488908876,
+            "z": 3000.0
+          },
+          "hostId": "38NblWsDL1I8DljLvn67cw",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "1ikhyTwD17yAnDcdaZ57Pn",
+          "name": "Single Window:Standard:457542",
+          "area": 5.5,
+          "height": 2700.0,
+          "width": 1500.0,
+          "position": {
+            "x": -9989.5952193182,
+            "y": -15406.676968903934,
+            "z": 3000.0
+          },
+          "hostId": "38NblWsDL1I8DljLvn67cw",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "2Lyq8QMkH4ges0Q77HE131",
+          "name": "Single Window:Standard:706288",
+          "area": 5.5,
+          "height": 2700.0,
+          "width": 1500.0,
+          "position": {
+            "x": -17448.052247649845,
+            "y": -21027.02747012094,
+            "z": 3000.0
+          },
+          "hostId": "38NblWsDL1I8DljLvn67cw",
+          "level": "Level 2",
+          "properties": {}
+        }
+      ],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "0lntrd6l1AGwfcnKJK5r28",
+      "name": "Basic Wall:Interior - Partition:429964",
+      "orientation": {
+        "x": -0.7986355100472905,
+        "y": -0.6018150231520514,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -17048.7344926262,
+        "y": -20726.119958544867,
+        "z": 3000.0
+      },
+      "endPoint": {
+        "x": -20659.624631538383,
+        "y": -15934.306898261291,
+        "z": 3000.0
+      },
+      "area": 24.8,
+      "height": 5913.05965700216,
+      "length": 120.0,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 2.9999999999999996,
+      "top": 8.91305965700216,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "0lntrd6l1AGwfcnKJK5r3q",
+      "name": "Basic Wall:Interior - Partition:430064",
+      "orientation": {
+        "x": 0.6018150231520514,
+        "y": -0.7986355100472905,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -21693.763512111942,
+        "y": -18516.66178783132,
+        "z": 3000.0
+      },
+      "endPoint": {
+        "x": -12733.871724891389,
+        "y": -11764.899043088455,
+        "z": 3000.0
+      },
+      "area": 40.0,
+      "height": 4472.83647351146,
+      "length": 120.0,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.0,
+      "top": 7.47283647351146,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "0lntrd6l1AGwfcnKJK5q$g",
+      "name": "Basic Wall:Interior - Partition:430318",
+      "orientation": {
+        "x": -0.7986355100472905,
+        "y": -0.6018150231520514,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -17313.077436065552,
+        "y": -15290.706192487007,
+        "z": 3000.0
+      },
+      "endPoint": {
+        "x": -15613.55181068422,
+        "y": -17546.052872860477,
+        "z": 3000.0
+      },
+      "area": 13.0,
+      "height": 5913.05965700216,
+      "length": 120.0,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.0,
+      "top": 8.91305965700216,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "0lntrd6l1AGwfcnKJK5quT",
+      "name": "Basic Wall:Interior - Partition:430361",
+      "orientation": {
+        "x": 0.6018150231520514,
+        "y": -0.7986355100472905,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -15601.742581470506,
+        "y": -17462.02584086851,
+        "z": 3000.0
+      },
+      "endPoint": {
+        "x": -13397.508573739984,
+        "y": -15801.01637696885,
+        "z": 3000.0
+      },
+      "area": 12.8,
+      "height": 4644.65912764683,
+      "length": 120.0,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.0,
+      "top": 7.64465912764683,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "0lntrd6l1AGwfcnKJK5qv8",
+      "name": "Basic Wall:Interior - Partition:430412",
+      "orientation": {
+        "x": -0.7986355100472905,
+        "y": -0.6018150231520514,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -13578.28015193492,
+        "y": -15461.425981761766,
+        "z": 3000.0
+      },
+      "endPoint": {
+        "x": -12304.83956294528,
+        "y": -17151.338721021697,
+        "z": 3000.0
+      },
+      "area": 6.6,
+      "height": 4952.50660840053,
+      "length": 120.0,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.0,
+      "top": 7.9525066084005305,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "0lntrd6l1AGwfcnKJK5qmF",
+      "name": "Basic Wall:Interior - Partition:430859",
+      "orientation": {
+        "x": -0.7986355100472905,
+        "y": -0.6018150231520514,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -21777.7905441039,
+        "y": -18504.852558617604,
+        "z": 3000.0
+      },
+      "endPoint": {
+        "x": -18997.40513714159,
+        "y": -22194.548615035863,
+        "z": 3000.0
+      },
+      "area": 19.6,
+      "height": 5913.05965700216,
+      "length": 120.0,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 2.9999999999999996,
+      "top": 8.91305965700216,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "0NWseyvsH7_gBW225aGtuD",
+      "name": "Basic Wall:CL_W1:493612",
+      "orientation": {
+        "x": -0.7986355100472905,
+        "y": -0.6018150231520514,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -26903.101937237094,
+        "y": -28502.516441916432,
+        "z": -1500.0
+      },
+      "endPoint": {
+        "x": -32865.92307698414,
+        "y": -20589.585526166473,
+        "z": -1500.0
+      },
+      "area": 24.8,
+      "height": 3529.04802546622,
+      "length": 280.0,
+      "width": 0.0,
+      "type": "Basic Wall:CL_W1",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": -1.5,
+      "top": 2.02904802546622,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "0NWseyvsH7_gBW225aGtwW",
+      "name": "Basic Wall:CL_W1:493697",
+      "orientation": {
+        "x": -0.6018150231520514,
+        "y": 0.7986355100472905,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -32893.47794514947,
+        "y": -20785.648600814384,
+        "z": -1500.0
+      },
+      "endPoint": {
+        "x": -15655.798501786336,
+        "y": -7796.125441894314,
+        "z": -1500.0
+      },
+      "area": 74.6,
+      "height": 3500.0,
+      "length": 280.0,
+      "width": 0.0,
+      "type": "Basic Wall:CL_W1",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": -1.5,
+      "top": 2.0,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "0NWseyvsH7_gBW225aGtx$",
+      "name": "Basic Wall:CL_W1:493790",
+      "orientation": {
+        "x": 0.0007470667807586984,
+        "y": 0.9999997209455737,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -15942.644453853649,
+        "y": -8047.657215767571,
+        "z": -1500.0
+      },
+      "endPoint": {
+        "x": 195.0826877139043,
+        "y": -8059.713178996254,
+        "z": -1500.0
+      },
+      "area": 55.2,
+      "height": 3500.0,
+      "length": 280.0,
+      "width": 0.0,
+      "type": "Basic Wall:CL_W1",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": -1.5,
+      "top": 2.0,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "0NWseyvsH7_gBW225aGtyM",
+      "name": "Basic Wall:Foundation - 300mm Concrete:493879",
+      "orientation": {
+        "x": 0.6018150231520514,
+        "y": -0.7986355100472905,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -266.2896210675972,
+        "y": -8079.64065495574,
+        "z": -1500.0
+      },
+      "endPoint": {
+        "x": -7465.108372058254,
+        "y": -13504.339680720732,
+        "z": -1500.0
+      },
+      "area": 30.9,
+      "height": 3500.0,
+      "length": 300.0,
+      "width": 0.0,
+      "type": "Basic Wall:Foundation - 300mm Concrete",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": -1.5,
+      "top": 2.0,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "1jq3WIaE92UPTHNxmrWm6f",
+      "name": "Basic Wall:Interior - Partition:497540",
+      "orientation": {
+        "x": 0.6018150231520514,
+        "y": -0.7986355100472905,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -20899.367681551244,
+        "y": -19570.860661093742,
+        "z": 3000.0
+      },
+      "endPoint": {
+        "x": -19046.533298241524,
+        "y": -18174.649807380978,
+        "z": 3000.0
+      },
+      "area": 13.6,
+      "height": 5844.94450235042,
+      "length": 120.0,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.0,
+      "top": 8.84494450235042,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "2MWqvKy9535viQk_YsG9eF",
+      "name": "Basic Wall:Interior - Partition:506386",
+      "orientation": {
+        "x": 0.6018150231520514,
+        "y": -0.7986355100472905,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -18903.876925554327,
+        "y": -19344.328891288933,
+        "z": 3000.0
+      },
+      "endPoint": {
+        "x": -19862.239537611084,
+        "y": -20066.506919071402,
+        "z": 3000.0
+      },
+      "area": 6.1,
+      "height": 5110.27844228671,
+      "length": 120.0,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.0,
+      "top": 8.11027844228671,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "2MWqvKy9535viQk_YsG9km",
+      "name": "Basic Wall:Interior - Partition:506797",
+      "orientation": {
+        "x": -0.7986355100472905,
+        "y": -0.6018150231520514,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -19419.167132971834,
+        "y": -19657.49977457733,
+        "z": 3000.0
+      },
+      "endPoint": {
+        "x": -19960.80065380868,
+        "y": -18938.727815534767,
+        "z": 3000.0
+      },
+      "area": 5.0,
+      "height": 5913.05965700216,
+      "length": 120.0,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.0,
+      "top": 8.91305965700216,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "39NeMDaWPEh9g8$CxWwg0v",
+      "name": "Basic Wall:SIP 202mm Wall - conc clad:530178",
+      "orientation": {
+        "x": -0.7986355100472905,
+        "y": -0.6018150231520514,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -26851.61977808456,
+        "y": -20347.37851621045,
+        "z": 2700.0
+      },
+      "endPoint": {
+        "x": -22997.59636981895,
+        "y": -25461.84032255313,
+        "z": 2700.0
+      },
+      "area": 5.9,
+      "height": 6498.67729846128,
+      "length": 202.0,
+      "width": 0.0,
+      "type": "Basic Wall:SIP 202mm Wall - conc clad",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 2",
+      "bottom": 2.6999999999999997,
+      "top": 9.19867729846128,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "3_T6_Ndub6XO_ef59N4DQX",
+      "name": "Basic Wall:Retaining - 300mm Concrete:599841",
+      "orientation": {
+        "x": -0.7986355100472905,
+        "y": -0.6018150231520514,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -28937.9316439932,
+        "y": -7441.082657282957,
+        "z": 1500.0
+      },
+      "endPoint": {
+        "x": -33421.45356647596,
+        "y": -1491.2481074306752,
+        "z": 1500.0
+      },
+      "area": 25.3,
+      "height": 3400.0,
+      "length": 300.0,
+      "width": 0.0,
+      "type": "Basic Wall:Retaining - 300mm Concrete",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 2",
+      "bottom": 1.5,
+      "top": 4.9,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "3_T6_Ndub6XO_ef59N4DRY",
+      "name": "Basic Wall:Retaining - 300mm Concrete:599906",
+      "orientation": {
+        "x": -0.6018150231520514,
+        "y": 0.7986355100472905,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -33211.38598649601,
+        "y": -1520.7711804650007,
+        "z": 1500.0
+      },
+      "endPoint": {
+        "x": -22268.482227828034,
+        "y": 6725.298266764406,
+        "z": 1500.0
+      },
+      "area": 46.6,
+      "height": 3400.0,
+      "length": 300.0,
+      "width": 0.0,
+      "type": "Basic Wall:Retaining - 300mm Concrete",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 2",
+      "bottom": 1.5,
+      "top": 4.9,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "3_T6_Ndub6XO_ef59N4DOF",
+      "name": "Basic Wall:Retaining - 300mm Concrete:599951",
+      "orientation": {
+        "x": 0.7986355100472905,
+        "y": 0.6018150231520514,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -22298.005300862293,
+        "y": 6515.230686784527,
+        "z": 1500.0
+      },
+      "endPoint": {
+        "x": -19800.47295478131,
+        "y": 3200.8933200883116,
+        "z": 1500.0
+      },
+      "area": 14.1,
+      "height": 3400.0,
+      "length": 300.0,
+      "width": 0.0,
+      "type": "Basic Wall:Retaining - 300mm Concrete",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 2",
+      "bottom": 1.5,
+      "top": 4.9,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "1RUi90wQT3ihQ$96bMNGiu",
+      "name": "Basic Wall:CL_W1:627064",
+      "orientation": {
+        "x": 0.6018150231520514,
+        "y": -0.7986355100472905,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -30654.945414468584,
+        "y": -23291.02236416897,
+        "z": -1500.0
+      },
+      "endPoint": {
+        "x": -11160.252614214223,
+        "y": -8600.717649027396,
+        "z": -1500.0
+      },
+      "area": 36.6,
+      "height": 1500.0,
+      "length": 280.0,
+      "width": 0.0,
+      "type": "Basic Wall:CL_W1",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": -1.5,
+      "top": 0.0,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "1RUi90wQT3ihQ$96bMNGvH",
+      "name": "Basic Wall:CL_W1:627729",
+      "orientation": {
+        "x": 0.7986355100472905,
+        "y": 0.6018150231520514,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -7443.571654124464,
+        "y": -13300.290250972328,
+        "z": -1500.0
+      },
+      "endPoint": {
+        "x": -11357.188512267916,
+        "y": -8106.745265566765,
+        "z": -1500.0
+      },
+      "area": 9.8,
+      "height": 1500.0,
+      "length": 280.0,
+      "width": 0.0,
+      "type": "Basic Wall:CL_W1",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": -1.5,
+      "top": 0.0,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "1RUi90wQT3ihQ$96bMNGrh",
+      "name": "Basic Wall:CL_W1:628523",
+      "orientation": {
+        "x": 0.6018150231520514,
+        "y": -0.7986355100472905,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -26875.547069071763,
+        "y": -28306.453367268525,
+        "z": -1500.0
+      },
+      "endPoint": {
+        "x": -12172.667329101145,
+        "y": -17227.03879103926,
+        "z": -1500.0
+      },
+      "area": 27.6,
+      "height": 1500.0,
+      "length": 280.0,
+      "width": 0.0,
+      "type": "Basic Wall:CL_W1",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": -1.5,
+      "top": 0.0,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "27lifGE4TF58A1JhY9194T",
+      "name": "Basic Wall:Wall - Timber Clad:655533",
+      "orientation": {
+        "x": 0.6018150231520514,
+        "y": -0.7986355100472905,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -4974.35783717933,
+        "y": -26779.518126715055,
+        "z": 2150.0
+      },
+      "endPoint": {
+        "x": -182.54477689558735,
+        "y": -23168.627987802745,
+        "z": 2150.0
+      },
+      "area": 3.3,
+      "height": 550.0,
+      "length": 202.0,
+      "width": 0.0,
+      "type": "Basic Wall:Wall - Timber Clad",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Ceiling",
+      "bottom": 2.1500000000000004,
+      "top": 2.7,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "2WEjrPJHb8ux9RBvH$Iq0S",
+      "name": "Basic Wall:Retaining - 300mm Concrete:745997",
+      "orientation": {
+        "x": -0.6018150231520514,
+        "y": 0.7986355100472905,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -28908.408570958913,
+        "y": -7231.015077303056,
+        "z": 1500.0
+      },
+      "endPoint": {
+        "x": -20730.380948074657,
+        "y": -1068.4292402260508,
+        "z": 1500.0
+      },
+      "area": 26.6,
+      "height": 2600.0,
+      "length": 300.0,
+      "width": 0.0,
+      "type": "Basic Wall:Retaining - 300mm Concrete",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 2",
+      "bottom": 1.5,
+      "top": 4.1,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "2WEjrPJHb8ux9RBvH$Iq3g",
+      "name": "Basic Wall:Retaining - 300mm Concrete:746235",
+      "orientation": {
+        "x": -0.6018150231520514,
+        "y": 0.7986355100472905,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -19340.755160592278,
+        "y": -21.271099941530338,
+        "z": 1500.0
+      },
+      "endPoint": {
+        "x": -13003.059123635741,
+        "y": 4754.525417027535,
+        "z": 1500.0
+      },
+      "area": 20.6,
+      "height": 2600.0,
+      "length": 300.0,
+      "width": 0.0,
+      "type": "Basic Wall:Retaining - 300mm Concrete",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 2",
+      "bottom": 1.5,
+      "top": 4.1,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "2WEjrPJHb8ux9RBvH$IqPC",
+      "name": "Basic Wall:Retaining - 300mm Concrete:746589",
+      "orientation": {
+        "x": -0.6018150231520514,
+        "y": 0.7986355100472905,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -19770.949881746994,
+        "y": 3410.960900068172,
+        "z": 1500.0
+      },
+      "endPoint": {
+        "x": -15450.48541298386,
+        "y": 6666.664398829875,
+        "z": 1500.0
+      },
+      "area": 14.1,
+      "height": 2600.0,
+      "length": 300.0,
+      "width": 0.0,
+      "type": "Basic Wall:Retaining - 300mm Concrete",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 2",
+      "bottom": 1.5,
+      "top": 4.1,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "2WEjrPJHb8ux9RBvH$IqQR",
+      "name": "Basic Wall:Retaining - 300mm Concrete:746634",
+      "orientation": {
+        "x": -0.92050485345244,
+        "y": 0.39073112848927444,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -15881.863244467242,
+        "y": 6366.76104217238,
+        "z": 1500.0
+      },
+      "endPoint": {
+        "x": -13865.765789873476,
+        "y": 11116.38900030834,
+        "z": 1500.0
+      },
+      "area": 13.4,
+      "height": 2600.0,
+      "length": 300.0,
+      "width": 0.0,
+      "type": "Basic Wall:Retaining - 300mm Concrete",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 2",
+      "bottom": 1.5,
+      "top": 4.1,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "2WEjrPJHb8ux9RBvH$IqSV",
+      "name": "Basic Wall:Retaining - 300mm Concrete:746766",
+      "orientation": {
+        "x": -0.92050485345244,
+        "y": 0.39073112848927444,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -13434.436955119034,
+        "y": 4454.622060369977,
+        "z": 1500.0
+      },
+      "endPoint": {
+        "x": -10677.607728402043,
+        "y": 10949.304716303253,
+        "z": 1500.0
+      },
+      "area": 18.3,
+      "height": 2600.0,
+      "length": 300.0,
+      "width": 0.0,
+      "type": "Basic Wall:Retaining - 300mm Concrete",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 2",
+      "bottom": 1.5,
+      "top": 4.1,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "38BWtPCUX0VgAKmmGnoLFm",
+      "name": "Basic Wall:Retaining - 300mm Concrete:765523",
+      "orientation": {
+        "x": 0.7986355100472905,
+        "y": 0.6018150231520514,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -20759.90402110889,
+        "y": -1278.4968202060318,
+        "z": 1000.0
+      },
+      "endPoint": {
+        "x": -19141.021608829873,
+        "y": -3426.8263422332434,
+        "z": 1000.0
+      },
+      "area": 8.3,
+      "height": 3100.0,
+      "length": 300.0,
+      "width": 0.0,
+      "type": "Basic Wall:Retaining - 300mm Concrete",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 2",
+      "bottom": 1.0,
+      "top": 4.1,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "38BWtPCUX0VgAKmmGnoLCN",
+      "name": "Basic Wall:Retaining - 300mm Concrete:765620",
+      "orientation": {
+        "x": 0.7986355100472905,
+        "y": 0.6018150231520514,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -19130.68758061238,
+        "y": -50.794172975816764,
+        "z": 1000.0
+      },
+      "endPoint": {
+        "x": -17511.80516833336,
+        "y": -2199.1236950030284,
+        "z": 1000.0
+      },
+      "area": 8.3,
+      "height": 3100.0,
+      "length": 300.0,
+      "width": 0.0,
+      "type": "Basic Wall:Retaining - 300mm Concrete",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 2",
+      "bottom": 1.0,
+      "top": 4.1,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "0nbT7BoYn1WRd0KTefRTuG",
+      "name": "Basic Wall:Interior - Partition:768442",
+      "orientation": {
+        "x": 0.6018150231520514,
+        "y": -0.7986355100472905,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -15794.323388879162,
+        "y": -17206.462477653382,
+        "z": 3000.0
+      },
+      "endPoint": {
+        "x": -13590.08938114864,
+        "y": -15545.45301375372,
+        "z": 3000.0
+      },
+      "area": 13.7,
+      "height": 4952.50660840053,
+      "length": 120.0,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.0000000000000004,
+      "top": 7.9525066084005305,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "3rPRxvVIT7WRZKOFIc3wXL",
+      "name": "Basic Wall:Wall - Timber Clad:845266",
+      "orientation": {
+        "x": 0.7986355100472905,
+        "y": 0.6018150231520514,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -9740.424826320763,
+        "y": -15569.511594378928,
+        "z": -550.0
+      },
+      "endPoint": {
+        "x": -12653.20953837662,
+        "y": -11704.115725750138,
+        "z": -550.0
+      },
+      "area": 13.6,
+      "height": 3250.00000000017,
+      "length": 202.0,
+      "width": 0.0,
+      "type": "Basic Wall:Wall - Timber Clad",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": -0.55,
+      "top": 2.70000000000017,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "2OulbipBrAkwQNv_KJRV9c",
+      "name": "Basic Wall:Wall - Timber Clad:849032",
+      "orientation": {
+        "x": -0.7986355100472905,
+        "y": -0.6018150231520514,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -12337.583618857218,
+        "y": -17176.01313697093,
+        "z": -1200.0
+      },
+      "endPoint": {
+        "x": -3188.791636899552,
+        "y": -29316.87016071008,
+        "z": -1200.0
+      },
+      "area": 42.8,
+      "height": 3900.00000000023,
+      "length": 202.0,
+      "width": 0.0,
+      "type": "Basic Wall:Wall - Timber Clad",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 1",
+      "bottom": -1.2,
+      "top": 2.70000000000023,
+      "windows": [
+        {
+          "id": "20nhVaBTTAJguMI9o6oD2l",
+          "name": "Single Window:Standard:735853",
+          "area": 5.6,
+          "height": 2700.0,
+          "width": 1500.0,
+          "position": {
+            "x": -9548.753828158211,
+            "y": -20709.089614845383,
+            "z": -550.0
+          },
+          "hostId": "2OulbipBrAkwQNv_KJRV9c",
+          "level": "Level 1 Living Rm.",
+          "properties": {}
+        },
+        {
+          "id": "20nhVaBTTAJguMI9o6oD5Q",
+          "name": "Single Window:Standard:736152",
+          "area": 5.6,
+          "height": 2700.0,
+          "width": 1500.0,
+          "position": {
+            "x": -8646.031293430135,
+            "y": -21907.04287991632,
+            "z": -550.0
+          },
+          "hostId": "2OulbipBrAkwQNv_KJRV9c",
+          "level": "Level 1 Living Rm.",
+          "properties": {}
+        },
+        {
+          "id": "20nhVaBTTAJguMI9o6oD4T",
+          "name": "Single Window:Standard:736223",
+          "area": 5.6,
+          "height": 2700.0,
+          "width": 1500.0,
+          "position": {
+            "x": -7743.308758702057,
+            "y": -23104.996144987254,
+            "z": -550.0
+          },
+          "hostId": "2OulbipBrAkwQNv_KJRV9c",
+          "level": "Level 1 Living Rm.",
+          "properties": {}
+        },
+        {
+          "id": "20nhVaBTTAJguMI9o6oDQ8",
+          "name": "Single Window:Standard:736330",
+          "area": 5.6,
+          "height": 2700.0,
+          "width": 1500.0,
+          "position": {
+            "x": -6840.586223973979,
+            "y": -24302.94941005819,
+            "z": -550.0
+          },
+          "hostId": "2OulbipBrAkwQNv_KJRV9c",
+          "level": "Level 1 Living Rm.",
+          "properties": {}
+        }
+      ],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "2pfAHb2EL46hq_sMVbImEh",
+      "name": "Basic Wall:Interior - 165 Partition (1-hr):906885",
+      "orientation": {
+        "x": -0.7986355100472905,
+        "y": -0.6018150231520514,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -12804.735621543441,
+        "y": -14347.612848892062,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": -13887.400848193873,
+        "y": -12910.86756631713,
+        "z": 0.0
+      },
+      "area": 4.9,
+      "height": 2700.00000000015,
+      "length": 165.1,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - 165 Partition (1-hr)",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 2.7000000000001503,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "2wm6PO6TX9IxXwLP21Hz10",
+      "name": "Basic Wall:Interior - Partition:937935",
+      "orientation": {
+        "x": -0.7986355100472905,
+        "y": -0.6018150231520514,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -15307.104119510775,
+        "y": -17315.12797403207,
+        "z": 3000.0
+      },
+      "endPoint": {
+        "x": -14298.46214070804,
+        "y": -18653.641088871194,
+        "z": 3000.0
+      },
+      "area": 6.2,
+      "height": 4529.2163223642,
+      "length": 120.0,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.0,
+      "top": 7.5292163223642,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "2wm6PO6TX9IxXwLP21HynH",
+      "name": "Basic Wall:Interior - Partition:938974",
+      "orientation": {
+        "x": -0.7986355100472905,
+        "y": -0.6018150231520514,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -13885.834686854076,
+        "y": -15693.184947177579,
+        "z": 3000.0
+      },
+      "endPoint": {
+        "x": -15320.561702048506,
+        "y": -13789.237891224919,
+        "z": 3000.0
+      },
+      "area": 12.6,
+      "height": 5913.05965700216,
+      "length": 120.0,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.0,
+      "top": 8.91305965700216,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "2wm6PO6TX9IxXwLP21Hyl3",
+      "name": "Basic Wall:Interior - Partition:939084",
+      "orientation": {
+        "x": 0.6018150231520514,
+        "y": -0.7986355100472905,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -14978.503697648863,
+        "y": -14342.862603124622,
+        "z": 3000.0
+      },
+      "endPoint": {
+        "x": -16875.18317046023,
+        "y": -15772.113101608471,
+        "z": 3000.0
+      },
+      "area": 10.1,
+      "height": 5208.78532534318,
+      "length": 120.0,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.0,
+      "top": 8.20878532534318,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWbj",
+      "name": "Basic Wall:Interior - Partition:976752",
+      "orientation": {
+        "x": 0.6018150231520514,
+        "y": -0.7986355100472905,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -7885.175258218787,
+        "y": -12946.8920947072,
+        "z": -800.0
+      },
+      "endPoint": {
+        "x": -10248.33773244876,
+        "y": -14727.66274821415,
+        "z": -800.0
+      },
+      "area": 2.4,
+      "height": 800.0,
+      "length": 120.0,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Foundation",
+      "bottom": -0.8,
+      "top": 0.0,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWRm",
+      "name": "Basic Wall:Cavity wall_sliders:977133",
+      "orientation": {
+        "x": 0.6018150231520514,
+        "y": -0.7986355100472905,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": -12172.667329101067,
+        "y": -17227.038791039315,
+        "z": -600.0
+      },
+      "endPoint": {
+        "x": -9905.341116076808,
+        "y": -15518.48594031064,
+        "z": -600.0
+      },
+      "area": 9.4,
+      "height": 3300.0,
+      "length": 280.0,
+      "width": 0.0,
+      "type": "Basic Wall:Cavity wall_sliders",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 1",
+      "bottom": -0.6,
+      "top": 2.7,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "1PDnLIM013wvkZO9Lb4$j_",
+      "name": "Curtain Wall:SH_Curtain wall:423099",
+      "orientation": {
+        "x": -0.6,
+        "y": 0.8,
+        "z": 0.0
+      },
+      "startPoint": null,
+      "endPoint": null,
+      "area": 4.91,
+      "height": 0.0,
+      "length": 0.0,
+      "width": 0.0,
+      "type": "Curtain Wall:SH_Curtain wall",
+      "workset": "",
+      "isCurtainWall": true,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 5.7,
+      "windows": [
+        {
+          "id": "1PDnLIM013wvkZO9Lb4$Jo",
+          "name": "System Panel:Glazed:424759",
+          "area": 3.8,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "1PDnLIM013wvkZO9Lb4$j_",
+          "level": "Level 1",
+          "properties": {}
+        },
+        {
+          "id": "1PDnLIM013wvkZO9Lb4$jv",
+          "name": "System Panel:Glazed:423100",
+          "area": 4.26,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "1PDnLIM013wvkZO9Lb4$j_",
+          "level": "Level 1",
+          "properties": {}
+        },
+        {
+          "id": "1PDnLIM013wvkZO9Lb4$Jp",
+          "name": "System Panel:Glazed:424758",
+          "area": 4.23,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "1PDnLIM013wvkZO9Lb4$j_",
+          "level": "Level 1",
+          "properties": {}
+        }
+      ],
+      "properties": {
+        "ifcType": "IfcCurtainWall"
+      }
+    },
+    {
+      "id": "38NblWsDL1I8DljLvn67cE",
+      "name": "Curtain Wall:SH_Curtain wall:428797",
+      "orientation": {
+        "x": 0.8,
+        "y": 0.6,
+        "z": 0.0
+      },
+      "startPoint": null,
+      "endPoint": null,
+      "area": 1.78,
+      "height": 0.0,
+      "length": 0.0,
+      "width": 0.0,
+      "type": "Curtain Wall:SH_Curtain wall",
+      "workset": "",
+      "isCurtainWall": true,
+      "isExternal": true,
+      "level": "Level 2",
+      "bottom": 2.9999999999999996,
+      "top": 8.91305965700216,
+      "windows": [
+        {
+          "id": "1XYPH1jhn1UAOARoEEqzhd",
+          "name": "System Panel:Glazed:931859",
+          "area": 1.26,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "38NblWsDL1I8DljLvn67cE",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "0ELdlxJuP1AwzgUXpRT7ju",
+          "name": "System Panel:Glazed:485468",
+          "area": 2.93,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "38NblWsDL1I8DljLvn67cE",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "1XYPH1jhn1UAOARoEEqzhW",
+          "name": "System Panel:Glazed:931860",
+          "area": 1.26,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "38NblWsDL1I8DljLvn67cE",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "0ELdlxJuP1AwzgUXpRT7jm",
+          "name": "System Panel:Glazed:485460",
+          "area": 2.98,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "38NblWsDL1I8DljLvn67cE",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "0ELdlxJuP1AwzgUXpRT7jo",
+          "name": "System Panel:Glazed:485462",
+          "area": 2.98,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "38NblWsDL1I8DljLvn67cE",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "0ELdlxJuP1AwzgUXpRT7jv",
+          "name": "System Panel:Glazed:485469",
+          "area": 0.83,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "38NblWsDL1I8DljLvn67cE",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "1XYPH1jhn1UAOARoEEqzhX",
+          "name": "System Panel:Glazed:931861",
+          "area": 1.24,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "38NblWsDL1I8DljLvn67cE",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "0ELdlxJuP1AwzgUXpRT7jy",
+          "name": "System Panel:Glazed:485464",
+          "area": 2.94,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "38NblWsDL1I8DljLvn67cE",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "0ELdlxJuP1AwzgUXpRT7j_",
+          "name": "System Panel:Glazed:485466",
+          "area": 0.91,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "38NblWsDL1I8DljLvn67cE",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "1XYPH1jhn1UAOARoEEqzhc",
+          "name": "System Panel:Glazed:931858",
+          "area": 1.24,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "38NblWsDL1I8DljLvn67cE",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "0ELdlxJuP1AwzgUXpRT7j$",
+          "name": "System Panel:Glazed:485467",
+          "area": 3.17,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "38NblWsDL1I8DljLvn67cE",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "0ELdlxJuP1AwzgUXpRT7je",
+          "name": "Curtain Wall Dbl Glass:Curtain Wall Dbl Glass:485452",
+          "area": 3.02,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "38NblWsDL1I8DljLvn67cE",
+          "level": "Level 2",
+          "properties": {}
+        }
+      ],
+      "properties": {
+        "ifcType": "IfcCurtainWall"
+      }
+    },
+    {
+      "id": "1LMg1ZkATBJwu7hODVWkYe",
+      "name": "Curtain Wall:SH_Curtain wall:704275",
+      "orientation": {
+        "x": -0.6,
+        "y": 0.8,
+        "z": 0.0
+      },
+      "startPoint": null,
+      "endPoint": null,
+      "area": 1.12,
+      "height": 0.0,
+      "length": 0.0,
+      "width": 0.0,
+      "type": "Curtain Wall:SH_Curtain wall",
+      "workset": "",
+      "isCurtainWall": true,
+      "isExternal": true,
+      "level": "Level 1 Living Rm.",
+      "bottom": -0.55,
+      "top": 2.15,
+      "windows": [
+        {
+          "id": "3TeCKetmHBLBKhU3YblHYT",
+          "name": "System Panel:Glazed:909738",
+          "area": 0.78,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "1LMg1ZkATBJwu7hODVWkYe",
+          "level": "Level 1 Living Rm.",
+          "properties": {}
+        },
+        {
+          "id": "1LMg1ZkATBJwu7hODVWkYl",
+          "name": "Curtain Wall Dbl Glass:Curtain Wall Dbl Glass:704276",
+          "area": 3.02,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "1LMg1ZkATBJwu7hODVWkYe",
+          "level": "Level 1 Living Rm.",
+          "properties": {}
+        },
+        {
+          "id": "1LMg1ZkATBJwu7hODVWkYX",
+          "name": "System Panel:Glazed:704282",
+          "area": 2.98,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "1LMg1ZkATBJwu7hODVWkYe",
+          "level": "Level 1 Living Rm.",
+          "properties": {}
+        },
+        {
+          "id": "1LMg1ZkATBJwu7hODVWkYd",
+          "name": "System Panel:Glazed:704284",
+          "area": 2.98,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "1LMg1ZkATBJwu7hODVWkYe",
+          "level": "Level 1 Living Rm.",
+          "properties": {}
+        },
+        {
+          "id": "1LMg1ZkATBJwu7hODVWkYb",
+          "name": "Curtain Wall Dbl Glass:Curtain Wall Dbl Glass:704286",
+          "area": 3.02,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "1LMg1ZkATBJwu7hODVWkYe",
+          "level": "Level 1 Living Rm.",
+          "properties": {}
+        },
+        {
+          "id": "3TeCKetmHBLBKhU3YblHYG",
+          "name": "System Panel:Glazed:909735",
+          "area": 0.78,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "1LMg1ZkATBJwu7hODVWkYe",
+          "level": "Level 1 Living Rm.",
+          "properties": {}
+        },
+        {
+          "id": "3TeCKetmHBLBKhU3YblHYV",
+          "name": "System Panel:Glazed:909736",
+          "area": 0.79,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "1LMg1ZkATBJwu7hODVWkYe",
+          "level": "Level 1 Living Rm.",
+          "properties": {}
+        },
+        {
+          "id": "3TeCKetmHBLBKhU3YblHYU",
+          "name": "System Panel:Glazed:909737",
+          "area": 0.79,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "1LMg1ZkATBJwu7hODVWkYe",
+          "level": "Level 1 Living Rm.",
+          "properties": {}
+        }
+      ],
+      "properties": {
+        "ifcType": "IfcCurtainWall"
+      }
+    },
+    {
+      "id": "3Yxgiuz3TDpeHhosGP5bD6",
+      "name": "Curtain Wall:SH_Curtain wall:707722",
+      "orientation": {
+        "x": -0.8,
+        "y": -0.6,
+        "z": 0.0
+      },
+      "startPoint": null,
+      "endPoint": null,
+      "area": 0.61,
+      "height": 0.0,
+      "length": 0.0,
+      "width": 0.0,
+      "type": "Curtain Wall:SH_Curtain wall",
+      "workset": "",
+      "isCurtainWall": true,
+      "isExternal": false,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 5.7,
+      "windows": [
+        {
+          "id": "3Yxgiuz3TDpeHhosGP5bBB",
+          "name": "System Panel:Glazed:707847",
+          "area": 3.43,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "3Yxgiuz3TDpeHhosGP5bD6",
+          "level": "Level 1",
+          "properties": {}
+        },
+        {
+          "id": "3Yxgiuz3TDpeHhosGP5bD7",
+          "name": "System Panel:Glazed:707723",
+          "area": 3.82,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "3Yxgiuz3TDpeHhosGP5bD6",
+          "level": "Level 1",
+          "properties": {}
+        }
+      ],
+      "properties": {
+        "ifcType": "IfcCurtainWall"
+      }
+    },
+    {
+      "id": "3Yxgiuz3TDpeHhosGP5b8q",
+      "name": "Curtain Wall:SH_Curtain wall:708088",
+      "orientation": {
+        "x": -0.8,
+        "y": -0.6,
+        "z": 0.0
+      },
+      "startPoint": null,
+      "endPoint": null,
+      "area": 0.32,
+      "height": 0.0,
+      "length": 0.0,
+      "width": 0.0,
+      "type": "Curtain Wall:SH_Curtain wall",
+      "workset": "",
+      "isCurtainWall": true,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.0,
+      "top": 5.7,
+      "windows": [
+        {
+          "id": "3Yxgiuz3TDpeHhosGP5b8r",
+          "name": "System Panel:Glazed:708089",
+          "area": 3.41,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "3Yxgiuz3TDpeHhosGP5b8q",
+          "level": "Level 2",
+          "properties": {}
+        }
+      ],
+      "properties": {
+        "ifcType": "IfcCurtainWall"
+      }
+    },
+    {
+      "id": "3Yxgiuz3TDpeHhosGP5asn",
+      "name": "Curtain Wall:SH_Curtain wall:709245",
+      "orientation": {
+        "x": -0.6,
+        "y": 0.8,
+        "z": 0.0
+      },
+      "startPoint": null,
+      "endPoint": null,
+      "area": 4.43,
+      "height": 0.0,
+      "length": 0.0,
+      "width": 0.0,
+      "type": "Curtain Wall:SH_Curtain wall",
+      "workset": "",
+      "isCurtainWall": true,
+      "isExternal": true,
+      "level": "Level 2",
+      "bottom": 3.0,
+      "top": 5.7,
+      "windows": [
+        {
+          "id": "3Yxgiuz3TDpeHhosGP5ar4",
+          "name": "System Panel:Glazed:709256",
+          "area": 3.53,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "3Yxgiuz3TDpeHhosGP5asn",
+          "level": "Level 2",
+          "properties": {}
+        }
+      ],
+      "properties": {
+        "ifcType": "IfcCurtainWall"
+      }
+    },
+    {
+      "id": "2OulbipBrAkwQNv_KJRUgr",
+      "name": "Curtain Wall:SH_Curtain wall:846939",
+      "orientation": {
+        "x": -0.6,
+        "y": 0.8,
+        "z": 0.0
+      },
+      "startPoint": null,
+      "endPoint": null,
+      "area": 1.89,
+      "height": 0.0,
+      "length": 0.0,
+      "width": 0.0,
+      "type": "Curtain Wall:SH_Curtain wall",
+      "workset": "",
+      "isCurtainWall": true,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": -1.5010215292932116e-13,
+      "top": 2.7000000000001503,
+      "windows": [
+        {
+          "id": "2hD3j_DmLBXxhCCy1gOWSw",
+          "name": "System Panel:Glazed:977191",
+          "area": 3.83,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "2OulbipBrAkwQNv_KJRUgr",
+          "level": "Level 1",
+          "properties": {}
+        },
+        {
+          "id": "2hD3j_DmLBXxhCCy1gOWSq",
+          "name": "System Panel:Glazed:977193",
+          "area": 3.83,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "2OulbipBrAkwQNv_KJRUgr",
+          "level": "Level 1",
+          "properties": {}
+        },
+        {
+          "id": "2hD3j_DmLBXxhCCy1gOWSs",
+          "name": "System Panel:Glazed:977195",
+          "area": 3.83,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "2OulbipBrAkwQNv_KJRUgr",
+          "level": "Level 1",
+          "properties": {}
+        },
+        {
+          "id": "2hD3j_DmLBXxhCCy1gOWSm",
+          "name": "System Panel:Glazed:977197",
+          "area": 3.83,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "2OulbipBrAkwQNv_KJRUgr",
+          "level": "Level 1",
+          "properties": {}
+        },
+        {
+          "id": "2hD3j_DmLBXxhCCy1gOWSo",
+          "name": "System Panel:Glazed:977199",
+          "area": 3.83,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "2OulbipBrAkwQNv_KJRUgr",
+          "level": "Level 1",
+          "properties": {}
+        },
+        {
+          "id": "2hD3j_DmLBXxhCCy1gOWSi",
+          "name": "System Panel:Glazed:977201",
+          "area": 3.83,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "2OulbipBrAkwQNv_KJRUgr",
+          "level": "Level 1",
+          "properties": {}
+        },
+        {
+          "id": "2hD3j_DmLBXxhCCy1gOWSk",
+          "name": "System Panel:Glazed:977203",
+          "area": 3.51,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "2OulbipBrAkwQNv_KJRUgr",
+          "level": "Level 1",
+          "properties": {}
+        },
+        {
+          "id": "2hD3j_DmLBXxhCCy1gOWS3",
+          "name": "System Panel:Glazed:977182",
+          "area": 3.51,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "2OulbipBrAkwQNv_KJRUgr",
+          "level": "Level 1",
+          "properties": {}
+        }
+      ],
+      "properties": {
+        "ifcType": "IfcCurtainWall"
+      }
+    },
+    {
+      "id": "2OulbipBrAkwQNv_KJRUYY",
+      "name": "Curtain Wall:SH_Curtain wall:847436",
+      "orientation": {
+        "x": 0.8,
+        "y": 0.6,
+        "z": 0.0
+      },
+      "startPoint": null,
+      "endPoint": null,
+      "area": 1.22,
+      "height": 0.0,
+      "length": 0.0,
+      "width": 0.0,
+      "type": "Curtain Wall:SH_Curtain wall",
+      "workset": "",
+      "isCurtainWall": true,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": -1.5010215292932116e-13,
+      "top": 2.7000000000001503,
+      "windows": [
+        {
+          "id": "2hD3j_DmLBXxhCCy1gOWOp",
+          "name": "System Panel:Glazed:976942",
+          "area": 3.83,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "2OulbipBrAkwQNv_KJRUYY",
+          "level": "Level 1",
+          "properties": {}
+        },
+        {
+          "id": "2hD3j_DmLBXxhCCy1gOWOj",
+          "name": "System Panel:Glazed:976944",
+          "area": 3.83,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "2OulbipBrAkwQNv_KJRUYY",
+          "level": "Level 1",
+          "properties": {}
+        },
+        {
+          "id": "2hD3j_DmLBXxhCCy1gOWOl",
+          "name": "System Panel:Glazed:976946",
+          "area": 3.83,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "2OulbipBrAkwQNv_KJRUYY",
+          "level": "Level 1",
+          "properties": {}
+        },
+        {
+          "id": "2hD3j_DmLBXxhCCy1gOWH_",
+          "name": "System Panel:Glazed:977507",
+          "area": 3.83,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "2OulbipBrAkwQNv_KJRUYY",
+          "level": "Level 1",
+          "properties": {}
+        }
+      ],
+      "properties": {
+        "ifcType": "IfcCurtainWall"
+      }
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWVy",
+      "name": "Curtain Wall:SH_Curtain wall:977377",
+      "orientation": {
+        "x": -0.6,
+        "y": 0.8,
+        "z": 0.0
+      },
+      "startPoint": null,
+      "endPoint": null,
+      "area": 1.89,
+      "height": 0.0,
+      "length": 0.0,
+      "width": 0.0,
+      "type": "Curtain Wall:SH_Curtain wall",
+      "workset": "",
+      "isCurtainWall": true,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": -1.5010215292932116e-13,
+      "top": 2.7000000000001503,
+      "windows": [
+        {
+          "id": "2hD3j_DmLBXxhCCy1gOWVZ",
+          "name": "System Panel:Glazed:977406",
+          "area": 3.51,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "2hD3j_DmLBXxhCCy1gOWVy",
+          "level": "Level 1",
+          "properties": {}
+        },
+        {
+          "id": "2hD3j_DmLBXxhCCy1gOWGO",
+          "name": "System Panel:Glazed:977413",
+          "area": 3.83,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "2hD3j_DmLBXxhCCy1gOWVy",
+          "level": "Level 1",
+          "properties": {}
+        },
+        {
+          "id": "2hD3j_DmLBXxhCCy1gOWGQ",
+          "name": "System Panel:Glazed:977415",
+          "area": 3.83,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "2hD3j_DmLBXxhCCy1gOWVy",
+          "level": "Level 1",
+          "properties": {}
+        },
+        {
+          "id": "2hD3j_DmLBXxhCCy1gOWGK",
+          "name": "System Panel:Glazed:977417",
+          "area": 3.83,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "2hD3j_DmLBXxhCCy1gOWVy",
+          "level": "Level 1",
+          "properties": {}
+        },
+        {
+          "id": "2hD3j_DmLBXxhCCy1gOWGM",
+          "name": "System Panel:Glazed:977419",
+          "area": 3.83,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "2hD3j_DmLBXxhCCy1gOWVy",
+          "level": "Level 1",
+          "properties": {}
+        },
+        {
+          "id": "2hD3j_DmLBXxhCCy1gOWGG",
+          "name": "System Panel:Glazed:977421",
+          "area": 3.83,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "2hD3j_DmLBXxhCCy1gOWVy",
+          "level": "Level 1",
+          "properties": {}
+        },
+        {
+          "id": "2hD3j_DmLBXxhCCy1gOWGI",
+          "name": "System Panel:Glazed:977423",
+          "area": 3.83,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "2hD3j_DmLBXxhCCy1gOWVy",
+          "level": "Level 1",
+          "properties": {}
+        },
+        {
+          "id": "2hD3j_DmLBXxhCCy1gOWGC",
+          "name": "System Panel:Glazed:977425",
+          "area": 3.51,
+          "height": 0.0,
+          "width": 0.0,
+          "position": null,
+          "hostId": "2hD3j_DmLBXxhCCy1gOWVy",
+          "level": "Level 1",
+          "properties": {}
+        }
+      ],
+      "properties": {
+        "ifcType": "IfcCurtainWall"
+      }
+    }
+  ],
+  "windows": [
+    {
+      "id": "1PDnLIM013wvkZO9Lb4$Jo",
+      "name": "System Panel:Glazed:424759",
+      "area": 3.8,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "1PDnLIM013wvkZO9Lb4$j_",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "1PDnLIM013wvkZO9Lb4$jv",
+      "name": "System Panel:Glazed:423100",
+      "area": 4.26,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "1PDnLIM013wvkZO9Lb4$j_",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "1PDnLIM013wvkZO9Lb4$Jp",
+      "name": "System Panel:Glazed:424758",
+      "area": 4.23,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "1PDnLIM013wvkZO9Lb4$j_",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "1XYPH1jhn1UAOARoEEqzhd",
+      "name": "System Panel:Glazed:931859",
+      "area": 1.26,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "38NblWsDL1I8DljLvn67cE",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "0ELdlxJuP1AwzgUXpRT7ju",
+      "name": "System Panel:Glazed:485468",
+      "area": 2.93,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "38NblWsDL1I8DljLvn67cE",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1XYPH1jhn1UAOARoEEqzhW",
+      "name": "System Panel:Glazed:931860",
+      "area": 1.26,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "38NblWsDL1I8DljLvn67cE",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "0ELdlxJuP1AwzgUXpRT7jm",
+      "name": "System Panel:Glazed:485460",
+      "area": 2.98,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "38NblWsDL1I8DljLvn67cE",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "0ELdlxJuP1AwzgUXpRT7jo",
+      "name": "System Panel:Glazed:485462",
+      "area": 2.98,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "38NblWsDL1I8DljLvn67cE",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "0ELdlxJuP1AwzgUXpRT7jv",
+      "name": "System Panel:Glazed:485469",
+      "area": 0.83,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "38NblWsDL1I8DljLvn67cE",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1XYPH1jhn1UAOARoEEqzhX",
+      "name": "System Panel:Glazed:931861",
+      "area": 1.24,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "38NblWsDL1I8DljLvn67cE",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "0ELdlxJuP1AwzgUXpRT7jy",
+      "name": "System Panel:Glazed:485464",
+      "area": 2.94,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "38NblWsDL1I8DljLvn67cE",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "0ELdlxJuP1AwzgUXpRT7j_",
+      "name": "System Panel:Glazed:485466",
+      "area": 0.91,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "38NblWsDL1I8DljLvn67cE",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1XYPH1jhn1UAOARoEEqzhc",
+      "name": "System Panel:Glazed:931858",
+      "area": 1.24,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "38NblWsDL1I8DljLvn67cE",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "0ELdlxJuP1AwzgUXpRT7j$",
+      "name": "System Panel:Glazed:485467",
+      "area": 3.17,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "38NblWsDL1I8DljLvn67cE",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "0ELdlxJuP1AwzgUXpRT7je",
+      "name": "Curtain Wall Dbl Glass:Curtain Wall Dbl Glass:485452",
+      "area": 3.02,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "38NblWsDL1I8DljLvn67cE",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "3TeCKetmHBLBKhU3YblHYT",
+      "name": "System Panel:Glazed:909738",
+      "area": 0.78,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "1LMg1ZkATBJwu7hODVWkYe",
+      "level": "Level 1 Living Rm.",
+      "properties": {}
+    },
+    {
+      "id": "1LMg1ZkATBJwu7hODVWkYl",
+      "name": "Curtain Wall Dbl Glass:Curtain Wall Dbl Glass:704276",
+      "area": 3.02,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "1LMg1ZkATBJwu7hODVWkYe",
+      "level": "Level 1 Living Rm.",
+      "properties": {}
+    },
+    {
+      "id": "1LMg1ZkATBJwu7hODVWkYX",
+      "name": "System Panel:Glazed:704282",
+      "area": 2.98,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "1LMg1ZkATBJwu7hODVWkYe",
+      "level": "Level 1 Living Rm.",
+      "properties": {}
+    },
+    {
+      "id": "1LMg1ZkATBJwu7hODVWkYd",
+      "name": "System Panel:Glazed:704284",
+      "area": 2.98,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "1LMg1ZkATBJwu7hODVWkYe",
+      "level": "Level 1 Living Rm.",
+      "properties": {}
+    },
+    {
+      "id": "1LMg1ZkATBJwu7hODVWkYb",
+      "name": "Curtain Wall Dbl Glass:Curtain Wall Dbl Glass:704286",
+      "area": 3.02,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "1LMg1ZkATBJwu7hODVWkYe",
+      "level": "Level 1 Living Rm.",
+      "properties": {}
+    },
+    {
+      "id": "3TeCKetmHBLBKhU3YblHYG",
+      "name": "System Panel:Glazed:909735",
+      "area": 0.78,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "1LMg1ZkATBJwu7hODVWkYe",
+      "level": "Level 1 Living Rm.",
+      "properties": {}
+    },
+    {
+      "id": "3TeCKetmHBLBKhU3YblHYV",
+      "name": "System Panel:Glazed:909736",
+      "area": 0.79,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "1LMg1ZkATBJwu7hODVWkYe",
+      "level": "Level 1 Living Rm.",
+      "properties": {}
+    },
+    {
+      "id": "3TeCKetmHBLBKhU3YblHYU",
+      "name": "System Panel:Glazed:909737",
+      "area": 0.79,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "1LMg1ZkATBJwu7hODVWkYe",
+      "level": "Level 1 Living Rm.",
+      "properties": {}
+    },
+    {
+      "id": "3Yxgiuz3TDpeHhosGP5bBB",
+      "name": "System Panel:Glazed:707847",
+      "area": 3.43,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "3Yxgiuz3TDpeHhosGP5bD6",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "3Yxgiuz3TDpeHhosGP5bD7",
+      "name": "System Panel:Glazed:707723",
+      "area": 3.82,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "3Yxgiuz3TDpeHhosGP5bD6",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "3Yxgiuz3TDpeHhosGP5b8r",
+      "name": "System Panel:Glazed:708089",
+      "area": 3.41,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "3Yxgiuz3TDpeHhosGP5b8q",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "3Yxgiuz3TDpeHhosGP5ar4",
+      "name": "System Panel:Glazed:709256",
+      "area": 3.53,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "3Yxgiuz3TDpeHhosGP5asn",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWSw",
+      "name": "System Panel:Glazed:977191",
+      "area": 3.83,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "2OulbipBrAkwQNv_KJRUgr",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWSq",
+      "name": "System Panel:Glazed:977193",
+      "area": 3.83,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "2OulbipBrAkwQNv_KJRUgr",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWSs",
+      "name": "System Panel:Glazed:977195",
+      "area": 3.83,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "2OulbipBrAkwQNv_KJRUgr",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWSm",
+      "name": "System Panel:Glazed:977197",
+      "area": 3.83,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "2OulbipBrAkwQNv_KJRUgr",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWSo",
+      "name": "System Panel:Glazed:977199",
+      "area": 3.83,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "2OulbipBrAkwQNv_KJRUgr",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWSi",
+      "name": "System Panel:Glazed:977201",
+      "area": 3.83,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "2OulbipBrAkwQNv_KJRUgr",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWSk",
+      "name": "System Panel:Glazed:977203",
+      "area": 3.51,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "2OulbipBrAkwQNv_KJRUgr",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWS3",
+      "name": "System Panel:Glazed:977182",
+      "area": 3.51,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "2OulbipBrAkwQNv_KJRUgr",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWOp",
+      "name": "System Panel:Glazed:976942",
+      "area": 3.83,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "2OulbipBrAkwQNv_KJRUYY",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWOj",
+      "name": "System Panel:Glazed:976944",
+      "area": 3.83,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "2OulbipBrAkwQNv_KJRUYY",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWOl",
+      "name": "System Panel:Glazed:976946",
+      "area": 3.83,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "2OulbipBrAkwQNv_KJRUYY",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWH_",
+      "name": "System Panel:Glazed:977507",
+      "area": 3.83,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "2OulbipBrAkwQNv_KJRUYY",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWVZ",
+      "name": "System Panel:Glazed:977406",
+      "area": 3.51,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "2hD3j_DmLBXxhCCy1gOWVy",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWGO",
+      "name": "System Panel:Glazed:977413",
+      "area": 3.83,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "2hD3j_DmLBXxhCCy1gOWVy",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWGQ",
+      "name": "System Panel:Glazed:977415",
+      "area": 3.83,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "2hD3j_DmLBXxhCCy1gOWVy",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWGK",
+      "name": "System Panel:Glazed:977417",
+      "area": 3.83,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "2hD3j_DmLBXxhCCy1gOWVy",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWGM",
+      "name": "System Panel:Glazed:977419",
+      "area": 3.83,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "2hD3j_DmLBXxhCCy1gOWVy",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWGG",
+      "name": "System Panel:Glazed:977421",
+      "area": 3.83,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "2hD3j_DmLBXxhCCy1gOWVy",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWGI",
+      "name": "System Panel:Glazed:977423",
+      "area": 3.83,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "2hD3j_DmLBXxhCCy1gOWVy",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "2hD3j_DmLBXxhCCy1gOWGC",
+      "name": "System Panel:Glazed:977425",
+      "area": 3.51,
+      "height": 0.0,
+      "width": 0.0,
+      "position": null,
+      "hostId": "2hD3j_DmLBXxhCCy1gOWVy",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "1ikhyTwD17yAnDcdaZ57Om",
+      "name": "Single Window:Standard:457479",
+      "area": 5.5,
+      "height": 2700.0,
+      "width": 1500.0,
+      "position": {
+        "x": -19444.64102276807,
+        "y": -22531.56502800107,
+        "z": 3000.0
+      },
+      "hostId": "38NblWsDL1I8DljLvn67cw",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1ikhyTwD17yAnDcdaZ57O9",
+      "name": "Single Window:Standard:457534",
+      "area": 5.5,
+      "height": 2700.0,
+      "width": 1500.0,
+      "position": {
+        "x": -14652.827962484329,
+        "y": -18920.67488908876,
+        "z": 3000.0
+      },
+      "hostId": "38NblWsDL1I8DljLvn67cw",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1ikhyTwD17yAnDcdaZ57Pn",
+      "name": "Single Window:Standard:457542",
+      "area": 5.5,
+      "height": 2700.0,
+      "width": 1500.0,
+      "position": {
+        "x": -9989.5952193182,
+        "y": -15406.676968903934,
+        "z": 3000.0
+      },
+      "hostId": "38NblWsDL1I8DljLvn67cw",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "0ELdlxJuP1AwzgUXpRT7iS",
+      "name": "Single Window:Standard:485432",
+      "area": 5.5,
+      "height": 2700.0,
+      "width": 1500.0,
+      "position": {
+        "x": -24253.48442675119,
+        "y": -18642.474502445573,
+        "z": 3000.0
+      },
+      "hostId": "38NblWsDL1I8DljLvn67bV",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "12QTT5rufCoeOFfLiN060S",
+      "name": "M_Skylight:1180 x 1170mm:488881",
+      "area": 2.7,
+      "height": 1170.0,
+      "width": 1118.0,
+      "position": {
+        "x": -14511.927531477522,
+        "y": -17515.539080148257,
+        "z": 5796.417863967743
+      },
+      "hostId": null,
+      "level": "Roof Line",
+      "properties": {}
+    },
+    {
+      "id": "12QTT5rufCoeOFfLiN06FB",
+      "name": "M_Skylight:1180 x 1170mm:489062",
+      "area": 2.7,
+      "height": 1170.0,
+      "width": 1118.0,
+      "position": {
+        "x": -15072.531566138738,
+        "y": -14971.69524721512,
+        "z": 4118.52312958932
+      },
+      "hostId": null,
+      "level": "Roof Line",
+      "properties": {}
+    },
+    {
+      "id": "1jq3WIaE92UPTHNxmrWmzx",
+      "name": "Single Window:Standard:498006",
+      "area": 5.5,
+      "height": 2700.0,
+      "width": 1500.0,
+      "position": {
+        "x": -18263.718101396513,
+        "y": -14128.861828805184,
+        "z": 3000.0
+      },
+      "hostId": "38NblWsDL1I8DljLvn67bV",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "0c0us5oRfBJgddHOG86fE2",
+      "name": "Single Window:Standard:554383",
+      "area": 5.5,
+      "height": 2700.0,
+      "width": 1500.0,
+      "position": {
+        "x": -17065.764836325576,
+        "y": -13226.139294077106,
+        "z": 3000.0
+      },
+      "hostId": "38NblWsDL1I8DljLvn67bV",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "2Lyq8QMkH4ges0Q77HE131",
+      "name": "Single Window:Standard:706288",
+      "area": 5.5,
+      "height": 2700.0,
+      "width": 1500.0,
+      "position": {
+        "x": -17448.052247649845,
+        "y": -21027.02747012094,
+        "z": 3000.0
+      },
+      "hostId": "38NblWsDL1I8DljLvn67cw",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "20nhVaBTTAJguMI9o6oD2l",
+      "name": "Single Window:Standard:735853",
+      "area": 5.6,
+      "height": 2700.0,
+      "width": 1500.0,
+      "position": {
+        "x": -9548.753828158211,
+        "y": -20709.089614845383,
+        "z": -550.0
+      },
+      "hostId": "2OulbipBrAkwQNv_KJRV9c",
+      "level": "Level 1 Living Rm.",
+      "properties": {}
+    },
+    {
+      "id": "20nhVaBTTAJguMI9o6oD5Q",
+      "name": "Single Window:Standard:736152",
+      "area": 5.6,
+      "height": 2700.0,
+      "width": 1500.0,
+      "position": {
+        "x": -8646.031293430135,
+        "y": -21907.04287991632,
+        "z": -550.0
+      },
+      "hostId": "2OulbipBrAkwQNv_KJRV9c",
+      "level": "Level 1 Living Rm.",
+      "properties": {}
+    },
+    {
+      "id": "20nhVaBTTAJguMI9o6oD4T",
+      "name": "Single Window:Standard:736223",
+      "area": 5.6,
+      "height": 2700.0,
+      "width": 1500.0,
+      "position": {
+        "x": -7743.308758702057,
+        "y": -23104.996144987254,
+        "z": -550.0
+      },
+      "hostId": "2OulbipBrAkwQNv_KJRV9c",
+      "level": "Level 1 Living Rm.",
+      "properties": {}
+    },
+    {
+      "id": "20nhVaBTTAJguMI9o6oDQ8",
+      "name": "Single Window:Standard:736330",
+      "area": 5.6,
+      "height": 2700.0,
+      "width": 1500.0,
+      "position": {
+        "x": -6840.586223973979,
+        "y": -24302.94941005819,
+        "z": -550.0
+      },
+      "hostId": "2OulbipBrAkwQNv_KJRV9c",
+      "level": "Level 1 Living Rm.",
+      "properties": {}
+    },
+    {
+      "id": "20nhVaBTTAJguMI9o6oBQ8",
+      "name": "Single Window:Standard:744522",
+      "area": 5.6,
+      "height": 2700.0,
+      "width": 1500.0,
+      "position": {
+        "x": -5659.663302602395,
+        "y": -15900.24621086239,
+        "z": -550.0
+      },
+      "hostId": "38NblWsDL1I8DljLvn67Sd",
+      "level": "Level 1 Living Rm.",
+      "properties": {}
+    },
+    {
+      "id": "20nhVaBTTAJguMI9o6oBQ9",
+      "name": "Single Window:Standard:744523",
+      "area": 5.6,
+      "height": 2700.0,
+      "width": 1500.0,
+      "position": {
+        "x": -4756.940767874318,
+        "y": -17098.19947593332,
+        "z": -550.0
+      },
+      "hostId": "38NblWsDL1I8DljLvn67Sd",
+      "level": "Level 1 Living Rm.",
+      "properties": {}
+    },
+    {
+      "id": "20nhVaBTTAJguMI9o6oBQE",
+      "name": "Single Window:Standard:744524",
+      "area": 5.6,
+      "height": 2700.0,
+      "width": 1500.0,
+      "position": {
+        "x": -3854.218233146241,
+        "y": -18296.152741004258,
+        "z": -550.0
+      },
+      "hostId": "38NblWsDL1I8DljLvn67Sd",
+      "level": "Level 1 Living Rm.",
+      "properties": {}
+    },
+    {
+      "id": "20nhVaBTTAJguMI9o6oBQF",
+      "name": "Single Window:Standard:744525",
+      "area": 5.6,
+      "height": 2700.0,
+      "width": 1500.0,
+      "position": {
+        "x": -2951.4956984181636,
+        "y": -19494.106006075195,
+        "z": -550.0
+      },
+      "hostId": "38NblWsDL1I8DljLvn67Sd",
+      "level": "Level 1 Living Rm.",
+      "properties": {}
+    }
+  ],
+  "storeys": [
+    {
+      "id": "3ZGD7y6S5209$mGLl18QYF",
+      "name": "Foundation",
+      "elevation": -0.8,
+      "floorArea": 3.6,
+      "slabIds": [
+        "1bOeIks4fCNAuMrZZw4irh",
+        "1bOeIks4fCNAuMrZZw4irf",
+        "1bOeIks4fCNAuMrZZw4irN",
+        "1bOeIks4fCNAuMrZZw4ir1",
+        "1bOeIks4fCNAuMrZZw4itq",
+        "1bOeIks4fCNAuMrZZw4it3",
+        "1bOeIks4fCNAuMrZZw4is$",
+        "1bOeIks4fCNAuMrZZw4ish",
+        "1bOeIks4fCNAuMrZZw4isd",
+        "1bOeIks4fCNAuMrZZw4ivq",
+        "1bOeIks4fCNAuMrZZw4ivm"
+      ]
+    },
+    {
+      "id": "3ZGD7y6S5209$mGLl18RZR",
+      "name": "Level 1 Living Rm.",
+      "elevation": -0.55,
+      "floorArea": 162.3,
+      "slabIds": [
+        "0PSFPzOkvFnf082fy0SVrB",
+        "1UXnAYut94jfvp2gf33Js1",
+        "1cCK8nA61FduUezO75i8dB"
+      ]
+    },
+    {
+      "id": "3ZGD7y6S5209$mGLl19cKg",
+      "name": "Level 1",
+      "elevation": 0.0,
+      "floorArea": 144.37,
+      "slabIds": [
+        "0WFFycJ9rEj9FbADAA0q3o",
+        "0NWseyvsH7_gBW225aGtZP"
+      ]
+    },
+    {
+      "id": "3ZGD7y6S5209$mGLl19cQh",
+      "name": "Ceiling",
+      "elevation": 2.70000000000008,
+      "floorArea": 149.49,
+      "slabIds": [
+        "3Pf5WxDcT7yf4sAHDxknUs",
+        "38BWtPCUX0VgAKmmGnoKaN"
+      ]
+    },
+    {
+      "id": "3ZGD7y6S5209$mGLl19Tgo",
+      "name": "Level 2",
+      "elevation": 3.0,
+      "floorArea": 259.06,
+      "slabIds": [
+        "3OLNF2_DL6hfPgh8Bw7fI7",
+        "1UXnAYut94jfvp2gf33JX9",
+        "38BWtPCUX0VgAKmmGnoLQm",
+        "38BWtPCUX0VgAKmmGnoKyb",
+        "38BWtPCUX0VgAKmmGnoKaI"
+      ]
+    },
+    {
+      "id": "3ZGD7y6S5209$mGLl19MG8",
+      "name": "Roof Line",
+      "elevation": 6.0,
+      "floorArea": 0,
+      "slabIds": []
+    }
+  ],
+  "slabs": [
+    {
+      "id": "0WFFycJ9rEj9FbADAA0q3o",
+      "name": "Floor:Generic 150mm:176804",
+      "kind": "floor",
+      "area": 105.91,
+      "top": 0.0,
+      "bottom": -0.15,
+      "storey": "Level 1",
+      "type": "Floor:Generic 150mm",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "3OLNF2_DL6hfPgh8Bw7fI7",
+      "name": "Floor:Generic 300:418183",
+      "kind": "floor",
+      "area": 100.49,
+      "top": 3.0,
+      "bottom": 2.7,
+      "storey": "Level 2",
+      "type": "Floor:Generic 300",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "3Pf5WxDcT7yf4sAHDxknUs",
+      "name": "Pad:Pad 2:490319",
+      "kind": "floor",
+      "area": 149.42,
+      "top": 2.6999999999999997,
+      "bottom": 2.4,
+      "storey": "Ceiling",
+      "type": "Pad:Pad 2",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "0NWseyvsH7_gBW225aGtZP",
+      "name": "Floor:Concrete-Domestic 425mm:495352",
+      "kind": "floor",
+      "area": 38.46,
+      "top": 0.0,
+      "bottom": -0.425,
+      "storey": "Level 1",
+      "type": "Floor:Concrete-Domestic 425mm",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1bOeIks4fCNAuMrZZw4irh",
+      "name": "M_Pile Cap-600 Pile:600 x 600 x 900mm:512277",
+      "kind": "floor",
+      "area": 0.36,
+      "top": -0.7969999999999999,
+      "bottom": -1.097,
+      "storey": "Foundation",
+      "type": "M_Pile Cap-600 Pile:600 x 600 x 900mm",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1bOeIks4fCNAuMrZZw4irf",
+      "name": "M_Pile-Steel Pipe:600mm Diameter:512279",
+      "kind": "floor",
+      "area": 0.07,
+      "top": -1.0970000000000004,
+      "bottom": -7.099,
+      "storey": "Foundation",
+      "type": "M_Pile-Steel Pipe:600mm Diameter",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1bOeIks4fCNAuMrZZw4irN",
+      "name": "M_Pile Cap-600 Pile:600 x 600 x 900mm:512297",
+      "kind": "floor",
+      "area": 0.36,
+      "top": -0.8,
+      "bottom": -1.1,
+      "storey": "Foundation",
+      "type": "M_Pile Cap-600 Pile:600 x 600 x 900mm",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1bOeIks4fCNAuMrZZw4irL",
+      "name": "M_Pile-Steel Pipe:600mm Diameter:512299",
+      "kind": "floor",
+      "area": 0.07,
+      "top": -1.1000000000000005,
+      "bottom": -7.102,
+      "storey": null,
+      "type": "M_Pile-Steel Pipe:600mm Diameter",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1bOeIks4fCNAuMrZZw4ir1",
+      "name": "M_Pile Cap-600 Pile:600 x 600 x 900mm:512319",
+      "kind": "floor",
+      "area": 0.36,
+      "top": -0.8,
+      "bottom": -1.1,
+      "storey": "Foundation",
+      "type": "M_Pile Cap-600 Pile:600 x 600 x 900mm",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1bOeIks4fCNAuMrZZw4iq$",
+      "name": "M_Pile-Steel Pipe:600mm Diameter:512321",
+      "kind": "floor",
+      "area": 0.07,
+      "top": -1.1000000000000005,
+      "bottom": -7.102,
+      "storey": null,
+      "type": "M_Pile-Steel Pipe:600mm Diameter",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1bOeIks4fCNAuMrZZw4itq",
+      "name": "M_Pile Cap-600 Pile:600 x 600 x 900mm:512394",
+      "kind": "floor",
+      "area": 0.36,
+      "top": -0.8,
+      "bottom": -1.1,
+      "storey": "Foundation",
+      "type": "M_Pile Cap-600 Pile:600 x 600 x 900mm",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1bOeIks4fCNAuMrZZw4ito",
+      "name": "M_Pile-Steel Pipe:600mm Diameter:512396",
+      "kind": "floor",
+      "area": 0.07,
+      "top": -1.1000000000000005,
+      "bottom": -7.102,
+      "storey": null,
+      "type": "M_Pile-Steel Pipe:600mm Diameter",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1bOeIks4fCNAuMrZZw4it3",
+      "name": "M_Pile Cap-600 Pile:600 x 600 x 900mm:512445",
+      "kind": "floor",
+      "area": 0.36,
+      "top": -0.8,
+      "bottom": -1.1,
+      "storey": "Foundation",
+      "type": "M_Pile Cap-600 Pile:600 x 600 x 900mm",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1bOeIks4fCNAuMrZZw4it1",
+      "name": "M_Pile-Steel Pipe:600mm Diameter:512447",
+      "kind": "floor",
+      "area": 0.07,
+      "top": -1.1000000000000005,
+      "bottom": -7.102,
+      "storey": null,
+      "type": "M_Pile-Steel Pipe:600mm Diameter",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1bOeIks4fCNAuMrZZw4is$",
+      "name": "M_Pile Cap-600 Pile:600 x 600 x 900mm:512449",
+      "kind": "floor",
+      "area": 0.36,
+      "top": -0.8,
+      "bottom": -1.1,
+      "storey": "Foundation",
+      "type": "M_Pile Cap-600 Pile:600 x 600 x 900mm",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1bOeIks4fCNAuMrZZw4isz",
+      "name": "M_Pile-Steel Pipe:600mm Diameter:512451",
+      "kind": "floor",
+      "area": 0.07,
+      "top": -1.1000000000000005,
+      "bottom": -7.102,
+      "storey": null,
+      "type": "M_Pile-Steel Pipe:600mm Diameter",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1bOeIks4fCNAuMrZZw4ish",
+      "name": "M_Pile Cap-600 Pile:600 x 600 x 900mm:512469",
+      "kind": "floor",
+      "area": 0.36,
+      "top": -0.8,
+      "bottom": -1.1,
+      "storey": "Foundation",
+      "type": "M_Pile Cap-600 Pile:600 x 600 x 900mm",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1bOeIks4fCNAuMrZZw4isf",
+      "name": "M_Pile-Steel Pipe:600mm Diameter:512471",
+      "kind": "floor",
+      "area": 0.07,
+      "top": -1.1000000000000005,
+      "bottom": -7.102,
+      "storey": null,
+      "type": "M_Pile-Steel Pipe:600mm Diameter",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1bOeIks4fCNAuMrZZw4isd",
+      "name": "M_Pile Cap-600 Pile:600 x 600 x 900mm:512473",
+      "kind": "floor",
+      "area": 0.36,
+      "top": -0.8,
+      "bottom": -1.1,
+      "storey": "Foundation",
+      "type": "M_Pile Cap-600 Pile:600 x 600 x 900mm",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1bOeIks4fCNAuMrZZw4isb",
+      "name": "M_Pile-Steel Pipe:600mm Diameter:512475",
+      "kind": "floor",
+      "area": 0.07,
+      "top": -1.1000000000000005,
+      "bottom": -7.102,
+      "storey": null,
+      "type": "M_Pile-Steel Pipe:600mm Diameter",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1bOeIks4fCNAuMrZZw4ivq",
+      "name": "M_Pile Cap-600 Pile:600 x 600 x 900mm:512522",
+      "kind": "floor",
+      "area": 0.36,
+      "top": -0.8,
+      "bottom": -1.1,
+      "storey": "Foundation",
+      "type": "M_Pile Cap-600 Pile:600 x 600 x 900mm",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1bOeIks4fCNAuMrZZw4ivo",
+      "name": "M_Pile-Steel Pipe:600mm Diameter:512524",
+      "kind": "floor",
+      "area": 0.07,
+      "top": -1.1000000000000005,
+      "bottom": -7.102,
+      "storey": null,
+      "type": "M_Pile-Steel Pipe:600mm Diameter",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1bOeIks4fCNAuMrZZw4ivm",
+      "name": "M_Pile Cap-600 Pile:600 x 600 x 900mm:512526",
+      "kind": "floor",
+      "area": 0.36,
+      "top": -0.8,
+      "bottom": -1.1,
+      "storey": "Foundation",
+      "type": "M_Pile Cap-600 Pile:600 x 600 x 900mm",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1bOeIks4fCNAuMrZZw4ivk",
+      "name": "M_Pile-Steel Pipe:600mm Diameter:512528",
+      "kind": "floor",
+      "area": 0.07,
+      "top": -1.1000000000000005,
+      "bottom": -7.102,
+      "storey": null,
+      "type": "M_Pile-Steel Pipe:600mm Diameter",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "0PSFPzOkvFnf082fy0SVrB",
+      "name": "Floor:Timber Suspended Floor:512683",
+      "kind": "floor",
+      "area": 74.22,
+      "top": -0.55,
+      "bottom": -0.797,
+      "storey": "Level 1 Living Rm.",
+      "type": "Floor:Timber Suspended Floor",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1ypci01sD9aQpE0S$W9jFF",
+      "name": "Pad:Pad 2:523064",
+      "kind": "floor",
+      "area": 287.34,
+      "top": -1.5,
+      "bottom": -1.8,
+      "storey": null,
+      "type": "Pad:Pad 2",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1UXnAYut94jfvp2gf33JX9",
+      "name": "Floor:Generic 300:549031",
+      "kind": "floor",
+      "area": 9.0,
+      "top": 3.0,
+      "bottom": 2.7,
+      "storey": "Level 2",
+      "type": "Floor:Generic 300",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1UXnAYut94jfvp2gf33Js1",
+      "name": "Floor:Generic 150mm:550255",
+      "kind": "floor",
+      "area": 18.0,
+      "top": -0.55,
+      "bottom": -0.7000000000000001,
+      "storey": "Level 1 Living Rm.",
+      "type": "Floor:Generic 150mm",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1cCK8nA61FduUezO75i8dB",
+      "name": "Floor:Insitu Concrete 225mm:647908",
+      "kind": "floor",
+      "area": 70.08,
+      "top": -0.6,
+      "bottom": -0.825,
+      "storey": "Level 1 Living Rm.",
+      "type": "Floor:Insitu Concrete 225mm",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1N_4TwOEH5194SbNmRTDH0",
+      "name": "Precast Stair:Stair:725045 Landing 1",
+      "kind": "landing",
+      "area": 11.85,
+      "top": 2.9999999999999174,
+      "bottom": 2.699999999999917,
+      "storey": null,
+      "type": "Monolithic Landing:220mm Thickness",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "38BWtPCUX0VgAKmmGnoLQm",
+      "name": "Floor:Insitu Concrete 225mm:764691",
+      "kind": "floor",
+      "area": 26.17,
+      "top": 3.0,
+      "bottom": 2.775,
+      "storey": "Level 2",
+      "type": "Floor:Insitu Concrete 225mm",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "38BWtPCUX0VgAKmmGnoKyb",
+      "name": "Foundation Slab:150mm Foundation Slab:766598",
+      "kind": "floor",
+      "area": 123.39,
+      "top": 3.0,
+      "bottom": 2.85,
+      "storey": "Level 2",
+      "type": "Foundation Slab:150mm Foundation Slab",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "38BWtPCUX0VgAKmmGnoKaI",
+      "name": "M_Pile Cap-600 Pile:600 x 600 x 900mm:767153",
+      "kind": "floor",
+      "area": 0.36,
+      "top": 2.9,
+      "bottom": 2.6,
+      "storey": "Level 2",
+      "type": "M_Pile Cap-600 Pile:600 x 600 x 900mm",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "38BWtPCUX0VgAKmmGnoKaN",
+      "name": "M_Pile-Steel Pipe:600mm Diameter:767156",
+      "kind": "floor",
+      "area": 0.07,
+      "top": 2.5999999999999996,
+      "bottom": -3.402,
+      "storey": "Ceiling",
+      "type": "M_Pile-Steel Pipe:600mm Diameter",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "2cgXCjpDT0ZxBvxMSr3pfm",
+      "name": "Basic Roof:SG Metal Panels roof:243274",
+      "kind": "roof",
+      "area": 173.55,
+      "top": 9.198677298461288,
+      "bottom": 5.726517164079959,
+      "storey": "Roof Line",
+      "type": "Basic Roof:SG Metal Panels roof",
+      "isExternal": true,
+      "properties": {
+        "ifcType": "IfcRoof"
+      }
+    },
+    {
+      "id": "0LKJKCHUL1kBtnlFfddz6a",
+      "name": "Basic Roof:Warm Roof - Timber:724430",
+      "kind": "roof",
+      "area": 70.79,
+      "top": 2.538000000000001,
+      "bottom": 2.2,
+      "storey": "Ceiling",
+      "type": "Basic Roof:Warm Roof - Timber",
+      "isExternal": true,
+      "properties": {
+        "ifcType": "IfcRoof"
+      }
+    }
+  ],
+  "projectNorth": -6.12303176911189e-17,
+  "units": "m",
+  "metadata": {
+    "sourceFile": "Ifc4_ARC.ifc",
+    "projectName": "001-00",
+    "description": "",
+    "formatVersion": 2
+  }
+}

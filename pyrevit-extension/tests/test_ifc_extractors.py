@@ -379,6 +379,16 @@ class SampleFileTest(unittest.TestCase):
         self.assertEqual(facing["house - outer wall - house right back"], "East")
         self.assertEqual(facing["house - outer wall - house left"], "West")
 
+    def test_the_sample_house_has_a_storey_and_a_roof(self):
+        path = os.path.join(ROOT, "examples", "IFC", "Building-Architecture.ifc")
+        model = ifc_extractors.extract_building_model_from_ifc(path)
+        self.assertEqual([s.name for s in model.storeys], ["00 groundfloor"])
+        self.assertAlmostEqual(model.storeys[0].floor_area, 25.75, places=2)
+        self.assertAlmostEqual(sum(s.area for s in model.slabs if s.kind == "roof"), 53.6, places=1)
+        left = next(w for w in model.walls if w.name == "house - outer wall - house left")
+        self.assertAlmostEqual(left.bottom, -0.25, places=2)
+        self.assertAlmostEqual(left.top, 3.38, places=2)
+
 
 def geometry_file():
     """A metre file with a Model/Body context, for fixtures with real geometry."""
@@ -606,9 +616,108 @@ class GenericModelTest(unittest.TestCase):
         self.assertEqual(geometry_models.FORMAT_VERSION, 2)
         self.assertNotIn("formatVersion", model.metadata)
 
+    def test_wall_elevations_round_trip(self):
+        wall = geometry_models.GenericWall("w", "wall")
+        wall.bottom = -1.5
+        wall.top = 2.0
+        data = wall.to_dict()
+        self.assertEqual((data["bottom"], data["top"]), (-1.5, 2.0))
+        back = geometry_models.GenericWall.from_dict(data)
+        self.assertEqual((back.bottom, back.top), (-1.5, 2.0))
+        self.assertIsNone(geometry_models.GenericWall.from_dict({"id": "x"}).top)
+
     def test_old_dicts_without_storeys_still_load(self):
         model = geometry_models.BuildingModel.from_dict({"walls": [], "metadata": {}})
         self.assertEqual((model.storeys, model.slabs), ([], []))
+
+
+def wall_with_geometry(f, body, name, origin, z, length, height, thickness=0.2):
+    """A wall with a real box body, `length` along X from `origin`, `height` up from `z` (metres)."""
+    import ifcopenshell.api.geometry
+    wall = f.createIfcWall(ifcopenshell.guid.new(), None, name, None, None, place3(f, origin, z), None, None, None)
+    rep = ifcopenshell.api.geometry.add_wall_representation(
+        f, context=body, length=length, height=height, thickness=thickness)
+    ifcopenshell.api.geometry.assign_representation(f, product=wall, representation=rep)
+    return wall
+
+
+def foot_file():
+    """An IFC4 file whose lengths are in feet (a conversion-based unit) and areas in square metres."""
+    f = ifcopenshell.file(schema="IFC4")
+    metre = f.createIfcSIUnit(None, "LENGTHUNIT", None, "METRE")
+    foot = f.createIfcConversionBasedUnit(
+        f.createIfcDimensionalExponents(1, 0, 0, 0, 0, 0, 0), "LENGTHUNIT", "FOOT",
+        f.createIfcMeasureWithUnit(f.create_entity("IfcLengthMeasure", 0.3048), metre))
+    units = f.createIfcUnitAssignment([foot, f.createIfcSIUnit(None, "AREAUNIT", None, "SQUARE_METRE")])
+    f.createIfcProject(ifcopenshell.guid.new(), None, "p", None, None, None, None, None, units)
+    return f
+
+
+@unittest.skipIf(ifcopenshell is None, "needs ifcopenshell")
+class WallElevationTest(TempDirTest):
+
+    def test_elevations_come_from_geometry(self):
+        f, body = geometry_file()
+        wall_with_geometry(f, body, "w", (0, 0), -1.5, length=4.0, height=3.5)
+        wall = self.extract(f).walls[0]
+        self.assertAlmostEqual(wall.bottom, -1.5, places=2)
+        self.assertAlmostEqual(wall.top, 2.0, places=2)
+
+    def test_elevations_fall_back_to_placement_and_height(self):
+        f = new_file("MILLI")
+        wall = f.createIfcWall(ifcopenshell.guid.new(), None, "w", None, None,
+                               place3(f, (0, 0), 3000.0), None, None, None)
+        add_quantities(f, wall, "Qto_WallBaseQuantities", lengths=[("Length", 4000.0), ("Height", 2700.0)])
+        wall = self.extract(f).walls[0]
+        self.assertAlmostEqual(wall.bottom, 3.0)
+        self.assertAlmostEqual(wall.top, 5.7)
+
+    def test_a_wall_without_either_has_none(self):
+        f = new_file(None)
+        wall = f.createIfcWall(ifcopenshell.guid.new(), None, "w", None, None,
+                               place(f, (0, 0), (1, 0)), None, None, None)
+        add_quantities(f, wall, "Qto_WallBaseQuantities", lengths=[("Length", 4.0)])
+        wall = self.extract(f).walls[0]
+        self.assertIsNone(wall.bottom)
+        self.assertIsNone(wall.top)
+
+    def test_a_curtain_wall_takes_its_parts_elevations(self):
+        cw = next(w for w in self.extract(curtain_house()).walls if w.name == "glazing")
+        self.assertAlmostEqual(cw.bottom, 0.0, places=2)
+        self.assertAlmostEqual(cw.top, 3.0, places=2)
+
+    def test_a_foot_file_scales_storeys_and_walls(self):
+        f = foot_file()
+        f.createIfcBuildingStorey(ifcopenshell.guid.new(), None, "L1", None, None,
+                                  place3(f, (0, 0), 10.0), None, None, "ELEMENT", 10.0)
+        wall = f.createIfcWall(ifcopenshell.guid.new(), None, "w", None, None,
+                               place3(f, (0, 0), 10.0), None, None, None)
+        add_quantities(f, wall, "Qto_WallBaseQuantities", lengths=[("Length", 30.0), ("Height", 9.0)])
+        model = self.extract(f)
+        self.assertAlmostEqual(model.storeys[0].elevation, 3.048, places=3)
+        self.assertAlmostEqual(model.walls[0].bottom, 3.048, places=3)
+        self.assertAlmostEqual(model.walls[0].top, 5.7912, places=3)
+
+
+@unittest.skipIf(ifcopenshell is None, "needs ifcopenshell")
+class WindowFallbackTest(unittest.TestCase):
+
+    def test_overall_size_gives_the_area(self):
+        f = new_file("MILLI")
+        window = f.createIfcWindow(ifcopenshell.guid.new(), None, "win", None, None, None, None, None,
+                                   1200.0, 1000.0, None, None, None)
+        generic = ifc_extractors.extract_ifc_window_to_generic(window, f)
+        self.assertAlmostEqual(generic.area, 1.2)
+
+    def test_geometry_gives_the_area_when_nothing_else_does(self):
+        import ifcopenshell.api.geometry
+        f, body = geometry_file()
+        window = f.createIfcWindow(ifcopenshell.guid.new(), None, "win", None, None, place3(f, (0, 0), 1.0),
+                                   None, None, None, None, None, None, None)
+        rep = ifcopenshell.api.geometry.add_wall_representation(f, context=body, length=1.0, height=1.5, thickness=0.05)
+        ifcopenshell.api.geometry.assign_representation(f, product=window, representation=rep)
+        generic = ifc_extractors.extract_ifc_window_to_generic(window, f)
+        self.assertAlmostEqual(generic.area, 1.5, places=1)
 
 
 if __name__ == "__main__":

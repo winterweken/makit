@@ -395,6 +395,9 @@ def extract_ifc_wall_to_generic(wall, ifc_file, area_unit='sqm', centre=None):
     # Exterior or interior, as the file flags it (None if it does not)
     generic_wall.is_external = get_is_external(wall)
 
+    # Where the wall stands, for the split above and below grade
+    generic_wall.bottom, generic_wall.top = get_wall_elevations(wall, ifc_file)
+
     # Store IFC-specific properties
     generic_wall.properties['ifcType'] = wall.is_a()
     if hasattr(wall, 'Description') and wall.Description:
@@ -489,6 +492,32 @@ def get_z_range(faces):
     if not zs:
         return None, None
     return min(zs), max(zs)
+
+def get_wall_elevations(wall, ifc_file):
+    """
+    (bottom, top) of a wall in metres, project z: from its geometry (its
+    parts' for a curtain wall), else from its placement and Height quantity,
+    else (None, None)
+    """
+    try:
+        faces = get_element_faces(wall)
+    except Exception:
+        faces = []
+    if faces:
+        return get_z_range(faces)
+    length_scale, _ = get_unit_scales(ifc_file)
+    try:
+        matrix = ifcopenshell.util.placement.get_local_placement(wall.ObjectPlacement)
+    except Exception:
+        return None, None
+    height = None
+    for quantity in get_element_quantities(wall):
+        if quantity.is_a('IfcQuantityLength') and 'Height' in quantity.Name:
+            height = quantity.LengthValue
+    if height is None:
+        return None, None
+    bottom = matrix[2][3] * length_scale
+    return bottom, bottom + height * length_scale
 
 def get_storey_elevation(storey, ifc_file):
     """A storey's elevation in metres: its Elevation attribute, else its placement's z"""
@@ -692,7 +721,7 @@ def extract_ifc_curtain_wall_to_generic(curtain_wall, ifc_file, area_unit='sqm',
         if not getattr(part, 'Representation', None) or part.is_a('IfcCurtainWall'):
             continue
         try:
-            meshes.append((part, get_triangles(part)))
+            meshes.append((part, get_faces(part)))
         except Exception as e:
             print("Warning: no geometry for {}: {}".format(part.GlobalId, str(e)))
     if not meshes:
@@ -703,10 +732,10 @@ def extract_ifc_curtain_wall_to_generic(curtain_wall, ifc_file, area_unit='sqm',
     total = 0.0
     sx = sy = 0.0
     for part, triangles in meshes:
-        for n, area, centroid in triangles:
+        for n, area, (a, b, c) in triangles:
             total += area
-            sx += centroid[0] * area
-            sy += centroid[1] * area
+            sx += (a[0] + b[0] + c[0]) / 3.0 * area
+            sy += (a[1] + b[1] + c[1]) / 3.0 * area
             if abs(n[2]) > 0.1:
                 continue
             key = (round(n[0], 2), round(n[1], 2))
@@ -733,6 +762,8 @@ def extract_ifc_curtain_wall_to_generic(curtain_wall, ifc_file, area_unit='sqm',
     generic_wall.level = level
     generic_wall.wall_type = curtain_wall.ObjectType or ""
     generic_wall.properties['ifcType'] = curtain_wall.is_a()
+    generic_wall.bottom, generic_wall.top = get_z_range(
+        [face for _, triangles in meshes for face in triangles])
 
     opaque = 0.0
     for part, triangles in meshes:
@@ -800,6 +831,12 @@ def extract_ifc_window_to_generic(window, ifc_file, area_unit='sqm'):
     except:
         pass
 
+    # The window's overall size when the quantities gave none
+    if generic_window.height == 0 and getattr(window, 'OverallHeight', None):
+        generic_window.height = window.OverallHeight
+    if generic_window.width == 0 and getattr(window, 'OverallWidth', None):
+        generic_window.width = window.OverallWidth
+
     # Calculate area if not found
     if generic_window.area == 0 and generic_window.height > 0 and generic_window.width > 0:
         area_sqm = generic_window.height * generic_window.width * length_scale ** 2
@@ -807,6 +844,15 @@ def extract_ifc_window_to_generic(window, ifc_file, area_unit='sqm'):
             generic_window.area = round(area_sqm, 1)
         else:
             generic_window.area = round(area_sqm * SQM_TO_SQF, 1)
+
+    # Last resort: measure one side of the window's geometry
+    if generic_window.area == 0:
+        measured = get_side_area_from_geometry(window)
+        if measured:
+            if area_unit == 'sqm':
+                generic_window.area = round(measured, 1)
+            else:
+                generic_window.area = round(measured * SQM_TO_SQF, 1)
 
     # Get level
     try:

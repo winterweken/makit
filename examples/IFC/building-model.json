@@ -27,6 +27,8 @@
       "isCurtainWall": false,
       "isExternal": true,
       "level": "00 groundfloor",
+      "bottom": -0.25000000000000816,
+      "top": 3.37573593128808,
       "windows": [],
       "properties": {
         "ifcType": "IfcWall",
@@ -60,6 +62,8 @@
       "isCurtainWall": false,
       "isExternal": true,
       "level": "00 groundfloor",
+      "bottom": -0.2500000000000296,
+      "top": 1.9757359312880889,
       "windows": [],
       "properties": {
         "ifcType": "IfcWall",
@@ -93,6 +97,8 @@
       "isCurtainWall": false,
       "isExternal": true,
       "level": "00 groundfloor",
+      "bottom": -0.2500000000000049,
+      "top": 3.3757359312880824,
       "windows": [],
       "properties": {
         "ifcType": "IfcWall",
@@ -126,6 +132,8 @@
       "isCurtainWall": false,
       "isExternal": false,
       "level": "00 groundfloor",
+      "bottom": 4.811410392029152e-14,
+      "top": 2.22573593128809,
       "windows": [],
       "properties": {
         "ifcType": "IfcWall",
@@ -134,11 +142,53 @@
     }
   ],
   "windows": [],
+  "storeys": [
+    {
+      "id": "1Ano2ZUxnEIvVQ_beukl8b",
+      "name": "00 groundfloor",
+      "elevation": -1.8047785488306545e-15,
+      "floorArea": 25.75,
+      "slabIds": [
+        "3zR0BOEcLADRKln4HYporH"
+      ]
+    }
+  ],
+  "slabs": [
+    {
+      "id": "3zR0BOEcLADRKln4HYporH",
+      "name": "floor",
+      "kind": "floor",
+      "area": 25.75,
+      "top": 6.100675520315235e-14,
+      "bottom": -0.2500000000000338,
+      "storey": "00 groundfloor",
+      "type": "slab on grade",
+      "isExternal": true,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "2iPwJwpPDCSgMheXwk9cBT",
+      "name": "house - roof",
+      "kind": "roof",
+      "area": 53.61,
+      "top": 5.700000000000018,
+      "bottom": 1.4757359312879053,
+      "storey": null,
+      "type": "gable_roof",
+      "isExternal": true,
+      "properties": {
+        "ifcType": "IfcRoof"
+      }
+    }
+  ],
   "projectNorth": -0.0,
   "units": "m",
   "metadata": {
     "sourceFile": "Building-Architecture.ifc",
     "projectName": "ifc silly sample scene - project",
-    "description": "Demystifying IFC with a playful scene using diverse building elements and compositions."
+    "description": "Demystifying IFC with a playful scene using diverse building elements and compositions.",
+    "formatVersion": 2
   }
 }
