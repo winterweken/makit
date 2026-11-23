@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 """Generic geometry models for cross-platform analysis"""
 
+# Version of the generic JSON format this module writes. Version 2 added
+# storeys, slabs and wall elevations; readers treat a missing version as 1.
+FORMAT_VERSION = 2
+
 
 class GeometricVector(object):
     """Generic 3D vector representation"""
@@ -136,23 +140,101 @@ class GenericWindow(object):
         return window
 
 
+class GenericStorey(object):
+    """A building storey: its elevation and the floor area of its plates"""
+
+    def __init__(self, id, name=None):
+        self.id = str(id)
+        self.name = name or ""
+        self.elevation = 0.0  # metres, project z
+        self.floor_area = 0.0  # square metres: the footprint union of its floor plates
+        self.slab_ids = []  # ids of the GenericSlab plates that make up the floor
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'elevation': self.elevation,
+            'floorArea': self.floor_area,
+            'slabIds': list(self.slab_ids)
+        }
+
+    @staticmethod
+    def from_dict(data):
+        storey = GenericStorey(data['id'], data.get('name'))
+        storey.elevation = data.get('elevation', 0.0)
+        storey.floor_area = data.get('floorArea', 0.0)
+        storey.slab_ids = list(data.get('slabIds', []))
+        return storey
+
+
+class GenericSlab(object):
+    """A slab or roof: a floor plate (footprint area, assigned to a storey),
+    a roof (up-facing surface area), a stair landing, or another part"""
+
+    def __init__(self, id, name=None):
+        self.id = str(id)
+        self.name = name or ""
+        self.kind = 'floor'  # 'floor', 'roof', 'landing' or 'other'
+        self.area = 0.0  # square metres: footprint for floors, surface for roofs
+        self.top = None  # metres, project z
+        self.bottom = None
+        self.storey = None  # name of the storey a floor plate belongs to
+        self.slab_type = ""
+        self.is_external = None
+        self.properties = {}
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'kind': self.kind,
+            'area': self.area,
+            'top': self.top,
+            'bottom': self.bottom,
+            'storey': self.storey,
+            'type': self.slab_type,
+            'isExternal': self.is_external,
+            'properties': self.properties
+        }
+
+    @staticmethod
+    def from_dict(data):
+        slab = GenericSlab(data['id'], data.get('name'))
+        slab.kind = data.get('kind', 'floor')
+        slab.area = data.get('area', 0.0)
+        slab.top = data.get('top')
+        slab.bottom = data.get('bottom')
+        slab.storey = data.get('storey')
+        slab.slab_type = data.get('type', '')
+        slab.is_external = data.get('isExternal')
+        slab.properties = data.get('properties', {})
+        return slab
+
+
 class BuildingModel(object):
     """Generic building model container"""
 
     def __init__(self):
         self.walls = []
         self.windows = []
+        self.storeys = []  # List of GenericStorey
+        self.slabs = []  # List of GenericSlab (floor plates, roofs, landings)
         self.project_north = 0.0  # radians
         self.units = "m"  # meters
         self.metadata = {}
 
     def to_dict(self):
+        metadata = dict(self.metadata)
+        metadata['formatVersion'] = FORMAT_VERSION
         return {
             'walls': [w.to_dict() for w in self.walls],
             'windows': [w.to_dict() for w in self.windows],
+            'storeys': [s.to_dict() for s in self.storeys],
+            'slabs': [s.to_dict() for s in self.slabs],
             'projectNorth': self.project_north,
             'units': self.units,
-            'metadata': self.metadata
+            'metadata': metadata
         }
 
     @staticmethod
@@ -160,6 +242,8 @@ class BuildingModel(object):
         model = BuildingModel()
         model.walls = [GenericWall.from_dict(w) for w in data.get('walls', [])]
         model.windows = [GenericWindow.from_dict(w) for w in data.get('windows', [])]
+        model.storeys = [GenericStorey.from_dict(s) for s in data.get('storeys', [])]
+        model.slabs = [GenericSlab.from_dict(s) for s in data.get('slabs', [])]
         model.project_north = data.get('projectNorth', 0.0)
         model.units = data.get('units', 'm')
         model.metadata = data.get('metadata', {})

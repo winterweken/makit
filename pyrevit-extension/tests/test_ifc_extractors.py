@@ -18,6 +18,8 @@ try:
 except ImportError:
     ifcopenshell = None
 
+import geometry_models
+
 if ifcopenshell is not None:
     import ifc_extractors
 
@@ -376,6 +378,237 @@ class SampleFileTest(unittest.TestCase):
         self.assertEqual(facing["house - outer wall - house right front"], "East")
         self.assertEqual(facing["house - outer wall - house right back"], "East")
         self.assertEqual(facing["house - outer wall - house left"], "West")
+
+
+def geometry_file():
+    """A metre file with a Model/Body context, for fixtures with real geometry."""
+    import ifcopenshell.api.context
+    f = new_file(None)
+    model = ifcopenshell.api.context.add_context(f, context_type="Model")
+    body = ifcopenshell.api.context.add_context(
+        f, context_type="Model", context_identifier="Body", target_view="MODEL_VIEW", parent=model)
+    return f, body
+
+
+def place3(f, origin, z, x_axis=(1, 0), axis=(0.0, 0.0, 1.0)):
+    """A placement at (`origin`, `z`) with local X along `x_axis` and local Z along `axis`."""
+    return f.createIfcLocalPlacement(None, f.createIfcAxis2Placement3D(
+        f.createIfcCartesianPoint((float(origin[0]), float(origin[1]), float(z))),
+        f.createIfcDirection(tuple(float(a) for a in axis)),
+        f.createIfcDirection((float(x_axis[0]), float(x_axis[1]), 0.0)),
+    ))
+
+
+def new_storey(f, name, elevation):
+    return f.createIfcBuildingStorey(
+        ifcopenshell.guid.new(), None, name, None, None, place3(f, (0, 0), elevation),
+        None, None, "ELEMENT", float(elevation))
+
+
+def slab_box(f, body, name, origin, size, top, thickness=0.2, predefined="FLOOR", storey=None, tilt=0.0,
+             object_type=None):
+    """An IfcSlab of `size` = (dx, dy) metres whose top face is at `top` (flat), tilted `tilt`
+    radians about its X axis when asked. The slab API extrudes upward from its placement."""
+    import math
+    import ifcopenshell.api.geometry
+    import ifcopenshell.api.spatial
+    axis = (0.0, -math.sin(tilt), math.cos(tilt))
+    slab = f.createIfcSlab(ifcopenshell.guid.new(), None, name, None, object_type,
+                           place3(f, origin, top - thickness, (1, 0), axis), None, None, predefined)
+    dx, dy = size
+    rep = ifcopenshell.api.geometry.add_slab_representation(
+        f, context=body, depth=thickness, polyline=[(0.0, 0.0), (dx, 0.0), (dx, dy), (0.0, dy)])
+    ifcopenshell.api.geometry.assign_representation(f, product=slab, representation=rep)
+    if storey is not None:
+        ifcopenshell.api.spatial.assign_container(f, products=[slab], relating_structure=storey)
+    return slab
+
+
+class TempDirTest(unittest.TestCase):
+    """Writes fixtures to a temp folder and extracts them."""
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.mkdtemp()
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp)
+
+    def extract(self, f, options=None):
+        path = os.path.join(self.tmp, "fixture.ifc")
+        f.write(path)
+        return ifc_extractors.extract_building_model_from_ifc(path, options)
+
+
+@unittest.skipIf(ifcopenshell is None, "needs ifcopenshell")
+class FloorPlateTest(TempDirTest):
+
+    def test_overlapping_floors_on_one_storey_count_once(self):
+        f, body = geometry_file()
+        level = new_storey(f, "Level 1", 0.0)
+        slab_box(f, body, "structural", (0, 0), (10, 10), top=0.0, storey=level)
+        slab_box(f, body, "finish", (2, 2), (4, 4), top=0.02, thickness=0.02, storey=level)
+        model = self.extract(f)
+        storey = model.storeys[0]
+        self.assertEqual(storey.name, "Level 1")
+        self.assertAlmostEqual(storey.floor_area, 100.0, places=1)
+        self.assertEqual(len(storey.slab_ids), 2)
+        self.assertEqual(sorted(round(s.area, 1) for s in model.slabs), [16.0, 100.0])
+        self.assertTrue(all(s.kind == "floor" and s.storey == "Level 1" for s in model.slabs))
+
+    def test_a_slab_far_below_its_level_has_no_storey(self):
+        f, body = geometry_file()
+        level = new_storey(f, "Level 1", 0.0)
+        slab_box(f, body, "pad", (0, 0), (10, 10), top=-0.5, storey=level)
+        model = self.extract(f)
+        self.assertIsNone(model.slabs[0].storey)
+        self.assertAlmostEqual(model.storeys[0].floor_area, 0.0)
+        self.assertEqual(model.storeys[0].slab_ids, [])
+
+    def test_without_storeys_every_plate_is_loose(self):
+        f, body = geometry_file()
+        slab_box(f, body, "floor", (0, 0), (10, 10), top=0.0)
+        model = self.extract(f)
+        self.assertEqual(model.storeys, [])
+        self.assertEqual(len(model.slabs), 1)
+        self.assertIsNone(model.slabs[0].storey)
+
+    def test_a_stair_landing_is_not_a_plate(self):
+        import ifcopenshell.api.aggregate
+        f, body = geometry_file()
+        level = new_storey(f, "Level 1", 0.0)
+        slab_box(f, body, "floor", (0, 0), (10, 10), top=0.0, storey=level)
+        stair = f.createIfcStair(ifcopenshell.guid.new(), None, "stair", None, None,
+                                 place3(f, (20, 0), 0.0), None, None, "STRAIGHT_RUN_STAIR")
+        landing = slab_box(f, body, "landing", (20, 0), (2, 2), top=0.0, predefined="LANDING", storey=level)
+        ifcopenshell.api.aggregate.assign_object(f, products=[landing], relating_object=stair)
+        model = self.extract(f)
+        kinds = {s.name: s.kind for s in model.slabs}
+        self.assertEqual(kinds, {"floor": "floor", "landing": "landing"})
+        self.assertNotIn(landing.GlobalId, model.storeys[0].slab_ids)
+        self.assertAlmostEqual(model.storeys[0].floor_area, 100.0, places=1)
+
+    def test_plates_record_their_elevations_and_type(self):
+        f, body = geometry_file()
+        level = new_storey(f, "Level 2", 3.0)
+        slab_box(f, body, "upper", (0, 0), (6, 5), top=3.0, thickness=0.3, storey=level,
+                 object_type="Floor:Generic 300")
+        model = self.extract(f)
+        slab = model.slabs[0]
+        self.assertAlmostEqual(slab.top, 3.0, places=3)
+        self.assertAlmostEqual(slab.bottom, 2.7, places=3)
+        self.assertEqual(slab.slab_type, "Floor:Generic 300")
+        self.assertIsNone(slab.is_external)
+        self.assertEqual(slab.properties["ifcType"], "IfcSlab")
+        self.assertAlmostEqual(model.storeys[0].elevation, 3.0)
+
+    def test_a_storey_filter_keeps_only_that_storey(self):
+        f, body = geometry_file()
+        l1 = new_storey(f, "L1", 0.0)
+        l2 = new_storey(f, "L2", 3.0)
+        slab_box(f, body, "ground", (0, 0), (10, 10), top=0.0, storey=l1)
+        slab_box(f, body, "upper", (0, 0), (8, 8), top=3.0, storey=l2)
+        model = self.extract(f, {"storey": "L2"})
+        self.assertEqual([s.name for s in model.storeys], ["L2"])
+        self.assertEqual([s.name for s in model.slabs], ["upper"])
+        self.assertAlmostEqual(model.storeys[0].floor_area, 64.0, places=1)
+
+
+@unittest.skipIf(ifcopenshell is None, "needs ifcopenshell")
+class RoofTest(TempDirTest):
+
+    def test_a_roof_aggregate_counts_its_slopes_once(self):
+        # Two 10 x 5 m slopes at 20 degrees: 50 m2 of surface each, 47 m2 of footprint.
+        # (At 30 degrees the slabs' 60-degree edge faces sit exactly on the
+        # up-facing boundary, normal z = 0.5, and floating point picks a side.)
+        import math
+        import ifcopenshell.api.aggregate
+        f, body = geometry_file()
+        roof = f.createIfcRoof(ifcopenshell.guid.new(), None, "gable", None, None,
+                               place3(f, (0, 0), 6.0), None, None, "GABLE_ROOF")
+        left = slab_box(f, body, "left", (0, 5), (10, 5), top=6.0, predefined="ROOF", tilt=math.radians(20))
+        right = slab_box(f, body, "right", (0, 5), (10, 5), top=6.0, predefined="ROOF", tilt=-math.radians(20))
+        ifcopenshell.api.aggregate.assign_object(f, products=[left, right], relating_object=roof)
+        model = self.extract(f)
+        roofs = [s for s in model.slabs if s.kind == "roof"]
+        self.assertEqual([r.id for r in roofs], [roof.GlobalId])
+        self.assertAlmostEqual(roofs[0].area, 100.0, places=0)
+        self.assertEqual(roofs[0].name, "gable")
+
+    def test_a_roof_slab_outside_any_roof_counts(self):
+        f, body = geometry_file()
+        slab_box(f, body, "flat roof", (0, 0), (8, 8), top=6.0, predefined="ROOF")
+        model = self.extract(f)
+        roofs = [s for s in model.slabs if s.kind == "roof"]
+        self.assertEqual(len(roofs), 1)
+        self.assertAlmostEqual(roofs[0].area, 64.0, places=1)
+
+    def test_a_roof_slab_is_not_a_floor_plate(self):
+        f, body = geometry_file()
+        top = new_storey(f, "Roof", 6.0)
+        slab_box(f, body, "flat roof", (0, 0), (8, 8), top=6.0, predefined="ROOF", storey=top)
+        model = self.extract(f)
+        self.assertAlmostEqual(model.storeys[0].floor_area, 0.0)
+        self.assertEqual(model.storeys[0].slab_ids, [])
+
+    def test_a_roof_with_its_own_geometry_is_measured_once(self):
+        import ifcopenshell.api.aggregate
+        import ifcopenshell.api.geometry
+        f, body = geometry_file()
+        roof = f.createIfcRoof(ifcopenshell.guid.new(), None, "roof", None, None,
+                               place3(f, (0, 0), 6.0), None, None, "FLAT_ROOF")
+        rep = ifcopenshell.api.geometry.add_slab_representation(
+            f, context=body, depth=0.2, polyline=[(0.0, 0.0), (8.0, 0.0), (8.0, 8.0), (0.0, 8.0)])
+        ifcopenshell.api.geometry.assign_representation(f, product=roof, representation=rep)
+        part = slab_box(f, body, "part", (0, 0), (10, 10), top=6.2, predefined="ROOF")
+        ifcopenshell.api.aggregate.assign_object(f, products=[part], relating_object=roof)
+        model = self.extract(f)
+        roofs = [s for s in model.slabs if s.kind == "roof"]
+        self.assertEqual(len(roofs), 1)
+        self.assertAlmostEqual(roofs[0].area, 64.0, places=1)
+
+
+class GenericModelTest(unittest.TestCase):
+    """The generic format carries storeys and slabs and stamps its version."""
+
+    def test_storeys_and_slabs_round_trip(self):
+        model = geometry_models.BuildingModel()
+        storey = geometry_models.GenericStorey("s1", "L1")
+        storey.elevation = 3.0
+        storey.floor_area = 12.5
+        storey.slab_ids = ["a"]
+        slab = geometry_models.GenericSlab("a", "floor a")
+        slab.area = 12.5
+        slab.top = 3.0
+        slab.bottom = 2.8
+        slab.storey = "L1"
+        slab.slab_type = "Floor:Generic"
+        slab.is_external = False
+        model.storeys.append(storey)
+        model.slabs.append(slab)
+        data = model.to_dict()
+        self.assertEqual(data["storeys"][0],
+                         {"id": "s1", "name": "L1", "elevation": 3.0, "floorArea": 12.5, "slabIds": ["a"]})
+        self.assertEqual(data["slabs"][0]["kind"], "floor")
+        self.assertEqual(data["slabs"][0]["type"], "Floor:Generic")
+        self.assertIs(data["slabs"][0]["isExternal"], False)
+        self.assertEqual(data["slabs"][0]["top"], 3.0)
+        back = geometry_models.BuildingModel.from_dict(data)
+        self.assertEqual(back.storeys[0].slab_ids, ["a"])
+        self.assertEqual(back.slabs[0].storey, "L1")
+        self.assertEqual(back.slabs[0].bottom, 2.8)
+
+    def test_to_dict_stamps_format_version_2(self):
+        model = geometry_models.BuildingModel()
+        model.metadata["projectName"] = "p"
+        self.assertEqual(model.to_dict()["metadata"]["formatVersion"], 2)
+        self.assertEqual(geometry_models.FORMAT_VERSION, 2)
+        self.assertNotIn("formatVersion", model.metadata)
+
+    def test_old_dicts_without_storeys_still_load(self):
+        model = geometry_models.BuildingModel.from_dict({"walls": [], "metadata": {}})
+        self.assertEqual((model.storeys, model.slabs), ([], []))
 
 
 if __name__ == "__main__":
