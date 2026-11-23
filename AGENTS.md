@@ -62,7 +62,7 @@ This document uses **progressive disclosure**. Level 1 (this file) is loaded eve
 - `cargo run -p makit -- list`: List all registered tools/sources/actions.
 - `cargo run -p makit -- extract examples/IFC/Building-Architecture.ifc`: Extract an IFC file to JSON beside it (needs a Python with IfcOpenShell; `makit analyze`, the TUI picker and `murb-simulate --model` do this on their own when the JSON is missing or stale).
 - `cargo run -p makit --example canvas_demo`: Run the braille canvas demo.
-- `cargo test`: Run the full test suite across all crates (337 tests: 3 cli, 10 core, 40 geometry, 93 tools, 191 tui). The tools tests read the three committed extractions in `examples/IFC`.
+- `cargo test`: Run the full test suite across all crates (338 tests: 3 cli, 10 core, 40 geometry, 94 tools, 191 tui). The tools tests read the three committed extractions in `examples/IFC`.
 - `cargo fmt`: Enforce standard Rust formatting; required for all changes.
 - `cargo clippy`: Run lints; address all warnings before opening a PR.
 - `.venv/bin/python -m unittest discover -s pyrevit-extension/tests`: Python IFC extractor and analysis tests (50). They need `ifcopenshell`; set up `.venv` once with `uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell`.
