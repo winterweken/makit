@@ -44,7 +44,7 @@ These tools shell out to / talk to external runtimes — they won't work without
 
 - **Revit** — async `reqwest` HTTP client to the pyRevit bridge on **port 48884** (`crates/makit-tools/src/revit/`, extension in `pyrevit-extension/`).
 - **Blender** — `axum` HTTP server with `Arc<RwLock>` shared state receiving live geometry (`blender.rs`, addon in `scripts/blender/`).
-- **MURB energy** — Python subprocess over JSON IPC; needs the `murb_energy_tool` Python package (`murb.rs` ↔ `scripts/murb_runner.py`). `murb-simulate --model` fills GFA, wall, window and roof areas from an IFC extraction (`building_model::envelope`); typed values win.
+- **MURB energy** — not an external process any more: the energy model runs in-process in `crates/makit-tools/src/energy/`, a Rust port of murb_energy_tool (github.com/winterweken/murb at `a1d9e81`) that `murb.rs` calls. `murb-simulate --model` fills GFA, wall, window and roof areas from an IFC extraction (`building_model::envelope`); typed values win.
 - **IFC extraction** — makit runs `pyrevit-extension/Makit.extension/lib/analyze_ifc.py` (IfcOpenShell) as a subprocess when an IFC's JSON beside it is missing or stale (`ifc.rs`); the Python comes from `python.rs` (`MAKIT_PYTHON`, the repository's `.venv`, `python3`). A fresh JSON never needs Python.
 
 ### Error handling convention
