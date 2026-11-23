@@ -191,6 +191,10 @@ pub enum EnergyError {
         "the solar utilisation factor for month {month} cannot be computed: a denominator is zero"
     )]
     Utilisation { month: usize },
+    #[error(
+        "{name} for month {month} is not a finite number: an input is too large to compute with"
+    )]
+    NotFiniteOutput { name: &'static str, month: usize },
 }
 
 /// What a run gives: kWh per month (kgCO2e for emissions), named as murb's
@@ -220,6 +224,35 @@ pub struct Outputs {
     pub solar_gains_during_clg: Monthly,
     /// The weather station, as its EPW names it.
     pub city: String,
+}
+
+impl Outputs {
+    /// Every series with its name.
+    pub fn series(&self) -> [(&'static str, &Monthly); 21] {
+        [
+            ("heating_demand", &self.heating_demand),
+            ("cooling_demand", &self.cooling_demand),
+            ("heating_consumption", &self.heating_consumption),
+            ("cooling_consumption", &self.cooling_consumption),
+            ("lighting_consumption", &self.lighting_consumption),
+            ("dhw_htg_consumption", &self.dhw_htg_consumption),
+            ("plug_loads_consumption", &self.plug_loads_consumption),
+            ("total_energy_consumption", &self.total_energy_consumption),
+            ("electricity_consumption", &self.electricity_consumption),
+            ("gas_consumption", &self.gas_consumption),
+            ("total_ghg_emissions", &self.total_ghg_emissions),
+            ("transmission_heat_losses", &self.transmission_heat_losses),
+            ("transmission_heat_gains", &self.transmission_heat_gains),
+            ("ventilation_heat_losses", &self.ventilation_heat_losses),
+            ("ventilation_heat_gains", &self.ventilation_heat_gains),
+            ("infiltration_heat_losses", &self.infiltration_heat_losses),
+            ("infiltration_heat_gains", &self.infiltration_heat_gains),
+            ("internal_gains_during_htg", &self.internal_gains_during_htg),
+            ("internal_gains_during_clg", &self.internal_gains_during_clg),
+            ("solar_gains_during_htg", &self.solar_gains_during_htg),
+            ("solar_gains_during_clg", &self.solar_gains_during_clg),
+        ]
+    }
 }
 
 /// Refuses what murb would refuse (it raises on a zero U-value, COP,
@@ -422,7 +455,7 @@ pub fn simulate(inputs: &Inputs, weather: &weather::Weather) -> Result<Outputs, 
         gas_consumption[m] * ghg_natural_gas + electricity_consumption[m] * ghg_electricity
     });
 
-    Ok(Outputs {
+    let outputs = Outputs {
         heating_demand,
         cooling_demand,
         heating_consumption,
@@ -445,7 +478,14 @@ pub fn simulate(inputs: &Inputs, weather: &weather::Weather) -> Result<Outputs, 
         solar_gains_during_htg,
         solar_gains_during_clg,
         city: weather.location.city.clone(),
-    })
+    };
+    // Finite inputs can still overflow; never hand back infinity or NaN.
+    for (name, series) in outputs.series() {
+        if let Some(m) = series.iter().position(|v| !v.is_finite()) {
+            return Err(EnergyError::NotFiniteOutput { name, month: m + 1 });
+        }
+    }
+    Ok(outputs)
 }
 
 #[cfg(test)]
@@ -462,32 +502,6 @@ mod tests {
         serde_json::from_value(parity()["scenarios"][label]["inputs"].clone()).unwrap()
     }
 
-    fn named(o: &Outputs) -> [(&'static str, &Monthly); 21] {
-        [
-            ("heating_demand", &o.heating_demand),
-            ("cooling_demand", &o.cooling_demand),
-            ("heating_consumption", &o.heating_consumption),
-            ("cooling_consumption", &o.cooling_consumption),
-            ("lighting_consumption", &o.lighting_consumption),
-            ("dhw_htg_consumption", &o.dhw_htg_consumption),
-            ("plug_loads_consumption", &o.plug_loads_consumption),
-            ("total_energy_consumption", &o.total_energy_consumption),
-            ("electricity_consumption", &o.electricity_consumption),
-            ("gas_consumption", &o.gas_consumption),
-            ("total_ghg_emissions", &o.total_ghg_emissions),
-            ("transmission_heat_losses", &o.transmission_heat_losses),
-            ("transmission_heat_gains", &o.transmission_heat_gains),
-            ("ventilation_heat_losses", &o.ventilation_heat_losses),
-            ("ventilation_heat_gains", &o.ventilation_heat_gains),
-            ("infiltration_heat_losses", &o.infiltration_heat_losses),
-            ("infiltration_heat_gains", &o.infiltration_heat_gains),
-            ("internal_gains_during_htg", &o.internal_gains_during_htg),
-            ("internal_gains_during_clg", &o.internal_gains_during_clg),
-            ("solar_gains_during_htg", &o.solar_gains_during_htg),
-            ("solar_gains_during_clg", &o.solar_gains_during_clg),
-        ]
-    }
-
     #[test]
     fn every_scenario_matches_the_python_port() {
         let weather = weather();
@@ -496,7 +510,7 @@ mod tests {
         for (label, fixture) in scenarios {
             let outputs =
                 simulate(&scenario(label), &weather).unwrap_or_else(|e| panic!("{label}: {e}"));
-            for (name, got) in named(&outputs) {
+            for (name, got) in outputs.series() {
                 assert_monthly(&format!("{label}.{name}"), got, &fixture["outputs"][name]);
             }
             assert_eq!(outputs.city, fixture["city"].as_str().unwrap(), "{label}");
@@ -592,6 +606,19 @@ mod tests {
         assert!(err
             .to_string()
             .contains("above-grade envelope area must be greater than zero"));
+    }
+
+    #[test]
+    fn a_result_that_overflows_is_an_error_not_infinity() {
+        let inputs = Inputs {
+            area_walls_bg: 1e308,
+            ..scenario("makit_defaults")
+        };
+        let err = simulate(&inputs, &weather()).unwrap_err();
+        assert!(
+            matches!(err, EnergyError::NotFiniteOutput { .. }),
+            "{err:?}"
+        );
     }
 
     #[test]

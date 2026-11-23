@@ -702,9 +702,14 @@ fn simulation_input(
     ctx: &TaskContext,
 ) -> anyhow::Result<(MurbInput, Vec<String>, Option<Envelope>)> {
     let grade_text = ctx.get_option("grade", "0");
-    let grade: f64 = grade_text.trim().parse().map_err(|_| {
-        anyhow::anyhow!("--grade must be a number (metres, project z), not '{grade_text}'")
-    })?;
+    let grade: f64 = grade_text
+        .trim()
+        .parse()
+        .ok()
+        .filter(|g: &f64| g.is_finite())
+        .ok_or_else(|| {
+            anyhow::anyhow!("--grade must be a number (metres, project z), not '{grade_text}'")
+        })?;
     let model = model_envelope(ctx, grade)?;
 
     let mut sources = Vec::new();
@@ -1649,6 +1654,18 @@ mod tests {
     fn a_missing_weather_file_names_its_path() {
         let err = run_simulation(&makit_defaults("nowhere/x.epw")).unwrap_err();
         assert!(err.to_string().contains("nowhere/x.epw"), "{err}");
+    }
+
+    #[test]
+    fn a_grade_that_is_not_a_finite_number_names_grade() {
+        for grade in ["nan", "inf", "-inf"] {
+            let mut ctx = TaskContext::new();
+            for (key, value) in [("epw", "t.epw"), ("grade", grade)] {
+                ctx.options.insert(key.into(), value.into());
+            }
+            let err = simulation_input(&ctx).unwrap_err().to_string();
+            assert!(err.contains("--grade"), "{grade}: {err}");
+        }
     }
 
     #[test]

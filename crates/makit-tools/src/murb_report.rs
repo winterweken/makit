@@ -840,6 +840,17 @@ mod tests {
     }
 
     #[test]
+    fn a_hidden_section_is_not_drawn() {
+        // `section { display: grid }` would beat the browser's own rule for
+        // `hidden`, leaving an empty heading on pages of old results.
+        let html = render_html(&arc_results());
+        assert!(
+            html.contains("[hidden] { display: none !important; }"),
+            "no rule for hidden"
+        );
+    }
+
+    #[test]
     fn the_caveat_names_the_engine_makit_carries() {
         let notes = page_data(&arc_results()).notes;
         assert!(notes.iter().any(|n| n

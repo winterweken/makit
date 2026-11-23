@@ -68,13 +68,12 @@ pub fn parse_location(line: &str) -> Result<Location, EnergyError> {
             fields.len()
         )));
     }
-    let number = |i: usize| {
-        fields[i].trim().parse::<f64>().map_err(|_| {
-            error(format!(
-                "LOCATION field {i} ('{}') is not a number",
-                fields[i]
-            ))
-        })
+    let number = |i: usize| match fields[i].trim().parse::<f64>() {
+        Ok(value) if value.is_finite() => Ok(value),
+        _ => Err(error(format!(
+            "LOCATION field {i} ('{}') is not a finite number",
+            fields[i]
+        ))),
     };
     Ok(Location {
         city: fields[1].to_string(),
@@ -104,6 +103,14 @@ impl Weather {
             return Err(EnergyError::Epw {
                 line: HEADER_ROWS + 1,
                 message: format!("no hourly data after the {HEADER_ROWS} header lines"),
+            });
+        }
+        // murb divides by each month's totals, so a missing month fails there
+        // with a zero denominator; say what is actually wrong.
+        if let Some(month) = (1..=12).find(|m| !hours.iter().any(|h| h.month == *m)) {
+            return Err(EnergyError::Epw {
+                line: text.split('\n').count(),
+                message: format!("no hours for month {month}: a weather file needs a whole year"),
             });
         }
         Ok(Weather { location, hours })
@@ -145,11 +152,12 @@ fn parse_hour(text: &str, line: usize, location: &Location) -> Result<Hour, Ener
             .parse::<u32>()
             .map_err(|_| error(format!("field {i} ('{}') is not a whole number", fields[i])))
     };
-    let number = |i: usize| {
-        fields[i]
-            .trim()
-            .parse::<f64>()
-            .map_err(|_| error(format!("field {i} ('{}') is not a number", fields[i])))
+    let number = |i: usize| match fields[i].trim().parse::<f64>() {
+        Ok(value) if value.is_finite() => Ok(value),
+        _ => Err(error(format!(
+            "field {i} ('{}') is not a finite number",
+            fields[i]
+        ))),
     };
     let (month, day, hour) = (whole(1)?, whole(2)?, whole(3)?);
     if !(1..=12).contains(&month) || day == 0 || day > DAYS_IN_MONTH[(month - 1) as usize] {
@@ -394,6 +402,31 @@ mod tests {
         let (line, message) = epw_error(&with_field(10, 6, "warm"));
         assert_eq!(line, 10);
         assert!(message.contains("warm"), "{message}");
+    }
+
+    #[test]
+    fn a_weather_value_that_is_not_finite_names_its_line() {
+        for (field, value) in [(6, "inf"), (13, "NaN"), (15, "-infinity")] {
+            let (line, message) = epw_error(&with_field(10, field, value));
+            assert_eq!(line, 10, "field {field}");
+            assert!(message.contains(value), "{message}");
+        }
+        let (line, message) = epw_error(&with_field(1, 6, "nan"));
+        assert_eq!(line, 1);
+        assert!(message.contains("nan"), "{message}");
+    }
+
+    #[test]
+    fn a_file_missing_a_month_says_which() {
+        let text = synthetic_text();
+        let without_may: Vec<&str> = text
+            .lines()
+            .enumerate()
+            .filter(|(i, line)| *i < 8 || line.split(',').nth(1) != Some("5"))
+            .map(|(_, line)| line)
+            .collect();
+        let (_, message) = epw_error(&without_may.join("\n"));
+        assert!(message.contains("no hours for month 5"), "{message}");
     }
 
     #[test]
