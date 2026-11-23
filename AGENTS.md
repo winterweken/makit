@@ -50,7 +50,8 @@ This document uses **progressive disclosure**. Level 1 (this file) is loaded eve
   - `rhino.rs`, `analysis.rs`, `architect.rs` — other tool registrations
 - `crates/makit-tui/`: ratatui 0.29 + crossterm 0.28 TUI, Elm architecture: `app.rs` (AppState, option values, `Editor` form), `msg.rs` (Msg/Cmd), `update.rs` (pure), `view.rs`, `layout.rs` (shared by view + mouse hit-tests), `keymap.rs`, `runtime.rs` (event loop, worker threads, cancel tokens), `terminal.rs` (stderr backend, panic hook, terminal check), `capture.rs` (stdout → Output pane, task results in output order), `signals.rs` (restore the terminal on SIGTERM), `node.rs` (typed `NodeId`, `PreviewKind` routing, picker/results bindings), `options.rs` (option `Catalog` copied from the registry), `help.rs` (help text), `logo.rs` (the makit symbol: header icon, braille preview, `mini`), `tree.rs`, `task.rs`, `preview.rs`.
 - `docs/brand/`: The makit symbol as SVG (marks for dark and light backgrounds, app icons) and notes on using it.
-- `examples/`: Canvas demo and sample IFC files; use these for reproducible tests.
+- `docs/media/`: The README's TUI GIF and the VHS tape that renders it (`vhs docs/media/makit-tui.tape` from the repository root; needs the local sample IFC, the Toronto EPW, `.venv` and `../murb-pp`).
+- `examples/`: Canvas demo and sample IFC files; use these for reproducible tests. `examples/MURB/Ifc4_ARC-in-Toronto/` is a complete `murb-simulate` run on the Revit sample house (results JSON, report page, murb's own report), rebuilt with `murb-report --format html`.
 - `pyrevit-extension/`: Packaged pyRevit extension (Python scripts and startup hooks).
 - `scripts/`: `blender/` Python Blender addon; `murb_runner.py` Python-side energy bridge.
 
@@ -62,7 +63,7 @@ This document uses **progressive disclosure**. Level 1 (this file) is loaded eve
 - `cargo run -p makit -- list`: List all registered tools/sources/actions.
 - `cargo run -p makit -- extract examples/IFC/Building-Architecture.ifc`: Extract an IFC file to JSON beside it (needs a Python with IfcOpenShell; `makit analyze`, the TUI picker and `murb-simulate --model` do this on their own when the JSON is missing or stale).
 - `cargo run -p makit --example canvas_demo`: Run the braille canvas demo.
-- `cargo test`: Run the full test suite across all crates (340 tests: 3 cli, 10 core, 40 geometry, 96 tools, 191 tui). The tools tests read the three committed extractions in `examples/IFC`.
+- `cargo test`: Run the full test suite across all crates (342 tests: 3 cli, 10 core, 40 geometry, 98 tools, 191 tui). The tools tests read the three committed extractions in `examples/IFC`.
 - `cargo fmt`: Enforce standard Rust formatting; required for all changes.
 - `cargo clippy`: Run lints; address all warnings before opening a PR.
 - `.venv/bin/python -m unittest discover -s pyrevit-extension/tests`: Python IFC extractor and analysis tests (50). They need `ifcopenshell`; set up `.venv` once with `uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell`.
