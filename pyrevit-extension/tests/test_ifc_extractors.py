@@ -800,5 +800,43 @@ class WithoutShapelyTest(TempDirTest):
         self.assertAlmostEqual(model.storeys[0].floor_area, 116.0, places=1)
 
 
+@unittest.skipIf(ifcopenshell is None, "needs ifcopenshell")
+class RoofAncestryTest(TempDirTest):
+
+    def test_a_slab_nested_under_a_roof_assembly_counts_once(self):
+        # IfcRoof -> IfcElementAssembly -> ROOF slab: the roof's decomposition
+        # reaches the slab, so it must not be measured again on its own.
+        import ifcopenshell.api.aggregate
+        f, body = geometry_file()
+        roof = f.createIfcRoof(ifcopenshell.guid.new(), None, "roof", None, None,
+                               place3(f, (0, 0), 6.0), None, None, "FLAT_ROOF")
+        assembly = f.createIfcElementAssembly(ifcopenshell.guid.new(), None, "deck", None, None,
+                                              place3(f, (0, 0), 6.0), None, None, None, "USERDEFINED")
+        slab = slab_box(f, body, "deck slab", (0, 0), (8, 8), top=6.2, predefined="ROOF")
+        ifcopenshell.api.aggregate.assign_object(f, products=[assembly], relating_object=roof)
+        ifcopenshell.api.aggregate.assign_object(f, products=[slab], relating_object=assembly)
+        model = self.extract(f)
+        self.assertEqual([(s.kind, s.id) for s in model.slabs], [("roof", roof.GlobalId)])
+        self.assertAlmostEqual(model.slabs[0].area, 64.0, places=1)
+
+
+@unittest.skipIf(ifcopenshell is None, "needs ifcopenshell")
+class AreaUnitTest(TempDirTest):
+
+    def test_square_feet_apply_to_storeys_and_roofs_too(self):
+        # The model's `units` names one unit for every area in it.
+        f, body = geometry_file()
+        level = new_storey(f, "L1", 0.0)
+        slab_box(f, body, "plate", (0, 0), (10, 10), top=0.0, storey=level)
+        slab_box(f, body, "flat roof", (0, 0), (5, 10), top=6.0, predefined="ROOF")
+        model = self.extract(f, {"areaUnit": "sqf"})
+        self.assertEqual(model.units, "ft")
+        self.assertAlmostEqual(model.storeys[0].floor_area, 1076.4, places=0)
+        plate = next(s for s in model.slabs if s.kind == "floor")
+        roof = next(s for s in model.slabs if s.kind == "roof")
+        self.assertAlmostEqual(plate.area, 1076.4, places=0)
+        self.assertAlmostEqual(roof.area, 538.2, places=0)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -212,8 +212,10 @@ The extractor also records what an energy model needs beyond walls and windows:
   leave it out.
 - **Roofs** (`slabs` of kind `roof`): each `IfcRoof` (its own geometry when it has
   one, else its decomposed parts, never both) and each `ROOF` slab outside any
-  `IfcRoof`. A roof's `area` is its up-facing surface (faces whose normal has
-  z > 0.5), so a gable counts its slopes, not its footprint.
+  `IfcRoof`. A slab anywhere under an `IfcRoof`, however deep the aggregation,
+  is measured with it and never on its own. A roof's `area` is its up-facing
+  surface (faces whose normal has z > 0.5), so a gable counts its slopes, not
+  its footprint.
 - **Landings** and other slab parts are kept for the record (`landing`, `other`) and
   counted nowhere.
 - **Wall elevations**: each wall carries `bottom` and `top` in metres (from its
@@ -235,6 +237,9 @@ extraction:
 | Walls above / below grade | each exterior wall's net area split where it crosses `--grade` (metres, project z, default 0); a wall without elevations counts above grade |
 | Windows | windows in exterior walls plus windows in no wall |
 | Roof | the roofs' up-facing surface |
+
+Every figure is in square metres whatever unit the extraction used: an extraction
+made with `--unit sqf` (areas in square feet, `units: "ft"`) is converted back.
 
 `murb-simulate` fills every area you did not type from the model and prints each with
 its source. A zero from the model is an error for GFA, above-grade walls and roof

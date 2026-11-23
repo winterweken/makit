@@ -403,6 +403,15 @@ pub struct Envelope {
     pub format_version: u32,
 }
 
+/// Square metres per unit of the model's areas: `units` is "m" (or unset)
+/// for square metres and "ft" when `analyze_ifc.py` ran with `--unit sqf`.
+fn square_metres_per_area_unit(model: &BuildingModel) -> f64 {
+    match model.units.trim().to_ascii_lowercase().as_str() {
+        "ft" | "sqf" | "sqft" | "ft2" => 1.0 / 10.7639,
+        _ => 1.0,
+    }
+}
+
 /// Add up areas from `0.0`: `Iterator::sum` starts from `-0.0`, which would
 /// print as "-0.0 m²" for an empty model.
 fn total(areas: impl Iterator<Item = f64>) -> f64 {
@@ -452,13 +461,15 @@ fn envelope_windows(model: &BuildingModel) -> (Vec<&WallWindow>, Vec<&GenericWin
 /// window area as [`envelope_windows`], roof area from the roofs' up-facing
 /// surfaces. Floor plates at no storey's level are reported, not counted.
 pub fn envelope(model: &BuildingModel, grade: f64) -> Envelope {
+    // Every area below is in square metres whatever unit the model used.
+    let k = square_metres_per_area_unit(model);
     let storeys: Vec<StoreyArea> = model
         .storeys
         .iter()
         .map(|s| StoreyArea {
             name: s.name.clone(),
             elevation: s.elevation,
-            area: s.floor_area,
+            area: s.floor_area * k,
             plates: s.slab_ids.len(),
         })
         .collect();
@@ -469,35 +480,41 @@ pub fn envelope(model: &BuildingModel, grade: f64) -> Envelope {
         .slabs
         .iter()
         .filter(|s| s.kind == SlabKind::Roof)
-        .map(|s| (s.name.clone(), s.area))
+        .map(|s| (s.name.clone(), s.area * k))
         .collect();
     let roof = total(roofs.iter().map(|(_, area)| *area));
     let left_out = model
         .slabs
         .iter()
         .filter(|s| s.kind == SlabKind::Floor && s.storey.is_none())
-        .map(|s| (s.name.clone(), s.area))
+        .map(|s| (s.name.clone(), s.area * k))
         .collect();
 
     let mut walls_ag = 0.0;
     let mut walls_bg = 0.0;
     let mut walls_without_height = 0;
     for wall in model.walls.iter().filter(|w| w.is_external != Some(false)) {
+        let area = wall.area * k;
         match (wall.bottom, wall.top) {
             (Some(bottom), Some(top)) => {
                 let below = below_grade_fraction(bottom, top, grade);
-                walls_bg += wall.area * below;
-                walls_ag += wall.area * (1.0 - below);
+                walls_bg += area * below;
+                walls_ag += area * (1.0 - below);
             }
             _ => {
                 walls_without_height += 1;
-                walls_ag += wall.area;
+                walls_ag += area;
             }
         }
     }
 
     let (in_walls, loose) = envelope_windows(model);
-    let windows = total(in_walls.iter().map(|w| w.area)) + total(loose.iter().map(|w| w.area));
+    let windows =
+        (total(in_walls.iter().map(|w| w.area)) + total(loose.iter().map(|w| w.area))) * k;
+    let windows_by_facing = window_area_by_facing(model)
+        .into_iter()
+        .map(|(azimuth, area)| (azimuth, area * k))
+        .collect();
 
     Envelope {
         grade,
@@ -508,7 +525,7 @@ pub fn envelope(model: &BuildingModel, grade: f64) -> Envelope {
         walls_bg,
         walls_without_height,
         windows,
-        windows_by_facing: window_area_by_facing(model),
+        windows_by_facing,
         roof,
         roofs,
         left_out,
@@ -1094,6 +1111,41 @@ mod tests {
                 "{name} = {value:?}"
             );
         }
+    }
+
+    #[test]
+    fn a_square_foot_extraction_is_brought_back_to_square_metres() {
+        // analyze_ifc.py --unit sqf writes every area in square feet and
+        // units "ft"; the envelope is in square metres whatever the model used.
+        let model: BuildingModel = serde_json::from_value(serde_json::json!({
+            "units": "ft",
+            "storeys": [{ "id": "l1", "name": "L1", "elevation": 0.0, "floorArea": 1076.39, "slabIds": ["p"] }],
+            "slabs": [
+                { "id": "p", "name": "p", "kind": "floor", "area": 1076.39, "storey": "L1" },
+                { "id": "r", "name": "r", "kind": "roof", "area": 538.195 },
+                { "id": "pad", "name": "pad", "kind": "floor", "area": 215.278, "storey": null }
+            ],
+            "walls": [{ "id": "w", "orientation": { "x": 1.0, "y": 0.0, "z": 0.0 }, "area": 107.639,
+                        "isExternal": true, "bottom": -1.0, "top": 3.0,
+                        "windows": [{ "id": "a", "area": 10.7639 }] }]
+        }))
+        .unwrap();
+        let env = envelope(&model, 0.0);
+        assert_eq!(round1(env.gfa), 100.0);
+        assert_eq!(round1(env.storeys[0].area), 100.0);
+        assert_eq!(round1(env.roof), 50.0);
+        assert_eq!(round1(env.roofs[0].1), 50.0);
+        assert_eq!(round1(env.walls_ag + env.walls_bg), 10.0);
+        assert_eq!(round1(env.walls_bg), 2.5);
+        assert_eq!(round1(env.windows), 1.0);
+        assert_eq!(
+            env.windows_by_facing
+                .iter()
+                .map(|(a, w)| (*a, round1(*w)))
+                .collect::<Vec<_>>(),
+            vec![(90.0, 1.0)]
+        );
+        assert_eq!(round1(env.left_out[0].1), 20.0);
     }
 
     #[test]

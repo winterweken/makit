@@ -547,20 +547,30 @@ def get_storey_elevation(storey, ifc_file):
     elevation = getattr(storey, 'Elevation', None)
     return elevation * length_scale if elevation is not None else 0.0
 
+def has_ancestor(element, *ifc_classes):
+    """
+    Whether the element is part, at any depth, of an aggregate of one of the
+    classes (an IfcRoof -> IfcElementAssembly -> IfcSlab chain, say)
+    """
+    parent = ifcopenshell.util.element.get_aggregate(element)
+    while parent is not None:
+        if any(parent.is_a(ifc_class) for ifc_class in ifc_classes):
+            return True
+        parent = ifcopenshell.util.element.get_aggregate(parent)
+    return False
+
 def slab_kind(slab):
     """
-    'roof' for a ROOF slab or one aggregated under an IfcRoof, 'landing' for a
+    'roof' for a ROOF slab or one anywhere under an IfcRoof, 'landing' for a
     LANDING or a part of a stair or ramp, 'other' for a part of anything else,
     else 'floor'
     """
     predefined = getattr(slab, 'PredefinedType', None)
-    parent = ifcopenshell.util.element.get_aggregate(slab)
-    if predefined == 'ROOF' or (parent is not None and parent.is_a('IfcRoof')):
+    if predefined == 'ROOF' or has_ancestor(slab, 'IfcRoof'):
         return 'roof'
-    if predefined == 'LANDING' or (
-            parent is not None and (parent.is_a('IfcStair') or parent.is_a('IfcRamp'))):
+    if predefined == 'LANDING' or has_ancestor(slab, 'IfcStair', 'IfcRamp'):
         return 'landing'
-    if parent is not None:
+    if ifcopenshell.util.element.get_aggregate(slab) is not None:
         return 'other'
     return 'floor'
 
@@ -581,11 +591,12 @@ def nearest_storey(top, storeys):
             best = (distance, storey)
     return best[1] if best else None
 
-def slab_from_faces(slab, faces, storeys):
+def slab_from_faces(slab, faces, storeys, to_unit=1.0):
     """
     A GenericSlab from an IfcSlab's faces: a floor plate's area is its plan
     footprint and it joins the storey nearest its top face (which records the
-    plate in its slabIds); a roof slab's area is its up-facing surface.
+    plate in its slabIds); a roof slab's area is its up-facing surface. Areas
+    are multiplied by `to_unit` (square feet per square metre for 'sqf').
     """
     generic = GenericSlab(id=slab.GlobalId, name=slab.Name or "")
     generic.kind = slab_kind(slab)
@@ -595,9 +606,9 @@ def slab_from_faces(slab, faces, storeys):
     generic.properties['ifcType'] = slab.is_a()
     footprint = get_footprint(faces) if generic.kind != 'roof' else None
     if footprint is not None:
-        generic.area = round(footprint.area, 2)
+        generic.area = round(footprint.area * to_unit, 2)
     else:
-        generic.area = round(get_up_facing_area(faces), 2)
+        generic.area = round(get_up_facing_area(faces) * to_unit, 2)
     if generic.kind == 'floor' and generic.top is not None:
         storey = nearest_storey(generic.top, storeys)
         if storey is not None:
@@ -607,7 +618,7 @@ def slab_from_faces(slab, faces, storeys):
         generic.storey = get_storey_name(slab)
     return generic
 
-def extract_ifc_slab_to_generic(slab, ifc_file, storeys):
+def extract_ifc_slab_to_generic(slab, ifc_file, storeys, area_unit='sqm'):
     """
     An IfcSlab as a GenericSlab (see slab_from_faces), or None without geometry
     """
@@ -618,9 +629,9 @@ def extract_ifc_slab_to_generic(slab, ifc_file, storeys):
         return None
     if not faces:
         return None
-    return slab_from_faces(slab, faces, storeys)
+    return slab_from_faces(slab, faces, storeys, 1.0 if area_unit == 'sqm' else SQM_TO_SQF)
 
-def extract_ifc_roof_to_generic(roof, ifc_file):
+def extract_ifc_roof_to_generic(roof, ifc_file, area_unit='sqm'):
     """
     An IfcRoof as a GenericSlab of kind 'roof' whose area is the up-facing
     surface of its own geometry, or of its parts when it has none. None when
@@ -635,7 +646,8 @@ def extract_ifc_roof_to_generic(roof, ifc_file):
         return None
     generic = GenericSlab(id=roof.GlobalId, name=roof.Name or "")
     generic.kind = 'roof'
-    generic.area = round(get_up_facing_area(faces), 2)
+    to_unit = 1.0 if area_unit == 'sqm' else SQM_TO_SQF
+    generic.area = round(get_up_facing_area(faces) * to_unit, 2)
     generic.bottom, generic.top = get_z_range(faces)
     generic.storey = get_storey_name(roof)
     generic.slab_type = getattr(roof, 'ObjectType', None) or ""
@@ -643,7 +655,7 @@ def extract_ifc_roof_to_generic(roof, ifc_file):
     generic.properties['ifcType'] = roof.is_a()
     return generic
 
-def extract_storeys_and_slabs(ifc_file, building_model, storey_filter=None):
+def extract_storeys_and_slabs(ifc_file, building_model, storey_filter=None, area_unit='sqm'):
     """
     Fill a building model's storeys and slabs.
 
@@ -653,8 +665,10 @@ def extract_storeys_and_slabs(ifc_file, building_model, storey_filter=None):
     over structural floors count once (their sum, with a warning, when shapely
     is missing). Roofs are IfcRoof elements (own geometry, else their parts)
     and ROOF slabs outside any IfcRoof, each counted once. With a storey
-    filter, only that storey and its slabs are kept.
+    filter, only that storey and its slabs are kept. Areas follow
+    `area_unit` ('sqm' or 'sqf'), like the walls' and windows'.
     """
+    to_unit = 1.0 if area_unit == 'sqm' else SQM_TO_SQF
     if not has_shapely():
         print("Warning: shapely not available: floor plates measure their surface, "
               "not their footprint, and storey floor areas are sums, not unions")
@@ -671,9 +685,8 @@ def extract_storeys_and_slabs(ifc_file, building_model, storey_filter=None):
     slabs = []
     footprints = {}
     for slab in ifc_file.by_type('IfcSlab'):
-        parent = ifcopenshell.util.element.get_aggregate(slab)
-        if parent is not None and parent.is_a('IfcRoof'):
-            continue  # measured with its roof
+        if has_ancestor(slab, 'IfcRoof'):
+            continue  # measured with its roof, however deep it sits
         try:
             faces = get_faces(slab)
         except Exception as e:
@@ -681,16 +694,15 @@ def extract_storeys_and_slabs(ifc_file, building_model, storey_filter=None):
             continue
         if not faces:
             continue
-        generic = slab_from_faces(slab, faces, storeys)
+        generic = slab_from_faces(slab, faces, storeys, to_unit)
         slabs.append(generic)
         if generic.kind == 'floor':
             footprints[generic.id] = get_footprint(faces)
 
     for roof in ifc_file.by_type('IfcRoof'):
-        parent = ifcopenshell.util.element.get_aggregate(roof)
-        if parent is not None and parent.is_a('IfcRoof'):
+        if has_ancestor(roof, 'IfcRoof'):
             continue  # part of a roof already measured
-        generic = extract_ifc_roof_to_generic(roof, ifc_file)
+        generic = extract_ifc_roof_to_generic(roof, ifc_file, area_unit)
         if generic is not None:
             slabs.append(generic)
 
@@ -704,7 +716,7 @@ def extract_storeys_and_slabs(ifc_file, building_model, storey_filter=None):
     for storey in storeys:
         shapes = [footprints.get(i) for i in storey.slab_ids]
         if unary_union is not None and shapes and all(shape is not None for shape in shapes):
-            storey.floor_area = round(unary_union(shapes).area, 2)
+            storey.floor_area = round(unary_union(shapes).area * to_unit, 2)
         else:
             ids = set(storey.slab_ids)
             storey.floor_area = round(sum(s.area for s in slabs if s.id in ids), 2)
@@ -1036,7 +1048,7 @@ def build_building_model(ifc_path, options=None):
                 print("Error extracting window {}: {}".format(window.GlobalId, str(e)))
 
     # Storeys, floor plates and roofs
-    extract_storeys_and_slabs(ifc_file, building_model, storey_filter)
+    extract_storeys_and_slabs(ifc_file, building_model, storey_filter, area_unit)
 
     return building_model
 
