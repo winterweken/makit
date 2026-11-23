@@ -635,6 +635,21 @@ fn run_name(typed: &str, model: Option<&Path>, epw: &Path) -> String {
     }
 }
 
+/// A path as the Output pane shows it: relative to the current directory
+/// when it lies inside it (murb reports its HTML report absolute), as
+/// given otherwise.
+fn local_path(path: &str) -> String {
+    std::env::current_dir()
+        .ok()
+        .and_then(|cwd| {
+            Path::new(path)
+                .strip_prefix(cwd)
+                .ok()
+                .map(|rel| rel.display().to_string())
+        })
+        .unwrap_or_else(|| path.to_string())
+}
+
 /// Where murb's HTML report goes: the directory of the results file
 /// (`--output`), made absolute; none when no results file is written.
 fn report_dir(output: &str) -> Option<String> {
@@ -749,7 +764,7 @@ fn handle_simulate(ctx: &TaskContext) -> anyhow::Result<()> {
     // Print summary
     print!("{}", format_report(&results));
     if let Some(path) = &results.report_path {
-        println!("\nmurb's HTML report: {path}");
+        println!("\nmurb's HTML report: {}", local_path(path));
     } else if let Some(err) = &results.report_error {
         println!("\n{err}");
     }
@@ -1337,6 +1352,22 @@ mod tests {
         // no results file, no report
         let (input, _, _) = simulation_input(&model_context(&json, &[("output", "")])).unwrap();
         assert_eq!(input.report_dir, None);
+    }
+
+    #[test]
+    fn report_path_is_shown_relative_to_the_current_directory() {
+        let cwd = std::env::current_dir().unwrap();
+        let inside = cwd.join("results").join("h_TMY").join("h_TMY.html");
+        assert_eq!(
+            local_path(&inside.display().to_string()),
+            Path::new("results")
+                .join("h_TMY")
+                .join("h_TMY.html")
+                .display()
+                .to_string()
+        );
+        assert_eq!(local_path("/elsewhere/h_TMY.html"), "/elsewhere/h_TMY.html");
+        assert_eq!(local_path("results/h.html"), "results/h.html");
     }
 
     #[test]

@@ -10,9 +10,9 @@
 **A multi-tool CLI & TUI for AEC workflows** — orchestrate Revit, Blender, IFC analysis, and MURB energy modelling from one terminal.
 
 <p align="center">
-  <img src="docs/media/makit-tui.gif" alt="The makit TUI: the hovering makit symbol, a Revit sample model loaded from the IFC picker with its wall directions, a WWR report in the Output pane, the MURB heating-demand chart, and the help overlay" width="900">
+  <img src="docs/media/makit-tui.gif" alt="The makit TUI: the hovering makit symbol, a Revit sample model extracted and loaded from the IFC picker with its wall directions and envelope, a MURB simulation run from the picked model with only the weather file typed, its envelope and results in the Output pane with the heating-demand chart, and the help overlay" width="900">
 </p>
-<p align="center"><sub>The TUI with a Revit sample model (<code>Ifc4_ARC.ifc</code>, not in the repo) and Toronto weather: load it in the IFC picker, run <code>wall-orientation-wwr</code>, read the MURB results.</sub></p>
+<p align="center"><sub>The TUI with a Revit sample model (<code>Ifc4_ARC.ifc</code>, not in the repo) and Toronto weather: load it in the IFC picker (it is extracted first), run <code>murb-simulate</code> with only the weather file typed, read the envelope and the results. Recorded with <a href="docs/media/makit-tui.tape">docs/media/makit-tui.tape</a>; the run's report page is in <a href="examples/MURB/Ifc4_ARC-in-Toronto/">examples/MURB/Ifc4_ARC-in-Toronto/</a>.</sub></p>
 
 ---
 
@@ -187,7 +187,8 @@ makit/
 │   ├── murb_runner.py       # Python bridge for MURB energy tool
 │   └── tests/               # Runner tests
 ├── examples/IFC/            # Sample IFC file, three extractions and analysis scripts
-└── docs/                    # Architecture docs, brand/ (the makit symbol), media/ (README GIF)
+├── examples/MURB/           # A complete murb-simulate run: results JSON, report page, murb's own report
+└── docs/                    # Architecture docs, brand/ (the makit symbol), media/ (README GIF and its VHS tape)
 ```
 
 ### Module Status
@@ -246,7 +247,7 @@ Tools register **sources** (inputs and connections) and **actions** (operations)
 # Build
 cargo build
 
-# Run all 340 tests (3 cli, 10 core, 40 geometry, 96 tools, 191 tui). They read the
+# Run all 342 tests (3 cli, 10 core, 40 geometry, 98 tools, 191 tui). They read the
 # three committed extractions in examples/IFC and need no Python.
 cargo test
 

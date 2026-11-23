@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ifc4_ARC in Toronto</title>
+<style>
+  /* One instrument panel, read top to bottom: the building's glass on a
+     compass beside its three intensities, then the year, then the envelope.
+     Dark first, like the makit TUI; light when the system asks for it. */
+  :root {
+    --bg: #151823; --ink: #E6E8EF; --ink-2: #A6ABBB; --ink-3: #747A8D;
+    --rule: #272B3A; --kit: #4A4F63; --kit-2: #343848;
+    --heat: #CF7F00; --cool: #229CD4; --glass: #936DD9; --tip-bg: #1E2231;
+    --font-display: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+    --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #F7F8FB; --ink: #1B1E29; --ink-2: #525869; --ink-3: #7A8092;
+      --rule: #E1E3EA; --kit: #B9BECC; --kit-2: #D3D7E1;
+      --heat: #C46D00; --cool: #107DB2; --glass: #7849C1; --tip-bg: #FFFFFF;
+      color-scheme: light;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #F7F8FB; --ink: #1B1E29; --ink-2: #525869; --ink-3: #7A8092;
+    --rule: #E1E3EA; --kit: #B9BECC; --kit-2: #D3D7E1;
+    --heat: #C46D00; --cool: #107DB2; --glass: #7849C1; --tip-bg: #FFFFFF;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body);
+    font-size: 15px; line-height: 1.5; padding: 32px 16px 48px;
+  }
+  .page { max-width: 1040px; margin: 0 auto; display: grid; gap: 40px; }
+  header { display: grid; gap: 10px; }
+  .eyebrow { display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em; color: var(--ink-3); text-transform: uppercase; }
+  .eyebrow svg { width: 22px; height: 25px; flex: none; }
+  h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(30px, 5vw, 44px); line-height: 1.1; margin: 0; letter-spacing: -0.01em; text-wrap: balance; overflow-wrap: anywhere; }
+  .meta { color: var(--ink-2); margin: 0; max-width: 70ch; }
+  h2 { font-family: var(--font-display); font-weight: 500; font-size: 19px; margin: 0; text-wrap: balance; }
+  .label { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+  section { display: grid; gap: 14px; border-top: 1px solid var(--rule); padding-top: 22px; }
+  .lede { color: var(--ink-2); margin: 0; max-width: 68ch; }
+  .lede:empty { display: none; }
+  .panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: center; }
+  .compass svg { width: 100%; max-width: 440px; height: auto; display: block; margin: 0 auto; }
+  .figures { display: grid; gap: 22px; }
+  .figure { display: grid; gap: 4px; }
+  .figure .value { font-weight: 600; font-size: 30px; line-height: 1.1; }
+  .figure.hero .value { font-size: 56px; letter-spacing: -0.02em; }
+  .figure .unit { font-weight: 400; font-size: 0.42em; color: var(--ink-2); margin-left: 6px; letter-spacing: 0; }
+  .figure.hero .unit { font-size: 18px; }
+  .figure .what { color: var(--ink-2); font-size: 14px; }
+  .figure .vs { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-3); }
+  .figure .vs b { color: var(--ink); font-weight: 500; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 13.5px; color: var(--ink-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .scroll { overflow-x: auto; }
+  .chart { position: relative; }
+  .chart svg, .section-svg { display: block; width: 100%; min-width: 560px; height: auto; }
+  .hit { fill: transparent; cursor: default; outline: none; }
+  .hit:focus-visible { stroke: var(--ink-3); stroke-width: 1; }
+  .bar { transition: opacity 120ms; }
+  .chart:has(.hit:hover) .bar, .chart:has(.hit:focus-visible) .bar { opacity: 0.45; }
+  .bar.on { opacity: 1 !important; }
+  .tip { position: absolute; pointer-events: none; min-width: 150px; background: var(--tip-bg); border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px; font-size: 13px; box-shadow: 0 6px 18px rgb(0 0 0 / 0.18); }
+  .tip .m { color: var(--ink-3); font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.05em; text-transform: uppercase; }
+  .tip .row { display: flex; align-items: center; gap: 8px; }
+  .tip .row s { width: 12px; height: 2px; display: inline-block; text-decoration: none; }
+  .tip .row b { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tip .row em { font-style: normal; color: var(--ink-2); }
+  .totals { display: flex; flex-wrap: wrap; gap: 6px 28px; font-size: 14px; color: var(--ink-2); }
+  .totals b { color: var(--ink); font-weight: 600; }
+  details { font-size: 14px; }
+  summary { cursor: pointer; color: var(--ink-2); width: fit-content; }
+  summary:focus-visible { outline: 2px solid var(--cool); outline-offset: 2px; border-radius: 3px; }
+  table { border-collapse: collapse; margin-top: 10px; font-variant-numeric: tabular-nums; min-width: 420px; }
+  th, td { padding: 5px 14px 5px 0; text-align: right; border-bottom: 1px solid var(--rule); }
+  th:first-child, td:first-child { text-align: left; }
+  th { font-weight: 500; color: var(--ink-3); font-size: 12.5px; }
+  .ratios { display: flex; flex-wrap: wrap; gap: 10px 36px; }
+  .ratio { display: grid; gap: 2px; }
+  .ratio .value { font-weight: 600; font-size: 24px; }
+  .ratio .what { color: var(--ink-2); font-size: 14px; max-width: 34ch; }
+  .notes { display: grid; gap: 8px; color: var(--ink-2); font-size: 14px; max-width: 72ch; margin: 0; padding-left: 18px; }
+  code { font-family: var(--font-mono); font-size: 0.88em; color: var(--ink); overflow-wrap: anywhere; }
+  svg text { font-family: var(--font-body); }
+  .t-ink { fill: var(--ink); } .t-2 { fill: var(--ink-2); } .t-3 { fill: var(--ink-3); }
+  .mono { font-family: var(--font-mono) !important; letter-spacing: 0.04em; }
+  .empty { color: var(--ink-3); font-family: var(--font-mono); font-size: 12.5px; }
+  @media (max-width: 760px) { .panel { grid-template-columns: minmax(0, 1fr); } .figure.hero .value { font-size: 48px; } }
+  @media (prefers-reduced-motion: reduce) { .bar { transition: none; } }
+</style>
+</head>
+<body>
+<script id="makit-data" type="application/json">{"title":"Ifc4_ARC in Toronto","subtitle":"A model with 5 storeys and 718.8 m² of floor, run through the monthly MURB heat balance with Toronto.City-Univ.of.Toronto weather. Every area below was measured from the IFC model.","weather":"Toronto.City-Univ.of.Toronto","lede":"67% of the glass faces south-east: 11% less heating need than the same building with its glass spread evenly.","gfa":718.8,"levels":[{"name":"Foundation","area":3.6},{"name":"Level 1 Living Rm.","area":162.3},{"name":"Level 1","area":144.4},{"name":"Ceiling","area":149.5},{"name":"Level 2","area":259.1}],"glass":{"total":192.0,"unfaced":5.3,"facings":[{"azimuth":143.0,"area":129.5,"share":67,"name":"SE","word":"south-east"},{"azimuth":233.0,"area":40.1,"share":21,"name":"SW","word":"south-west"},{"azimuth":53.0,"area":22.4,"share":12,"name":"NE","word":"north-east"}]},"intensities":{"tedi":86.76,"teui":207.76,"ghgi":31.67,"even":{"tedi":97.06,"teui":218.04,"ghgi":33.84}},"monthly":{"heating":[13.06,11.7,9.69,5.05,1.36,0.02,0.0,0.0,0.18,2.24,7.11,11.95],"cooling":[0.16,0.29,0.64,1.01,1.97,4.14,8.04,8.43,3.45,1.02,0.41,0.11],"energy":[21.37,19.21,17.49,11.92,7.94,6.59,7.51,7.59,6.65,8.8,14.22,20.05]},"totals":{"heating":62.37,"cooling":29.67,"energy":149.34,"even_heating":69.77,"even_cooling":22.8},"envelope":{"roof":244.3,"glass":197.3,"walls_ag":532.5,"walls_bg":174.7,"floor":718.8,"levels":5,"above_grade":974.2,"above_grade_ratio":1.4,"glass_share":27,"known":true},"notes":["Floor area is the footprint union of each storey's floor plates: Foundation 3.6 m², Level 1 Living Rm. 162.3 m², Level 1 144.4 m², Ceiling 149.5 m², Level 2 259.1 m². Left out, at no storey's level: Pad:Pad 2:523064 (287.3 m²), M_Pile-Steel Pipe:600mm Diameter:512299 (0.1 m²), M_Pile-Steel Pipe:600mm Diameter:512321 (0.1 m²) and 7 more, 288.0 m² in all. 1 storey(s) have no plate at their level.","Glass is the windows set in exterior walls plus curtain-wall glass, split by the wall's facing. 5.3 m² of windows in no wall (skylights, say) count in the area but not on the compass.","Walls are net of their openings and split at grade 0.0 m: 532.5 m² above, 174.7 m² below.","U-values: walls 0.273, windows 2.56, roof 0.164 W/m²K (makit's defaults); heat recovery 55%; heating COP 0.85, cooling COP 5.2.","murb_energy_tool is written for multi-unit residential buildings; for other building types treat these results as indicative."],"command":"makit exec murb analysis murb-simulate -o epw=examples/EPW/Toronto_TMU/CAN_ON_Toronto.City-Univ.of.Toronto.715080_TMYx.epw -o model=examples/IFC/Ifc4_ARC.ifc -o output=examples/MURB/Ifc4_ARC-in-Toronto/murb_results.json"}</script>
+<div class="page">
+  <header>
+    <div class="eyebrow">
+      <svg viewBox="-92.6 -106 185.2 212" aria-hidden="true">
+        <polygon points="0,-100 86.6,-50 0,0 -86.6,-50" fill="#FFB450"/>
+        <polygon points="86.6,50 0,100 0,0 86.6,-50" fill="#B482FF"/>
+        <polygon points="-86.6,50 0,100 0,0 -86.6,-50" fill="#5AC8FA"/>
+      </svg>
+      makit · murb-simulate
+    </div>
+    <h1 id="title"></h1>
+    <p class="meta" id="subtitle"></p>
+  </header>
+
+  <section aria-labelledby="glass-h">
+    <div class="label" id="glass-h">Where the glass faces · what it costs</div>
+    <div class="panel">
+      <figure class="compass" style="margin:0">
+        <svg id="compass" viewBox="0 0 420 420" role="img"></svg>
+      </figure>
+      <div class="figures" id="figures"></div>
+    </div>
+    <p class="lede" id="lede"></p>
+  </section>
+
+  <section aria-labelledby="year-h">
+    <div class="label" id="year-h">The year</div>
+    <h2>Heating above the line, cooling below</h2>
+    <div class="legend" aria-hidden="true">
+      <span><i style="background:var(--heat)"></i>Heating demand</span>
+      <span><i style="background:var(--cool)"></i>Cooling demand</span>
+    </div>
+    <div class="scroll">
+      <div class="chart" id="chart">
+        <svg id="year" viewBox="0 0 680 270" role="img"></svg>
+        <div class="tip" id="tip" hidden></div>
+      </div>
+    </div>
+    <div class="totals" id="totals"></div>
+    <details>
+      <summary>Monthly values as a table</summary>
+      <div class="scroll"><table id="table"></table></div>
+    </details>
+  </section>
+
+  <section aria-labelledby="env-h">
+    <div class="label" id="env-h">The envelope</div>
+    <h2 id="env-title"></h2>
+    <div class="scroll">
+      <svg class="section-svg" id="section" viewBox="0 0 680 250" role="img"></svg>
+    </div>
+    <div class="ratios" id="ratios"></div>
+  </section>
+
+  <section aria-labelledby="notes-h">
+    <div class="label" id="notes-h">How these numbers were made</div>
+    <ul class="notes" id="notes"></ul>
+  </section>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var D = JSON.parse(document.getElementById("makit-data").textContent);
+  var NS = "http://www.w3.org/2000/svg";
+  function el(name, attrs, parent) {
+    var node = document.createElementNS(NS, name);
+    for (var k in attrs) node.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(node);
+    return node;
+  }
+  function text(parent, x, y, content, attrs) {
+    var t = el("text", Object.assign({ x: x, y: y }, attrs || {}), parent);
+    t.textContent = content;
+    return t;
+  }
+  function h(tag, cls, content, parent) {
+    var node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (content !== undefined && content !== null) node.textContent = content;
+    if (parent) parent.appendChild(node);
+    return node;
+  }
+  function f1(v) { return (Math.round(v * 10) / 10).toFixed(1); }
+  function signed(v) { return (v > 0 ? "+" : "−") + f1(Math.abs(v)); }
+
+  document.getElementById("title").textContent = D.title;
+  document.getElementById("subtitle").textContent = D.subtitle;
+  document.getElementById("lede").textContent = D.lede || "";
+  document.title = D.title;
+
+  /* ---------- compass ---------- */
+  (function compass() {
+    var svg = document.getElementById("compass");
+    var cx = 210, cy = 210, R = 150;
+    function dir(az) { var a = az * Math.PI / 180; return [Math.sin(a), -Math.cos(a)]; }
+    function at(az, r) { var d = dir(az); return [cx + d[0] * r, cy + d[1] * r]; }
+    var facings = D.glass.facings;
+    svg.setAttribute("aria-label", facings.length
+      ? "Glass by facing: " + facings.map(function (f) { return f.word + " " + f.azimuth + " degrees " + f1(f.area) + " square metres, " + f.share + " percent"; }).join("; ")
+      : "No glass with a facing in this run.");
+
+    el("circle", { cx: cx, cy: cy, r: R, fill: "none", stroke: "var(--rule)", "stroke-width": 1 }, svg);
+    for (var a = 0; a < 360; a += 15) {
+      var major = a % 90 === 0;
+      var p1 = at(a, R), p2 = at(a, R - (major ? 12 : a % 45 === 0 ? 8 : 4));
+      el("line", { x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1], stroke: major ? "var(--ink-3)" : "var(--rule)", "stroke-width": major ? 1.5 : 1 }, svg);
+    }
+    [["N", 0], ["E", 90], ["S", 180], ["W", 270]].forEach(function (c) {
+      var p = at(c[1], R + 18);
+      text(svg, p[0], p[1] + 4.5, c[0], { "text-anchor": "middle", "font-size": 13, "font-weight": 600, class: "t-2 mono" });
+    });
+    // the sun, low in the south: winter gains
+    var s = at(180, R - 32);
+    el("circle", { cx: s[0], cy: s[1], r: 7, fill: "var(--heat)" }, svg);
+    for (var k = 0; k < 8; k++) {
+      var ang = k * Math.PI / 4;
+      el("line", { x1: s[0] + Math.cos(ang) * 10, y1: s[1] + Math.sin(ang) * 10, x2: s[0] + Math.cos(ang) * 14, y2: s[1] + Math.sin(ang) * 14, stroke: "var(--heat)", "stroke-width": 1.5, "stroke-linecap": "round" }, svg);
+    }
+    if (!facings.length) {
+      text(svg, cx, cy + 4, "no glass with a facing", { "text-anchor": "middle", "font-size": 12, class: "t-3 mono" });
+      return;
+    }
+    // the footprint, a square turned so its long side faces the main glazing
+    var main = facings[0].azimuth, n1 = dir(main), n2 = dir(main - 90), hd = 40, hw = 62;
+    function pt(u, v) { return [cx + n1[0] * u + n2[0] * v, cy + n1[1] * u + n2[1] * v]; }
+    var corners = [pt(hd, hw), pt(hd, -hw), pt(-hd, -hw), pt(-hd, hw)];
+    el("polygon", { points: corners.map(function (p) { return p.join(","); }).join(" "), fill: "var(--kit-2)", stroke: "var(--kit)", "stroke-width": 2, "stroke-linejoin": "round" }, svg);
+    // beams: equal width, length in proportion to the glass facing that way
+    var biggest = facings[0].area, k = 78 / biggest, beam = 13;
+    facings.forEach(function (f) {
+      var n = dir(f.azimuth), t = [-n[1], n[0]];
+      // the face of the square nearest this direction
+      var along = n[0] * n1[0] + n[1] * n1[1], across = n[0] * n2[0] + n[1] * n2[1];
+      var m = Math.abs(along) >= Math.abs(across) ? pt(along > 0 ? hd : -hd, 0) : pt(0, across > 0 ? hw : -hw);
+      var half = Math.abs(along) >= Math.abs(across) ? hw : hd;
+      var e1 = [m[0] + t[0] * half, m[1] + t[1] * half], e2 = [m[0] - t[0] * half, m[1] - t[1] * half];
+      el("line", { x1: e1[0], y1: e1[1], x2: e2[0], y2: e2[1], stroke: "var(--glass)", "stroke-width": 4, "stroke-linecap": "round" }, svg);
+      var L = Math.max(f.area * k, 4), start = 6;
+      var b = [
+        [m[0] + n[0] * start + t[0] * beam, m[1] + n[1] * start + t[1] * beam],
+        [m[0] + n[0] * (start + L) + t[0] * beam, m[1] + n[1] * (start + L) + t[1] * beam],
+        [m[0] + n[0] * (start + L) - t[0] * beam, m[1] + n[1] * (start + L) - t[1] * beam],
+        [m[0] + n[0] * start - t[0] * beam, m[1] + n[1] * start - t[1] * beam],
+      ];
+      el("polygon", { points: b.map(function (p) { return p.join(","); }).join(" "), fill: "var(--glass)", opacity: 0.85 }, svg);
+      var lab = [m[0] + n[0] * (start + L + 30), m[1] + n[1] * (start + L + 30)];
+      var anchor = n[0] > 0.35 ? "start" : n[0] < -0.35 ? "end" : "middle";
+      var dx = anchor === "start" ? -14 : anchor === "end" ? 14 : 0;
+      text(svg, lab[0] + dx, lab[1] - 2, f1(f.area) + " m²", { "text-anchor": anchor, "font-size": 14, "font-weight": 600, class: "t-ink" });
+      text(svg, lab[0] + dx, lab[1] + 14, f.name + " " + Math.round(f.azimuth) + "° · " + f.share + "%", { "text-anchor": anchor, "font-size": 11.5, class: "t-2 mono" });
+    });
+    text(svg, cx, 408, "beam length ∝ glass area · " + f1(D.glass.total) + " m² in all", { "text-anchor": "middle", "font-size": 11, class: "t-3 mono" });
+  })();
+
+  /* ---------- intensities ---------- */
+  (function figures() {
+    var box = document.getElementById("figures");
+    var I = D.intensities, E = I.even;
+    [
+      ["TEDI · heating need", I.tedi, "kWh/m²·yr", "Heat the building needs per square metre of floor, before any equipment.", E && E.tedi, true],
+      ["TEUI · total energy use", I.teui, "kWh/m²·yr", null, E && E.teui, false],
+      ["GHGI · emissions", I.ghgi, "kgCO₂e/m²·yr", null, E && E.ghgi, false],
+    ].forEach(function (row) {
+      var fig = h("div", "figure" + (row[5] ? " hero" : ""), null, box);
+      h("div", "label", row[0], fig);
+      var value = h("div", "value", f1(row[1]), fig);
+      h("span", "unit", row[2], value);
+      if (row[3]) h("div", "what", row[3], fig);
+      if (row[4] != null) {
+        var vs = h("div", "vs", null, fig);
+        h("b", null, signed(row[1] - row[4]), vs);
+        vs.appendChild(document.createTextNode(" vs " + f1(row[4]) + (row[5] ? " if the glass faced all four ways equally" : "")));
+      }
+    });
+  })();
+
+  /* ---------- the year ---------- */
+  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  var HEAT = D.monthly.heating, COOL = D.monthly.cooling, USE = D.monthly.energy;
+  (function year() {
+    var svg = document.getElementById("year");
+    var tip = document.getElementById("tip");
+    var chart = document.getElementById("chart");
+    var peakUp = Math.max.apply(null, HEAT.concat([0.1])), peakDown = Math.max.apply(null, COOL.concat([0.1]));
+    svg.setAttribute("aria-label", "Monthly heating and cooling demand in megawatt-hours. Heating peaks at " + f1(peakUp) + ", cooling at " + f1(peakDown) + ".");
+    var x0 = 56, x1 = 664, base = 150, slot = (x1 - x0) / 12, w = 20;
+    var px = Math.min(120 / peakUp, 95 / peakDown);
+    function y(v) { return base - v * px; }
+    // the gridline step: 1, 2 or 5 times a power of ten, at most seven lines a side
+    function nice(max) {
+      var base = Math.pow(10, Math.floor(Math.log10(max)));
+      var steps = [base / 5, base / 2, base, 2 * base, 5 * base, 10 * base];
+      for (var i = 0; i < steps.length; i++) if (max / steps[i] <= 7) return steps[i];
+      return 10 * base;
+    }
+    var stepUp = nice(peakUp), stepDown = nice(peakDown);
+    for (var v = stepUp; v <= peakUp * 1.001; v += stepUp) {
+      el("line", { x1: x0, x2: x1, y1: y(v), y2: y(v), stroke: "var(--rule)", "stroke-width": 1 }, svg);
+      text(svg, x0 - 10, y(v) + 4, String(+v.toFixed(2)), { "text-anchor": "end", "font-size": 11.5, class: "t-3 mono" });
+    }
+    for (var u = stepDown; u <= peakDown * 1.001; u += stepDown) {
+      el("line", { x1: x0, x2: x1, y1: y(-u), y2: y(-u), stroke: "var(--rule)", "stroke-width": 1 }, svg);
+      text(svg, x0 - 10, y(-u) + 4, String(+u.toFixed(2)), { "text-anchor": "end", "font-size": 11.5, class: "t-3 mono" });
+    }
+    text(svg, x0 - 10, y(0) + 4, "0", { "text-anchor": "end", "font-size": 11.5, class: "t-3 mono" });
+    text(svg, 6, 18, "MWh", { "font-size": 11, class: "t-3 mono" });
+    function bar(cxm, value, up, color) {
+      var hh = Math.max(value * px, 0), r = Math.min(4, hh);
+      var l = cxm - w / 2, rr = cxm + w / 2, d;
+      if (hh <= 0) return null;
+      if (up) { var top = base - hh; d = "M" + l + "," + base + "V" + (top + r) + "Q" + l + "," + top + " " + (l + r) + "," + top + "H" + (rr - r) + "Q" + rr + "," + top + " " + rr + "," + (top + r) + "V" + base + "Z"; }
+      else { var bot = base + hh; d = "M" + l + "," + base + "V" + (bot - r) + "Q" + l + "," + bot + " " + (l + r) + "," + bot + "H" + (rr - r) + "Q" + rr + "," + bot + " " + rr + "," + (bot - r) + "V" + base + "Z"; }
+      return el("path", { d: d, fill: color, class: "bar" }, svg);
+    }
+    var bars = [];
+    for (var i = 0; i < 12; i++) {
+      var cxm = x0 + slot * (i + 0.5);
+      bars.push([bar(cxm, HEAT[i] || 0, true, "var(--heat)"), bar(cxm, COOL[i] || 0, false, "var(--cool)")]);
+      text(svg, cxm, 262, MONTHS[i].charAt(0), { "text-anchor": "middle", "font-size": 12, class: "t-2 mono" });
+    }
+    el("line", { x1: x0, x2: x1, y1: base, y2: base, stroke: "var(--ink-3)", "stroke-width": 1 }, svg);
+    var iUp = HEAT.indexOf(peakUp), iDown = COOL.indexOf(peakDown);
+    if (iUp >= 0) text(svg, x0 + slot * (iUp + 0.5), y(peakUp) - 8, f1(peakUp), { "text-anchor": "middle", "font-size": 12, "font-weight": 600, class: "t-ink" });
+    if (iDown >= 0) text(svg, x0 + slot * (iDown + 0.5), y(-peakDown) + 17, f1(peakDown), { "text-anchor": "middle", "font-size": 12, "font-weight": 600, class: "t-ink" });
+    function show(i, hit) {
+      bars.forEach(function (pair, j) { pair.forEach(function (b) { if (b) b.classList.toggle("on", j === i); }); });
+      tip.textContent = "";
+      h("div", "m", MONTHS[i], tip);
+      [["var(--heat)", HEAT[i] || 0, "heating"], ["var(--cool)", COOL[i] || 0, "cooling"]].forEach(function (r) {
+        var row = h("div", "row", null, tip);
+        var key = h("s", null, null, row); key.style.background = r[0];
+        h("b", null, r[1].toFixed(2) + " MWh", row);
+        h("em", null, r[2], row);
+      });
+      tip.hidden = false;
+      var box = chart.getBoundingClientRect(), hb = hit.getBoundingClientRect();
+      var left = hb.left - box.left + hb.width / 2 - tip.offsetWidth / 2;
+      left = Math.max(4, Math.min(left, box.width - tip.offsetWidth - 4));
+      tip.style.left = left + "px";
+      tip.style.top = Math.max(0, hb.top - box.top + 6) + "px";
+    }
+    function hide() { tip.hidden = true; bars.forEach(function (pair) { pair.forEach(function (b) { if (b) b.classList.remove("on"); }); }); }
+    for (var j = 0; j < 12; j++) {
+      (function (i) {
+        var hit = el("rect", { x: x0 + slot * i, y: 20, width: slot, height: 230, class: "hit", tabindex: 0,
+          "aria-label": MONTHS[i] + ": heating " + (HEAT[i] || 0).toFixed(2) + " MWh, cooling " + (COOL[i] || 0).toFixed(2) + " MWh" }, svg);
+        hit.addEventListener("pointerenter", function () { show(i, hit); });
+        hit.addEventListener("pointerleave", hide);
+        hit.addEventListener("focus", function () { show(i, hit); });
+        hit.addEventListener("blur", hide);
+      })(j);
+    }
+    var T = D.totals, totals = document.getElementById("totals");
+    function tot(label, v, even) {
+      var span = h("span", null, label + " ", totals);
+      h("b", null, f1(v) + " MWh", span);
+      span.appendChild(document.createTextNode(even != null ? " a year (" + f1(even) + " with even glass)" : " a year"));
+    }
+    tot("Heating demand", T.heating, T.even_heating);
+    tot("Cooling demand", T.cooling, T.even_cooling);
+    tot("Energy use", T.energy, null);
+  })();
+
+  /* ---------- table ---------- */
+  (function table() {
+    var t = document.getElementById("table");
+    var head = t.insertRow();
+    ["Month", "Heating demand (MWh)", "Cooling demand (MWh)", "Energy use (MWh)"].forEach(function (c) { h("th", null, c, head); });
+    for (var i = 0; i < 12; i++) {
+      var row = t.insertRow();
+      [MONTHS[i], (HEAT[i] || 0).toFixed(2), (COOL[i] || 0).toFixed(2), (USE[i] || 0).toFixed(2)].forEach(function (v) { row.insertCell().textContent = v; });
+    }
+  })();
+
+  /* ---------- the envelope ---------- */
+  (function envelope() {
+    var E = D.envelope;
+    document.getElementById("env-title").textContent = "What wraps the " + f1(E.floor) + " m²";
+    var svg = document.getElementById("section");
+    if (!E.known) {
+      svg.setAttribute("viewBox", "0 0 680 60");
+      text(svg, 40, 36, "The areas were not recorded with these results.", { "font-size": 13, class: "t-3 mono" });
+      return;
+    }
+    var levelsLabel = E.levels ? "floor, " + E.levels + (E.levels === 1 ? " level" : " levels") : "floor";
+    svg.setAttribute("aria-label", "Symbolic section, not to scale: roof " + f1(E.roof) + " square metres, glass " + f1(E.glass) + ", walls above grade " + f1(E.walls_ag) + ", walls below grade " + f1(E.walls_bg) + ", " + levelsLabel + " " + f1(E.floor) + ".");
+    el("line", { x1: 40, y1: 172, x2: 640, y2: 172, stroke: "var(--ink-3)", "stroke-width": 1.5 }, svg);
+    var g = el("g", { stroke: "var(--rule)", "stroke-width": 1 }, svg);
+    [60, 90, 440, 470, 500, 530, 560, 590].forEach(function (x) { el("line", { x1: x, y1: 182, x2: x + 10, y2: 172 }, g); });
+    var below = E.walls_bg > 0;
+    if (below) {
+      el("rect", { x: 150, y: 172, width: 16, height: 44, fill: "var(--kit-2)" }, svg);
+      el("rect", { x: 404, y: 172, width: 16, height: 44, fill: "var(--kit-2)" }, svg);
+      el("rect", { x: 150, y: 214, width: 270, height: 6, rx: 1, fill: "var(--kit-2)" }, svg);
+    } else {
+      el("rect", { x: 150, y: 170, width: 270, height: 6, rx: 1, fill: "var(--kit-2)" }, svg);
+    }
+    // the right wall carries the glass, in proportion
+    var share = (E.walls_ag + E.glass) > 0 ? E.glass / (E.walls_ag + E.glass) : 0;
+    var wallTop = 58, wallBottom = 172, glassH = Math.round((wallBottom - wallTop - 20) * share);
+    el("rect", { x: 150, y: 70, width: 16, height: 102, fill: "var(--kit)" }, svg);
+    el("rect", { x: 404, y: wallTop, width: 16, height: wallBottom - wallTop, fill: "var(--kit)" }, svg);
+    if (glassH > 0) el("rect", { x: 404, y: wallTop + 22, width: 16, height: glassH, fill: "var(--glass)" }, svg);
+    var levels = Math.min(Math.max(E.levels, 1), 4);
+    for (var l = 1; l < levels; l++) {
+      var yy = 172 - (102 * l) / levels;
+      el("rect", { x: 166, y: yy - 2, width: 238, height: 5, fill: "var(--kit-2)" }, svg);
+    }
+    for (var m = 0; m < levels; m++) {
+      var mid = 172 - (102 * (m + 0.5)) / levels;
+      text(svg, 285, mid + 4, levels > 1 ? "LEVEL " + (m + 1) : "", { "text-anchor": "middle", "font-size": 11, class: "t-3 mono" });
+    }
+    el("polyline", { points: "140,74 420,46 432,46", fill: "none", stroke: "var(--kit)", "stroke-width": 7, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+    function label(x, y, anchor, big, small) {
+      text(svg, x, y, big, { "text-anchor": anchor, "font-size": 14, "font-weight": 600, class: "t-ink" });
+      text(svg, x, y + 16, small, { "text-anchor": anchor, "font-size": 12, class: "t-2" });
+    }
+    el("line", { x1: 132, y1: 112, x2: 146, y2: 112, stroke: "var(--ink-3)" }, svg);
+    label(126, 108, "end", f1(E.walls_ag) + " m²", "walls above grade");
+    if (below) {
+      el("line", { x1: 132, y1: 196, x2: 146, y2: 196, stroke: "var(--ink-3)" }, svg);
+      label(126, 192, "end", f1(E.walls_bg) + " m²", "walls below grade");
+    }
+    el("line", { x1: 440, y1: 46, x2: 476, y2: 46, stroke: "var(--ink-3)" }, svg);
+    label(482, 44, "start", f1(E.roof) + " m²", "roof");
+    el("line", { x1: 426, y1: 118, x2: 476, y2: 118, stroke: "var(--ink-3)" }, svg);
+    label(482, 114, "start", f1(E.glass) + " m²", "windows + curtain glass");
+    el("line", { x1: 426, y1: 217, x2: 476, y2: 217, stroke: "var(--ink-3)" }, svg);
+    label(482, 213, "start", f1(E.floor) + " m²", levelsLabel);
+    text(svg, 40, 244, "SECTION · NOT TO SCALE", { "font-size": 10.5, class: "t-3 mono" });
+
+    var ratios = document.getElementById("ratios");
+    var r1 = h("div", "ratio", null, ratios);
+    h("div", "value", f1(E.above_grade_ratio) + " : 1", r1);
+    h("div", "what", "Envelope above grade (" + f1(E.above_grade) + " m²) to floor. Small detached buildings run high; a mid-rise block of flats is usually well below 1 : 1.", r1);
+    var r2 = h("div", "ratio", null, ratios);
+    h("div", "value", E.glass_share + "%", r2);
+    h("div", "what", "Share of the above-grade wall that is glass.", r2);
+  })();
+
+  /* ---------- notes ---------- */
+  (function notes() {
+    var list = document.getElementById("notes");
+    D.notes.forEach(function (n) { h("li", null, n, list); });
+    if (D.command) {
+      var li = h("li", null, "Run: ", list);
+      h("code", null, D.command, li);
+    }
+  })();
+})();
+</script>
+</body>
+</html>

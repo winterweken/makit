@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {font-family: arial}
+h1 {font-size: large;}
+details {
+    border: 1px solid #aaa;
+    border-radius: 4px;
+    padding: .5em .5em 0;
+}
+details > summary {
+    font-weight: bold;
+    margin: -.5em -.5em 0;
+    padding: .5em;
+    font-size: larger;
+    cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<br>
+Run name: <output id="run_name"></output><br>
+Last updated: <output id="last_updated"></output>
+<br><br>
+
+<details open>
+    <summary>
+        Inputs
+    </summary>
+    <p id="inputs"></p>
+</details>
+
+<details open>
+    <summary>
+        Summary Intensities
+    </summary>
+    <h1>Energy and GHG Intensities</h1>
+    <p id="annual_intensities"></p>
+</details>
+
+<details>
+    <summary>
+        Thermal Energy Demand
+    </summary>
+    <h1>Heat Gains and Losses</h1>
+    <p id="annual_thermal_breakdown"></p>
+    <h1>Monthly Heating and Cooling Energy Demand</h1>
+    <p id="monthly_thermal_demand"></p>
+</details>
+
+<details>
+    <summary>
+        End Uses
+    </summary>
+    <h1>Annual End Use Breakdown</h1>
+    <p id="annual_end_use_breakdown"></p>
+    <h1>Monthly Total Energy Consumption</h1>
+    <p id="monthly_end_use"></p>
+</details>
+
+<details>
+    <summary>
+        Fuel Consumption
+    </summary>
+    <h1>Monthly Gas and Electricity Consumption</h1>
+    <p id="monthly_gas_electricity"></p>
+</details>
+
+</body>
+<script src="javascript/metadata.js"></script>
+<script src="javascript/tables.js"></script>
+</html>
