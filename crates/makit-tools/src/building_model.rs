@@ -1265,7 +1265,8 @@ mod tests {
             0.0,
         );
         assert_eq!(round1(duplex.gfa), 299.3);
-        assert_eq!(round1(duplex.roof), 137.4);
+        // The roof slab with its two skylight holes, not the openings' boxes
+        assert_eq!(round1(duplex.roof), 132.9);
         assert!(duplex.windows > 60.0, "{}", duplex.windows);
         assert_eq!((duplex.storeys.len(), duplex.empty_storeys), (4, 2));
 

@@ -549,15 +549,16 @@ def get_triangles(element):
 
 def get_element_faces(element):
     """
-    Faces of an element's own geometry, or of its decomposed parts when it
-    has none itself (an IfcRoof made of slabs, say). Never both.
+    Faces of an element's own geometry, or of its parts when it has none
+    itself (an IfcRoof made of slabs, say), and so on down: a part with
+    geometry stands for its own parts. Never both. Only parts count, not a
+    part's openings or what fills them (a skylight is a window, not roof).
     """
     if getattr(element, 'Representation', None):
         return get_faces(element)
     faces = []
-    for part in ifcopenshell.util.element.get_decomposition(element):
-        if getattr(part, 'Representation', None):
-            faces.extend(get_faces(part))
+    for part in ifcopenshell.util.element.get_parts(element):
+        faces.extend(get_element_faces(part))
     return faces
 
 def get_footprint(faces):

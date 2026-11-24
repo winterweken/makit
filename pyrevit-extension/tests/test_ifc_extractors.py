@@ -833,6 +833,56 @@ class RoofAncestryTest(TempDirTest):
         self.assertEqual([(s.kind, s.id) for s in model.slabs], [("roof", roof.GlobalId)])
         self.assertAlmostEqual(model.slabs[0].area, 64.0, places=1)
 
+    def test_a_part_with_its_own_geometry_is_measured_without_its_parts(self):
+        # IfcRoof -> IfcElementAssembly with its own deck -> ROOF slab under it:
+        # the assembly's geometry stands for its parts, as a roof's own does.
+        import ifcopenshell.api.aggregate
+        import ifcopenshell.api.geometry
+        f, body = geometry_file()
+        roof = f.createIfcRoof(ifcopenshell.guid.new(), None, "roof", None, None,
+                               place3(f, (0, 0), 6.0), None, None, "FLAT_ROOF")
+        assembly = f.createIfcElementAssembly(ifcopenshell.guid.new(), None, "deck", None, None,
+                                              place3(f, (0, 0), 6.0), None, None, None, "USERDEFINED")
+        rep = ifcopenshell.api.geometry.add_slab_representation(
+            f, context=body, depth=0.2, polyline=[(0.0, 0.0), (8.0, 0.0), (8.0, 8.0), (0.0, 8.0)])
+        ifcopenshell.api.geometry.assign_representation(f, product=assembly, representation=rep)
+        slab = slab_box(f, body, "deck slab", (0, 0), (8, 8), top=6.2, predefined="ROOF")
+        ifcopenshell.api.aggregate.assign_object(f, products=[assembly], relating_object=roof)
+        ifcopenshell.api.aggregate.assign_object(f, products=[slab], relating_object=assembly)
+        model = self.extract(f)
+        self.assertEqual([(s.kind, s.id) for s in model.slabs], [("roof", roof.GlobalId)])
+        self.assertAlmostEqual(model.slabs[0].area, 64.0, places=1)
+
+    def test_a_skylight_in_a_roof_part_is_not_roof(self):
+        # IfcRoof -> ROOF slab with a 1 x 1 m opening and a skylight in it: the
+        # slab is measured with its hole, and neither the opening's box nor the
+        # skylight is roof (the skylight counts among the windows).
+        import ifcopenshell.api.aggregate
+        import ifcopenshell.api.feature
+        import ifcopenshell.api.geometry
+        f, body = geometry_file()
+
+        def box(product, size, depth):
+            rep = ifcopenshell.api.geometry.add_slab_representation(
+                f, context=body, depth=depth, polyline=[(0.0, 0.0), (size, 0.0), (size, size), (0.0, size)])
+            ifcopenshell.api.geometry.assign_representation(f, product=product, representation=rep)
+
+        roof = f.createIfcRoof(ifcopenshell.guid.new(), None, "roof", None, None,
+                               place3(f, (0, 0), 6.0), None, None, "FLAT_ROOF")
+        slab = slab_box(f, body, "deck", (0, 0), (8, 8), top=6.2, predefined="ROOF")
+        ifcopenshell.api.aggregate.assign_object(f, products=[slab], relating_object=roof)
+        opening = f.createIfcOpeningElement(ifcopenshell.guid.new(), None, "hole", None, None,
+                                            place3(f, (3, 3), 5.9), None, None, "OPENING")
+        box(opening, 1.0, 0.5)
+        ifcopenshell.api.feature.add_feature(f, feature=opening, element=slab)
+        skylight = f.createIfcWindow(ifcopenshell.guid.new(), None, "skylight", None, None,
+                                     place3(f, (3, 3), 6.0), None, None, 1.0, 1.0)
+        box(skylight, 1.0, 0.1)
+        ifcopenshell.api.feature.add_filling(f, opening=opening, element=skylight)
+        model = self.extract(f)
+        self.assertEqual([(s.kind, s.id) for s in model.slabs], [("roof", roof.GlobalId)])
+        self.assertAlmostEqual(model.slabs[0].area, 63.0, places=1)
+
 
 @unittest.skipIf(ifcopenshell is None, "needs ifcopenshell")
 class AreaUnitTest(TempDirTest):

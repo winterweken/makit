@@ -112,7 +112,7 @@ Extractions written by this version of the extractor carry `metadata.formatVersi
     { "id": "…", "name": "Floor:Slab on Grade", "kind": "floor", "area": 64.8,
       "top": 0.0, "bottom": -0.13, "storey": "Level 1", "type": "Floor:127mm Slab on Grade",
       "isExternal": false, "properties": { "ifcType": "IfcSlab" } },
-    { "id": "…", "name": "Basic Roof:Live Roof", "kind": "roof", "area": 137.4, "top": 6.46, "bottom": 6.0, "storey": "Roof" }
+    { "id": "…", "name": "Basic Roof:Live Roof", "kind": "roof", "area": 132.9, "top": 6.46, "bottom": 6.0, "storey": "Roof" }
   ],
   "walls": [{ "…": "…", "bottom": -1.25, "top": 3.1 }]
 }
@@ -241,7 +241,8 @@ The extractor also records what an energy model needs beyond walls and windows:
   pad buried under the floor, say) keeps `storey: null`; the analyses report it and
   leave it out.
 - **Roofs** (`slabs` of kind `roof`): each `IfcRoof` (its own geometry when it has
-  one, else its decomposed parts, never both) and each `ROOF` slab outside any
+  one, else its parts, never both; a part with geometry stands for its own parts,
+  and a part's openings and the skylights in them are never roof) and each `ROOF` slab outside any
   `IfcRoof`. A slab anywhere under an `IfcRoof`, however deep the aggregation,
   is measured with it and never on its own. A roof's `area` is its up-facing
   surface (faces whose normal has z > 0.5), so a gable counts its slopes, not

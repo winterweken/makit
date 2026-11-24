@@ -132,7 +132,7 @@ makit exec murb reporting murb-report -o input=murb_results.json -o format=html
 # without it and without a model, 25% each way.
 makit exec murb analysis murb-simulate \
   -o epw=weather.epw -o gfa=299.3 -o walls-ag=345.7 -o walls-bg=77 -o windows=65.2 \
-  -o roof=137.4 -o window-directions=SE:68,SW:20,NE:12
+  -o roof=132.9 -o window-directions=SE:68,SW:20,NE:12
 
 # Show help
 makit --help
@@ -278,7 +278,7 @@ cargo build
 # three committed extractions in examples/IFC and need no Python.
 cargo test
 
-# Python IFC extractor: set up once, then run its 65 tests. makit finds this
+# Python IFC extractor: set up once, then run its 67 tests. makit finds this
 # Python on its own (MAKIT_PYTHON, then .venv/bin/python, then python3).
 uv venv .venv --python 3.13 && uv pip install --python .venv/bin/python ifcopenshell
 .venv/bin/python -m unittest discover -s pyrevit-extension/tests
