@@ -1,18 +1,12 @@
-//! MURB energy modelling tool bridge.
+//! The MURB energy tool: early-stage TEDI, TEUI and GHGI for a building.
 //!
-//! Bridges the Python murb_energy_tool via JSON subprocess for
-//! early-stage TEDI/TEUI/GHGI analysis.
-//!
-//! Protocol:
-//! 1. Serialize `MurbInput` as JSON
-//! 2. Spawn `python scripts/murb_runner.py`
-//! 3. Write JSON to child stdin, close it
-//! 4. Read JSON from child stdout
-//! 5. Deserialize into `MurbResults`
+//! `murb-simulate` gathers the building from its options and an IFC model,
+//! runs the energy model in-process ([`crate::energy`], a Rust port of
+//! murb_energy_tool) on an EPW weather file, and writes the results JSON and
+//! the report page beside it. `murb-report` rebuilds the report from a
+//! results file.
 
-use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -21,9 +15,10 @@ use makit_core::models::{CancelToken, TaskContext};
 use makit_core::registry::Registry;
 
 use crate::building_model::{self, Envelope};
+use crate::energy::weather::{self, Weather};
+use crate::energy::{self, Monthly};
 use crate::ifc;
 use crate::murb_report;
-use crate::python;
 
 // ---------------------------------------------------------------------------
 // Data Types (M2)
@@ -57,10 +52,6 @@ pub struct MurbInput {
     pub hrv_efficiency: f64,
     #[serde(default = "default_window_groups")]
     pub window_groups: Vec<WindowGroupInput>,
-    /// Directory under which the runner writes murb's own HTML report
-    /// (`results/<name>/<name>.html`); none, no report.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub report_dir: Option<String>,
 }
 
 /// A window group for solar gain calculation.
@@ -89,12 +80,10 @@ pub struct MurbResults {
     pub ghgi_kg_m2: f64,
     pub gfa: f64,
     pub weather_file: String,
-    /// murb's HTML report, when the runner wrote one.
-    #[serde(default)]
-    pub report_path: Option<String>,
-    /// Why it could not write one, when it could not.
-    #[serde(default)]
-    pub report_error: Option<String>,
+    /// Where the heat goes and which fuels the energy comes from, month by
+    /// month (results written before makit ran the model itself have none).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub breakdown: Option<Breakdown>,
     /// The input the run was made from, for the report page.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub input: Option<MurbInput>,
@@ -110,6 +99,28 @@ pub struct MurbResults {
     /// The makit command that reproduces the run.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub command: Option<String>,
+}
+
+/// The monthly series behind the totals, kWh, named as the energy model
+/// names them: heat lost and gained by each path while heating and while
+/// cooling, the end uses, and the split between electricity and gas.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Breakdown {
+    pub transmission_heat_losses: Vec<f64>,
+    pub transmission_heat_gains: Vec<f64>,
+    pub ventilation_heat_losses: Vec<f64>,
+    pub ventilation_heat_gains: Vec<f64>,
+    pub infiltration_heat_losses: Vec<f64>,
+    pub infiltration_heat_gains: Vec<f64>,
+    pub internal_gains_during_htg: Vec<f64>,
+    pub internal_gains_during_clg: Vec<f64>,
+    pub solar_gains_during_htg: Vec<f64>,
+    pub solar_gains_during_clg: Vec<f64>,
+    pub lighting_consumption: Vec<f64>,
+    pub dhw_htg_consumption: Vec<f64>,
+    pub plug_loads_consumption: Vec<f64>,
+    pub electricity_consumption: Vec<f64>,
+    pub gas_consumption: Vec<f64>,
 }
 
 /// What a run with the glass spread evenly (25 % each way) gave, kept with
@@ -148,8 +159,7 @@ fn is_even_split(groups: &[WindowGroupInput]) -> bool {
 }
 
 /// The comparison run for `input`: the same building with its glass spread
-/// evenly, named after it and without murb's HTML report. `None` when the
-/// split already is even.
+/// evenly, named after it. `None` when the split already is even.
 pub fn even_glass_input(input: &MurbInput) -> Option<MurbInput> {
     if is_even_split(&input.window_groups) {
         return None;
@@ -157,7 +167,6 @@ pub fn even_glass_input(input: &MurbInput) -> Option<MurbInput> {
     Some(MurbInput {
         name: format!("{} (even glass)", input.name),
         window_groups: default_window_groups(),
-        report_dir: None,
         ..input.clone()
     })
 }
@@ -517,45 +526,96 @@ fn describe_window_groups(groups: &[WindowGroupInput]) -> String {
 // Subprocess Bridge (M3-M5)
 // ---------------------------------------------------------------------------
 
-/// Run a MURB simulation via the Python subprocess bridge.
+/// The energy model's inputs for `input`: what makit knows of the building,
+/// and murb's defaults for the rest.
+fn engine_inputs(input: &MurbInput) -> energy::Inputs {
+    energy::Inputs {
+        province: input.province.clone(),
+        gfa: input.gfa,
+        area_walls_ag: input.area_walls_ag,
+        area_walls_bg: input.area_walls_bg,
+        area_windows: input.area_windows,
+        area_roof: input.area_roof,
+        window_groups: input
+            .window_groups
+            .iter()
+            .map(|g| energy::WindowGroup {
+                pct_window_area: g.pct_window_area,
+                window_azimuth: g.window_azimuth,
+                shgc: g.shgc,
+                shading: g.shading,
+            })
+            .collect(),
+        u_walls_ag: input.u_walls_ag,
+        u_windows: input.u_windows,
+        u_roof: input.u_roof,
+        cop_htg: input.cop_htg,
+        cop_clg: input.cop_clg,
+        cop_dhw: input.cop_dhw,
+        hrv_efficiency: input.hrv_efficiency,
+        ..energy::Inputs::default()
+    }
+}
+
+/// `value` rounded to two decimal places.
+fn round2(value: f64) -> f64 {
+    (value * 100.0).round() / 100.0
+}
+
+/// Runs the energy model for `input` in `weather`: every monthly series,
+/// and TEDI, TEUI and GHGI per square metre of floor.
+pub fn simulate_with(input: &MurbInput, weather: &Weather) -> anyhow::Result<MurbResults> {
+    let out = energy::simulate(&engine_inputs(input), weather)
+        .map_err(|err| anyhow::anyhow!("MURB simulation failed: {err}"))?;
+    let gfa = input.gfa;
+    let per_m2 = |series: &Monthly| round2(series.iter().sum::<f64>() / gfa);
+    Ok(MurbResults {
+        name: format!("{}_TMY", input.name),
+        monthly_heating_demand: out.heating_demand.to_vec(),
+        monthly_cooling_demand: out.cooling_demand.to_vec(),
+        monthly_heating_consumption: out.heating_consumption.to_vec(),
+        monthly_cooling_consumption: out.cooling_consumption.to_vec(),
+        monthly_total_consumption: out.total_energy_consumption.to_vec(),
+        monthly_ghg_emissions: out.total_ghg_emissions.to_vec(),
+        tedi_kwh_m2: per_m2(&out.heating_demand),
+        teui_kwh_m2: per_m2(&out.total_energy_consumption),
+        ghgi_kg_m2: per_m2(&out.total_ghg_emissions),
+        gfa,
+        weather_file: out.city.clone(),
+        breakdown: Some(Breakdown {
+            transmission_heat_losses: out.transmission_heat_losses.to_vec(),
+            transmission_heat_gains: out.transmission_heat_gains.to_vec(),
+            ventilation_heat_losses: out.ventilation_heat_losses.to_vec(),
+            ventilation_heat_gains: out.ventilation_heat_gains.to_vec(),
+            infiltration_heat_losses: out.infiltration_heat_losses.to_vec(),
+            infiltration_heat_gains: out.infiltration_heat_gains.to_vec(),
+            internal_gains_during_htg: out.internal_gains_during_htg.to_vec(),
+            internal_gains_during_clg: out.internal_gains_during_clg.to_vec(),
+            solar_gains_during_htg: out.solar_gains_during_htg.to_vec(),
+            solar_gains_during_clg: out.solar_gains_during_clg.to_vec(),
+            lighting_consumption: out.lighting_consumption.to_vec(),
+            dhw_htg_consumption: out.dhw_htg_consumption.to_vec(),
+            plug_loads_consumption: out.plug_loads_consumption.to_vec(),
+            electricity_consumption: out.electricity_consumption.to_vec(),
+            gas_consumption: out.gas_consumption.to_vec(),
+        }),
+        input: None,
+        envelope: None,
+        model: None,
+        even_glass: None,
+        command: None,
+    })
+}
+
+/// The weather in `input`'s EPW file.
+fn read_weather(input: &MurbInput) -> anyhow::Result<Weather> {
+    Weather::read(Path::new(&input.epw_path))
+        .map_err(|err| anyhow::anyhow!("MURB simulation failed: {err}"))
+}
+
+/// Runs the energy model for `input`, reading its EPW file.
 pub fn run_simulation(input: &MurbInput) -> anyhow::Result<MurbResults> {
-    let python = python::find("murb_energy_tool")?;
-    let script = python::repo_file("scripts/murb_runner.py")?;
-    let input_json = serde_json::to_string(input)?;
-
-    let mut child = Command::new(&python)
-        .arg(&script)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| anyhow::anyhow!("Failed to spawn Python process: {}", e))?;
-
-    // Write JSON to stdin
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin.write_all(input_json.as_bytes())?;
-        // stdin is dropped here, closing the pipe
-    }
-
-    let output = child.wait_with_output()?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("MURB simulation failed: {}", stderr.trim());
-    }
-
-    let stdout = String::from_utf8(output.stdout)
-        .map_err(|e| anyhow::anyhow!("Invalid UTF-8 from murb_runner: {}", e))?;
-
-    let results: MurbResults = serde_json::from_str(&stdout).map_err(|e| {
-        anyhow::anyhow!(
-            "Failed to parse MURB results: {} — output: {}",
-            e,
-            &stdout[..stdout.len().min(200)]
-        )
-    })?;
-
-    Ok(results)
+    simulate_with(input, &read_weather(input)?)
 }
 
 /// Format MURB results as a text report.
@@ -614,8 +674,8 @@ pub fn epw_city(path: &Path) -> Option<String> {
     use std::io::BufRead;
     let file = std::fs::File::open(path).ok()?;
     let first = std::io::BufReader::new(file).lines().next()?.ok()?;
-    let fields = first.strip_prefix("LOCATION,")?;
-    let city = fields.split(',').next()?.split('.').next()?.trim();
+    let location = weather::parse_location(&first).ok()?;
+    let city = location.city.split('.').next()?.trim();
     (!city.is_empty()).then(|| city.to_string())
 }
 
@@ -635,52 +695,6 @@ fn run_name(typed: &str, model: Option<&Path>, epw: &Path) -> String {
     }
 }
 
-/// A path as the Output pane shows it: relative to the current directory
-/// when it lies inside it (murb reports its HTML report absolute), as
-/// given otherwise.
-fn local_path(path: &str) -> String {
-    std::env::current_dir()
-        .ok()
-        .and_then(|cwd| {
-            Path::new(path)
-                .strip_prefix(cwd)
-                .ok()
-                .map(|rel| rel.display().to_string())
-        })
-        .unwrap_or_else(|| path.to_string())
-}
-
-/// Where murb's HTML report goes: the directory of the results file
-/// (`--output`), made absolute; none when no results file is written.
-fn report_dir(output: &str) -> Option<String> {
-    let output = output.trim();
-    if output.is_empty() {
-        return None;
-    }
-    let parent = Path::new(output)
-        .parent()
-        .filter(|p| !p.as_os_str().is_empty())
-        .map(Path::to_path_buf)
-        .unwrap_or_else(|| PathBuf::from("."));
-    let dir = if parent.is_absolute() {
-        parent
-    } else {
-        std::env::current_dir().ok()?.join(&parent)
-    };
-    // "." and ".." on the end of an absolute path, without touching the disk
-    let mut clean = PathBuf::new();
-    for part in dir.components() {
-        match part {
-            std::path::Component::CurDir => {}
-            std::path::Component::ParentDir => {
-                clean.pop();
-            }
-            other => clean.push(other),
-        }
-    }
-    Some(clean.to_string_lossy().into_owned())
-}
-
 /// The simulation input `murb-simulate` sends for `ctx`'s options, one line
 /// per quantity saying where it came from, and the model's envelope when a
 /// model was given.
@@ -688,9 +702,14 @@ fn simulation_input(
     ctx: &TaskContext,
 ) -> anyhow::Result<(MurbInput, Vec<String>, Option<Envelope>)> {
     let grade_text = ctx.get_option("grade", "0");
-    let grade: f64 = grade_text.trim().parse().map_err(|_| {
-        anyhow::anyhow!("--grade must be a number (metres, project z), not '{grade_text}'")
-    })?;
+    let grade: f64 = grade_text
+        .trim()
+        .parse()
+        .ok()
+        .filter(|g: &f64| g.is_finite())
+        .ok_or_else(|| {
+            anyhow::anyhow!("--grade must be a number (metres, project z), not '{grade_text}'")
+        })?;
     let model = model_envelope(ctx, grade)?;
 
     let mut sources = Vec::new();
@@ -731,7 +750,6 @@ fn simulation_input(
         cop_dhw: ctx.get_option("cop-dhw", "0.85").parse()?,
         hrv_efficiency: ctx.get_option("hrv", "0.55").parse()?,
         window_groups,
-        report_dir: report_dir(&ctx.get_option("output", "murb_results.json")),
     };
 
     if input.epw_path.is_empty() {
@@ -743,7 +761,7 @@ fn simulation_input(
     Ok((input, sources, model.map(|(envelope, _)| envelope)))
 }
 
-/// Handle `murb-simulate` — runs the full subprocess bridge.
+/// Handle `murb-simulate`: runs the energy model, and again with the glass spread evenly.
 fn handle_simulate(ctx: &TaskContext) -> anyhow::Result<()> {
     let (input, sources, envelope) = simulation_input(ctx)?;
 
@@ -759,19 +777,15 @@ fn handle_simulate(ctx: &TaskContext) -> anyhow::Result<()> {
     }
     println!();
 
-    let mut results = run_simulation(&input)?;
+    let weather = read_weather(&input)?;
+    let mut results = simulate_with(&input, &weather)?;
 
     // Print summary
     print!("{}", format_report(&results));
-    if let Some(path) = &results.report_path {
-        println!("\nmurb's HTML report: {}", local_path(path));
-    } else if let Some(err) = &results.report_error {
-        println!("\n{err}");
-    }
 
     // The same building with its glass spread evenly, for the page's comparison
     if let Some(even) = even_glass_input(&input) {
-        match run_simulation(&even) {
+        match simulate_with(&even, &weather) {
             Ok(comparison) => results.even_glass = Some(EvenGlass::from_results(&comparison)),
             Err(err) => println!("\n(no even-glass comparison: {err:#})"),
         }
@@ -834,13 +848,7 @@ fn handle_report(ctx: &TaskContext) -> anyhow::Result<()> {
 
 /// Handle `murb` source connection check.
 fn handle_connect(_ctx: &TaskContext) -> anyhow::Result<()> {
-    match python::find("murb_energy_tool") {
-        Ok(python) => println!(
-            "✓ MURB energy model available (Python: {})",
-            python.display()
-        ),
-        Err(err) => println!("✗ {err}"),
-    }
+    println!("✓ MURB energy model built in (ported from github.com/winterweken/murb at a1d9e81)");
     Ok(())
 }
 
@@ -1332,63 +1340,6 @@ mod tests {
     }
 
     #[test]
-    fn the_report_goes_beside_the_results_file() {
-        let dir = folder("report-dir");
-        let json = dir.join("house.json");
-        write_envelope_model(&json, true, true, true);
-        let out = dir.join("out").join("run.json");
-        let (input, _, _) =
-            simulation_input(&model_context(&json, &[("output", out.to_str().unwrap())])).unwrap();
-        assert_eq!(
-            input.report_dir.as_deref(),
-            Some(dir.join("out").to_str().unwrap())
-        );
-        // the default results file is in the working directory, so is the report
-        let (input, _, _) = simulation_input(&model_context(&json, &[])).unwrap();
-        assert_eq!(
-            input.report_dir.as_deref().map(std::path::PathBuf::from),
-            std::env::current_dir().ok()
-        );
-        // no results file, no report
-        let (input, _, _) = simulation_input(&model_context(&json, &[("output", "")])).unwrap();
-        assert_eq!(input.report_dir, None);
-    }
-
-    #[test]
-    fn report_path_is_shown_relative_to_the_current_directory() {
-        let cwd = std::env::current_dir().unwrap();
-        let inside = cwd.join("results").join("h_TMY").join("h_TMY.html");
-        assert_eq!(
-            local_path(&inside.display().to_string()),
-            Path::new("results")
-                .join("h_TMY")
-                .join("h_TMY.html")
-                .display()
-                .to_string()
-        );
-        assert_eq!(local_path("/elsewhere/h_TMY.html"), "/elsewhere/h_TMY.html");
-        assert_eq!(local_path("results/h.html"), "results/h.html");
-    }
-
-    #[test]
-    fn results_carry_the_report_path_when_the_runner_gives_one() {
-        let base = r#"{"name": "h_TMY", "monthly_heating_demand": [], "monthly_cooling_demand": [],
-            "monthly_heating_consumption": [], "monthly_cooling_consumption": [],
-            "monthly_total_consumption": [], "monthly_ghg_emissions": [], "tedi_kwh_m2": 1.0,
-            "teui_kwh_m2": 2.0, "ghgi_kg_m2": 3.0, "gfa": 4.0, "weather_file": "T""#;
-        let old: MurbResults = serde_json::from_str(&format!("{base}}}")).unwrap();
-        assert_eq!((old.report_path, old.report_error), (None, None));
-        let new: MurbResults = serde_json::from_str(&format!(
-            r#"{base}, "report_path": "/r/results/h_TMY/h_TMY.html", "report_error": null}}"#
-        ))
-        .unwrap();
-        assert_eq!(
-            new.report_path.as_deref(),
-            Some("/r/results/h_TMY/h_TMY.html")
-        );
-    }
-
-    #[test]
     fn the_model_fills_every_untyped_area() {
         let dir = folder("fills");
         let json = dir.join("house.json");
@@ -1535,7 +1486,6 @@ mod tests {
             cop_dhw: 0.85,
             hrv_efficiency: 0.55,
             window_groups: default_window_groups(),
-            report_dir: Some("/r".into()),
         };
         assert!(even_glass_input(&input).is_none());
         input.window_groups = parse_window_directions("SE:3,SW:1").unwrap();
@@ -1546,7 +1496,6 @@ mod tests {
         );
         assert_eq!(even.area_windows, 10.0);
         assert_eq!(even.name, "house in Toronto (even glass)");
-        assert_eq!(even.report_dir, None);
     }
 
     #[test]
@@ -1627,7 +1576,6 @@ mod tests {
             cop_dhw: 0.85,
             hrv_efficiency: 0.55,
             window_groups: default_window_groups(),
-            report_dir: None,
         };
 
         let json = serde_json::to_string(&input).unwrap();
@@ -1663,6 +1611,89 @@ mod tests {
         assert_eq!(results.monthly_heating_demand.len(), 12);
     }
 
+    fn makit_defaults(epw: &str) -> MurbInput {
+        MurbInput {
+            epw_path: epw.into(),
+            name: "check".into(),
+            province: "ON".into(),
+            gfa: 12000.0,
+            area_walls_ag: 4200.0,
+            area_walls_bg: 0.0,
+            area_windows: 1800.0,
+            area_roof: 1100.0,
+            u_walls_ag: 0.273,
+            u_windows: 2.56,
+            u_roof: 0.164,
+            cop_htg: 0.85,
+            cop_clg: 5.2,
+            cop_dhw: 0.85,
+            hrv_efficiency: 0.55,
+            window_groups: default_window_groups(),
+        }
+    }
+
+    #[test]
+    fn a_run_gives_the_engines_numbers() {
+        use crate::energy::test_support::{assert_monthly, parity, synthetic_epw};
+        let epw = synthetic_epw();
+        let results = run_simulation(&makit_defaults(epw.to_str().unwrap())).unwrap();
+        let want = &parity()["scenarios"]["makit_defaults"]["outputs"];
+        assert_eq!(results.name, "check_TMY");
+        assert_eq!(results.weather_file, "SYNTHETIC CALGARY");
+        let heating: crate::energy::Monthly =
+            results.monthly_heating_demand.clone().try_into().unwrap();
+        assert_monthly("heating_demand", &heating, &want["heating_demand"]);
+        let breakdown = results.breakdown.as_ref().expect("a breakdown");
+        let gas: crate::energy::Monthly = breakdown.gas_consumption.clone().try_into().unwrap();
+        assert_monthly("gas_consumption", &gas, &want["gas_consumption"]);
+        let tedi = heating.iter().sum::<f64>() / 12000.0;
+        assert_eq!(results.tedi_kwh_m2, (tedi * 100.0).round() / 100.0);
+    }
+
+    #[test]
+    fn a_missing_weather_file_names_its_path() {
+        let err = run_simulation(&makit_defaults("nowhere/x.epw")).unwrap_err();
+        assert!(err.to_string().contains("nowhere/x.epw"), "{err}");
+    }
+
+    #[test]
+    fn a_grade_that_is_not_a_finite_number_names_grade() {
+        for grade in ["nan", "inf", "-inf"] {
+            let mut ctx = TaskContext::new();
+            for (key, value) in [("epw", "t.epw"), ("grade", grade)] {
+                ctx.options.insert(key.into(), value.into());
+            }
+            let err = simulation_input(&ctx).unwrap_err().to_string();
+            assert!(err.contains("--grade"), "{grade}: {err}");
+        }
+    }
+
+    #[test]
+    fn a_typed_nan_is_refused() {
+        let epw = crate::energy::test_support::synthetic_epw();
+        let input = MurbInput {
+            u_windows: f64::NAN,
+            ..makit_defaults(epw.to_str().unwrap())
+        };
+        let err = run_simulation(&input).unwrap_err();
+        assert!(err.to_string().contains("u_windows"), "{err}");
+    }
+
+    #[test]
+    fn results_from_the_python_bridge_still_load() {
+        let json = r#"{"name": "h_TMY", "monthly_heating_demand": [], "monthly_cooling_demand": [],
+            "monthly_heating_consumption": [], "monthly_cooling_consumption": [],
+            "monthly_total_consumption": [], "monthly_ghg_emissions": [], "tedi_kwh_m2": 1.0,
+            "teui_kwh_m2": 2.0, "ghgi_kg_m2": 3.0, "gfa": 4.0, "weather_file": "T",
+            "report_path": "/r/results/h_TMY/h_TMY.html", "report_error": null,
+            "input": {"epw_path": "t.epw", "name": "h", "province": "ON", "gfa": 4.0,
+                      "area_walls_ag": 1.0, "area_windows": 1.0, "area_roof": 1.0,
+                      "report_dir": "/r"}}"#;
+        let old: MurbResults = serde_json::from_str(json).unwrap();
+        assert_eq!(old.breakdown, None);
+        assert_eq!(old.input.map(|i| i.gfa), Some(4.0));
+    }
+
     #[test]
     fn test_format_report() {
         let results = MurbResults {
@@ -1678,8 +1709,7 @@ mod tests {
             ghgi_kg_m2: 13.6,
             gfa: 5000.0,
             weather_file: "TORONTO".to_string(),
-            report_path: None,
-            report_error: None,
+            breakdown: None,
             input: None,
             envelope: None,
             model: None,

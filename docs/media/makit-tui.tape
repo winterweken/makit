@@ -1,8 +1,8 @@
 # The README's TUI recording. Render from the repository root with:
 #   vhs docs/media/makit-tui.tape
 # Needs: the local sample Ifc4_ARC.ifc in examples/IFC, the Toronto EPW in
-# examples/EPW, a Python with IfcOpenShell in .venv, and murb's pure-Python
-# branch checked out at ../murb-pp. The IFC is touched first so the picker
+# examples/EPW, and a Python with IfcOpenShell in .venv (the energy model is
+# built in). The IFC is touched first so the picker
 # shows extraction on demand; move any murb_results.json out of the root
 # first so the TUI starts without cached results.
 
@@ -17,7 +17,7 @@ Set Framerate 20
 Set TypingSpeed 30ms
 
 Hide
-Type "export PYTHONPATH=../murb-pp MAKIT_PYTHON=.venv/bin/python; touch examples/IFC/Ifc4_ARC.ifc; cargo build -q -p makit; clear" Enter
+Type "export MAKIT_PYTHON=.venv/bin/python; touch examples/IFC/Ifc4_ARC.ifc; cargo build -q -p makit; clear" Enter
 Sleep 2s
 Show
 

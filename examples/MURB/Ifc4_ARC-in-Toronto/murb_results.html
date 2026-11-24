@@ -84,6 +84,14 @@
   th, td { padding: 5px 14px 5px 0; text-align: right; border-bottom: 1px solid var(--rule); }
   th:first-child, td:first-child { text-align: left; }
   th { font-weight: 500; color: var(--ink-3); font-size: 12.5px; }
+  .flows { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 22px 40px; }
+  .flow-group { display: grid; gap: 9px; align-content: start; }
+  .flow-title { font-size: 14px; color: var(--ink-2); }
+  .flow { display: grid; grid-template-columns: 8.5em minmax(0, 1fr) 7.4em; align-items: center; gap: 10px; font-size: 14px; }
+  .flow-track { height: 10px; border-radius: 3px; background: var(--rule); overflow: hidden; }
+  .flow-track i { display: block; height: 100%; border-radius: 3px; }
+  .flow-value { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+  .flow-value small { color: var(--ink-3); font-size: 12px; margin-left: 3px; }
   .ratios { display: flex; flex-wrap: wrap; gap: 10px 36px; }
   .ratio { display: grid; gap: 2px; }
   .ratio .value { font-weight: 600; font-size: 24px; }
@@ -99,7 +107,7 @@
 </style>
 </head>
 <body>
-<script id="makit-data" type="application/json">{"title":"Ifc4_ARC in Toronto","subtitle":"A model with 5 storeys and 718.8 m² of floor, run through the monthly MURB heat balance with Toronto.City-Univ.of.Toronto weather. Every area below was measured from the IFC model.","weather":"Toronto.City-Univ.of.Toronto","lede":"67% of the glass faces south-east: 11% less heating need than the same building with its glass spread evenly.","gfa":718.8,"levels":[{"name":"Foundation","area":3.6},{"name":"Level 1 Living Rm.","area":162.3},{"name":"Level 1","area":144.4},{"name":"Ceiling","area":149.5},{"name":"Level 2","area":259.1}],"glass":{"total":192.0,"unfaced":5.3,"facings":[{"azimuth":143.0,"area":129.5,"share":67,"name":"SE","word":"south-east"},{"azimuth":233.0,"area":40.1,"share":21,"name":"SW","word":"south-west"},{"azimuth":53.0,"area":22.4,"share":12,"name":"NE","word":"north-east"}]},"intensities":{"tedi":86.76,"teui":207.76,"ghgi":31.67,"even":{"tedi":97.06,"teui":218.04,"ghgi":33.84}},"monthly":{"heating":[13.06,11.7,9.69,5.05,1.36,0.02,0.0,0.0,0.18,2.24,7.11,11.95],"cooling":[0.16,0.29,0.64,1.01,1.97,4.14,8.04,8.43,3.45,1.02,0.41,0.11],"energy":[21.37,19.21,17.49,11.92,7.94,6.59,7.51,7.59,6.65,8.8,14.22,20.05]},"totals":{"heating":62.37,"cooling":29.67,"energy":149.34,"even_heating":69.77,"even_cooling":22.8},"envelope":{"roof":244.3,"glass":197.3,"walls_ag":532.5,"walls_bg":174.7,"floor":718.8,"levels":5,"above_grade":974.2,"above_grade_ratio":1.4,"glass_share":27,"known":true},"notes":["Floor area is the footprint union of each storey's floor plates: Foundation 3.6 m², Level 1 Living Rm. 162.3 m², Level 1 144.4 m², Ceiling 149.5 m², Level 2 259.1 m². Left out, at no storey's level: Pad:Pad 2:523064 (287.3 m²), M_Pile-Steel Pipe:600mm Diameter:512299 (0.1 m²), M_Pile-Steel Pipe:600mm Diameter:512321 (0.1 m²) and 7 more, 288.0 m² in all. 1 storey(s) have no plate at their level.","Glass is the windows set in exterior walls plus curtain-wall glass, split by the wall's facing. 5.3 m² of windows in no wall (skylights, say) count in the area but not on the compass.","Walls are net of their openings and split at grade 0.0 m: 532.5 m² above, 174.7 m² below.","U-values: walls 0.273, windows 2.56, roof 0.164 W/m²K (makit's defaults); heat recovery 55%; heating COP 0.85, cooling COP 5.2.","murb_energy_tool is written for multi-unit residential buildings; for other building types treat these results as indicative."],"command":"makit exec murb analysis murb-simulate -o epw=examples/EPW/Toronto_TMU/CAN_ON_Toronto.City-Univ.of.Toronto.715080_TMYx.epw -o model=examples/IFC/Ifc4_ARC.ifc -o output=examples/MURB/Ifc4_ARC-in-Toronto/murb_results.json"}</script>
+<script id="makit-data" type="application/json">{"title":"Ifc4_ARC in Toronto","subtitle":"A model with 5 storeys and 718.8 m² of floor, run through the monthly MURB heat balance with Toronto.City-Univ.of.Toronto weather. Every area below was measured from the IFC model.","weather":"Toronto.City-Univ.of.Toronto","lede":"67% of the glass faces south-east: 11% less heating need than the same building with its glass spread evenly.","gfa":718.8,"levels":[{"name":"Foundation","area":3.6},{"name":"Level 1 Living Rm.","area":162.3},{"name":"Level 1","area":144.4},{"name":"Ceiling","area":149.5},{"name":"Level 2","area":259.1}],"glass":{"total":192.0,"unfaced":5.3,"facings":[{"azimuth":143.0,"area":129.5,"share":67,"name":"SE","word":"south-east"},{"azimuth":233.0,"area":40.1,"share":21,"name":"SW","word":"south-west"},{"azimuth":53.0,"area":22.4,"share":12,"name":"NE","word":"north-east"}]},"intensities":{"tedi":86.76,"teui":207.76,"ghgi":31.67,"even":{"tedi":97.06,"teui":218.04,"ghgi":33.84}},"monthly":{"heating":[13.06,11.7,9.69,5.05,1.36,0.02,0.0,0.0,0.18,2.24,7.11,11.95],"cooling":[0.16,0.29,0.64,1.01,1.97,4.14,8.04,8.43,3.45,1.02,0.41,0.11],"energy":[21.37,19.21,17.49,11.92,7.94,6.59,7.51,7.59,6.65,8.8,14.22,20.05]},"totals":{"heating":62.37,"cooling":29.67,"energy":149.34,"even_heating":69.77,"even_cooling":22.8},"envelope":{"roof":244.3,"glass":197.3,"walls_ag":532.5,"walls_bg":174.7,"floor":718.8,"levels":5,"above_grade":974.2,"above_grade_ratio":1.4,"glass_share":27,"known":true},"heat_flows":{"heating_losses":[{"name":"Transmission","kwh_m2":85.3},{"name":"Ventilation","kwh_m2":28.1},{"name":"Infiltration","kwh_m2":66.6}],"heating_gains":[{"name":"Internal gains","kwh_m2":50.0},{"name":"Solar gains","kwh_m2":43.8}],"cooling_gains":[{"name":"Transmission","kwh_m2":1.0},{"name":"Ventilation","kwh_m2":0.3},{"name":"Infiltration","kwh_m2":0.8},{"name":"Internal gains","kwh_m2":4.8},{"name":"Solar gains","kwh_m2":34.3}],"note":"Heating demand is worked out month by month and never goes below zero, so in mild months the gains outweigh the losses and the surplus is not carried over: these figures do not add up to the TEDI above."},"notes":["Floor area is the footprint union of each storey's floor plates: Foundation 3.6 m², Level 1 Living Rm. 162.3 m², Level 1 144.4 m², Ceiling 149.5 m², Level 2 259.1 m². Left out, at no storey's level: Pad:Pad 2:523064 (287.3 m²), M_Pile-Steel Pipe:600mm Diameter:512299 (0.1 m²), M_Pile-Steel Pipe:600mm Diameter:512321 (0.1 m²) and 7 more, 288.0 m² in all. 1 storey(s) have no plate at their level.","Glass is the windows set in exterior walls plus curtain-wall glass, split by the wall's facing. 5.3 m² of windows in no wall (skylights, say) count in the area but not on the compass.","Walls are net of their openings and split at grade 0.0 m: 532.5 m² above, 174.7 m² below.","U-values: walls 0.273, windows 2.56, roof 0.164 W/m²K (makit's defaults); heat recovery 55%; heating COP 0.85, cooling COP 5.2.","The energy model, ported from murb_energy_tool, is written for multi-unit residential buildings; for other building types treat these results as indicative."],"command":"makit exec murb analysis murb-simulate -o epw=examples/EPW/Toronto_TMU/CAN_ON_Toronto.City-Univ.of.Toronto.715080_TMYx.epw -o model=examples/IFC/Ifc4_ARC.ifc -o output=examples/MURB/Ifc4_ARC-in-Toronto/murb_results.json"}</script>
 <div class="page">
   <header>
     <div class="eyebrow">
@@ -143,6 +151,13 @@
       <summary>Monthly values as a table</summary>
       <div class="scroll"><table id="table"></table></div>
     </details>
+  </section>
+
+  <section aria-labelledby="heat-h" id="heat">
+    <div class="label" id="heat-h">Where the heat goes</div>
+    <h2>Lost while heating, gained while cooling</h2>
+    <div class="flows" id="flows"></div>
+    <p class="lede" id="heat-note"></p>
   </section>
 
   <section aria-labelledby="env-h">
@@ -373,6 +388,35 @@
       var row = t.insertRow();
       [MONTHS[i], (HEAT[i] || 0).toFixed(2), (COOL[i] || 0).toFixed(2), (USE[i] || 0).toFixed(2)].forEach(function (v) { row.insertCell().textContent = v; });
     }
+  })();
+
+  /* ---------- where the heat goes ---------- */
+  (function heat() {
+    var F = D.heat_flows;
+    if (!F) { document.getElementById("heat").hidden = true; return; }
+    var groups = [
+      ["Lost while heating", F.heating_losses, "var(--heat)"],
+      ["Gained while heating", F.heating_gains, "var(--heat)"],
+      ["Gained while cooling", F.cooling_gains, "var(--cool)"]
+    ];
+    var max = 0;
+    groups.forEach(function (g) { g[1].forEach(function (f) { max = Math.max(max, f.kwh_m2); }); });
+    var box = document.getElementById("flows");
+    groups.forEach(function (g) {
+      var group = h("div", "flow-group", null, box);
+      h("div", "flow-title", g[0], group);
+      g[1].forEach(function (f) {
+        var row = h("div", "flow", null, group);
+        h("span", null, f.name, row);
+        var track = h("span", "flow-track", null, row);
+        var bar = h("i", null, null, track);
+        bar.style.width = (max > 0 ? Math.max(f.kwh_m2, 0) / max * 100 : 0) + "%";
+        bar.style.background = g[2];
+        var value = h("span", "flow-value", f1(f.kwh_m2), row);
+        h("small", null, "kWh/m²", value);
+      });
+    });
+    document.getElementById("heat-note").textContent = F.note;
   })();
 
   /* ---------- the envelope ---------- */
