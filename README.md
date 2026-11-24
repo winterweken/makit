@@ -12,7 +12,7 @@
 <p align="center">
   <img src="docs/media/makit-tui.gif" alt="The makit TUI: the hovering makit symbol, a Revit sample model extracted and loaded from the IFC picker with its wall directions and envelope, a MURB simulation run from the picked model with only the weather file typed, its envelope and results in the Output pane with the heating-demand chart, and the help overlay" width="900">
 </p>
-<p align="center"><sub>The TUI with a Revit sample model (<code>Ifc4_ARC.ifc</code>, not in the repo) and Toronto weather: load it in the IFC picker (it is extracted first), run <code>murb-simulate</code> with only the weather file typed, read the envelope and the results. Recorded with <a href="docs/media/makit-tui.tape">docs/media/makit-tui.tape</a>; the run's report page is in <a href="examples/MURB/Ifc4_ARC-in-Toronto/">examples/MURB/Ifc4_ARC-in-Toronto/</a>.</sub></p>
+<p align="center"><sub>The TUI with a Revit sample model (<code>Ifc4_ARC.ifc</code>, not in the repo) and Toronto weather: load it in the IFC picker (it is extracted first), run <code>murb-simulate</code> with only the weather file typed, read the envelope and the results. Recorded with <a href="docs/media/makit-tui.tape">docs/media/makit-tui.tape</a>; the run's report page is <a href="#the-murb-report-page">below</a>.</sub></p>
 
 ---
 
@@ -30,6 +30,34 @@ Built in Rust with [ratatui](https://ratatui.rs) for the interactive TUI and a d
 | **Braille Canvas** | Floor plans, elevations, bar charts, and data sheets in braille characters |
 | **3D Logo** | The makit symbol on the TUI home screen: a braille kit of blocks with one block hovering above its socket |
 | **Generic JSON Format** | Extract from any source into one schema, run the same analysis everywhere |
+
+## The MURB Report Page
+
+`murb-simulate` writes a self-contained report page beside its results JSON: one HTML file, no server, light and dark. This one is the run in the GIF above: the Revit sample model with Toronto weather, every area from the model and makit's defaults for the rest; the page and its results are in [examples/MURB/Ifc4_ARC-in-Toronto/](examples/MURB/Ifc4_ARC-in-Toronto/).
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/media/murb-report-dark.png">
+    <img src="docs/media/murb-report-light.png" alt="The top of the MURB report page for Ifc4_ARC in Toronto: a compass with the building's footprint and one beam per facing whose length is its glass area (129.5 m² south-east, 40.1 m² south-west, 22.4 m² north-east), beside the intensities: TEDI 86.8 kWh/m²·yr, 10.3 less than with the glass facing all four ways equally, TEUI 207.8 and GHGI 31.7 kgCO₂e/m²·yr" width="900">
+  </picture>
+</p>
+<p align="center"><sub>Where the glass faces and what it costs. Each beam is one facing, its length the glass area; every intensity is compared with a second run of the same building with its glass spread evenly.</sub></p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/media/murb-year-dark.png">
+    <img src="docs/media/murb-year-light.png" alt="The year on the MURB report page: monthly heating demand as bars above the line (13.1 MWh in January) and cooling demand below it (8.4 MWh in August), then where the heat goes: transmission, ventilation and infiltration lost while heating, internal and solar gains while heating, and the gains while cooling, each in kWh per square metre of floor" width="900">
+  </picture>
+</p>
+<p align="center"><sub>The year, heating above the line and cooling below, and where the heat goes: every flow of the heat balance per square metre of floor.</sub></p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/media/murb-envelope-dark.png">
+    <img src="docs/media/murb-envelope-light.png" alt="The envelope on the MURB report page: a section drawing labelled with the areas measured from the IFC model: 532.5 m² of wall above grade, 174.7 m² below grade, 197.3 m² of windows and curtain glass, a 244.3 m² roof and 718.8 m² of floor over 5 levels, with an envelope-to-floor ratio of 1.4 : 1 and 27% of the above-grade wall in glass" width="900">
+  </picture>
+</p>
+<p align="center"><sub>The envelope as the model measured it. Captured with <a href="docs/media/murb-report.sh">docs/media/murb-report.sh</a>.</sub></p>
 
 ## Quick Start
 
@@ -128,6 +156,7 @@ graph LR
         list["list"]
         exec["exec"]
         analyze["analyze"]
+        extract["extract"]
         tui["tui"]
     end
 
@@ -140,7 +169,7 @@ graph LR
         revit["Revit Bridge"]
         blender["Blender Sync"]
         ifc["IFC Parser"]
-        murb["MURB Energy"]
+        murb["MURB Energy (built-in model)"]
         model["Building Model"]
     end
 
@@ -178,7 +207,7 @@ makit/
 │   ├── makit-cli/           # Binary — clap CLI (list, exec, analyze, extract, tui, status, init)
 │   ├── makit-core/          # Registry singleton, config (figment/YAML), model types
 │   ├── makit-geometry/      # Point, Line, Rectangle + Plotter/BrailleGrid drawing + SDF
-│   ├── makit-tools/         # Tool implementations (revit, blender, ifc, murb)
+│   ├── makit-tools/         # Tool implementations (revit, blender, ifc, murb and its energy model)
 │   └── makit-tui/           # ratatui TUI (tree explorer, braille previews, output pane)
 ├── pyrevit-extension/       # Python pyRevit extension (runs inside Revit) + IFC extractor
 │   └── tests/               # Extractor and analysis tests
@@ -186,7 +215,7 @@ makit/
 │   └── blender/             # Python Blender addon
 ├── examples/IFC/            # Sample IFC file, three extractions and analysis scripts
 ├── examples/MURB/           # A complete murb-simulate run: results JSON and report page
-└── docs/                    # Architecture docs, brand/ (the makit symbol), media/ (README GIF and its VHS tape)
+└── docs/                    # Architecture docs, brand/ (the makit symbol), media/ (README GIF, report captures and the scripts that make them)
 ```
 
 ### Module Status
@@ -203,7 +232,7 @@ Tools register **sources** (inputs and connections) and **actions** (operations)
 <table>
 <tr><th>Module</th><th>Status</th><th>Notes</th></tr>
 <tr><td colspan="3"><b>Crates</b></td></tr>
-<tr><td><code>makit-cli</code></td><td>Partial</td><td><code>list</code>, <code>exec</code>, <code>analyze</code> and <code>tui</code> work. <code>status</code> and <code>init</code> only print a line.</td></tr>
+<tr><td><code>makit-cli</code></td><td>Partial</td><td><code>list</code>, <code>exec</code>, <code>analyze</code>, <code>extract</code> and <code>tui</code> work. <code>status</code> and <code>init</code> only print a line.</td></tr>
 <tr><td><code>makit-core</code></td><td>Working</td><td>Registry, YAML config, task models and cancel tokens.</td></tr>
 <tr><td><code>makit-geometry</code></td><td>Working</td><td>Primitives, <code>Plotter</code> drawing, braille grid, recordings, SDF engine. No external dependencies.</td></tr>
 <tr><td><code>makit-tui</code></td><td>Working</td><td>Explorer, option forms, IFC picker, previews, Output pane, stop, mouse, terminal restore on signals.</td></tr>
