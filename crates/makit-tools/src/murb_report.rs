@@ -313,8 +313,13 @@ pub fn page_data(results: &MurbResults) -> PageData {
         (Some(model), Some(typed)) => !same_split(&model.facings, &typed.facings),
         _ => false,
     };
+    // A typed window area keeps the model's split but not its glass.
+    let area_as_given = match (input, envelope) {
+        (Some(i), Some(e)) => (i.area_windows - e.windows).abs() >= 0.05,
+        _ => false,
+    };
     let glass = match (model_glass, typed_glass) {
-        (Some(model), _) if !split_as_given => model,
+        (Some(model), _) if !split_as_given && !area_as_given => model,
         (_, Some(typed)) => typed,
         (Some(model), None) => model,
         (None, None) => Glass::default(),
@@ -1003,6 +1008,24 @@ mod tests {
             .find(|n| n.contains("split as given"))
             .expect("a note on the given split");
         assert!(note.contains("south-east"), "{note}");
+    }
+
+    #[test]
+    fn a_typed_window_area_sizes_the_compass() {
+        // The model's split with twice its glass typed: the compass shows the
+        // glass the simulation ran with, not the glass the model measured.
+        let mut results = arc_results();
+        results.input.as_mut().unwrap().area_windows = 394.6;
+        let data = page_data(&results);
+        assert_eq!(data.glass.total, 394.6);
+        let areas: Vec<f64> = data.glass.facings.iter().map(|f| f.area).collect();
+        assert_eq!(areas, vec![264.4, 82.9, 47.4]);
+        assert_eq!(data.glass.unfaced, 0.0);
+        assert!(
+            !data.notes.iter().any(|n| n.contains("split as given")),
+            "{:?}",
+            data.notes
+        );
     }
 
     #[test]
