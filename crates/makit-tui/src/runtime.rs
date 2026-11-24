@@ -18,6 +18,7 @@ use crossterm::event;
 use makit_core::models::CancelToken;
 use makit_core::Registry;
 use makit_tools::building_model;
+use makit_tools::ifc;
 use ratatui::backend::Backend;
 use ratatui::Terminal;
 
@@ -242,7 +243,9 @@ fn spawn_ifc_load(path: String, tx: Sender<Msg>) {
     let spawned = thread::Builder::new()
         .name(format!("{WORKER_THREAD_PREFIX}ifc"))
         .spawn(move || {
-            let result = load_ifc(Path::new(&path));
+            let result = load_ifc(Path::new(&path), &|| {
+                let _ = tx.send(Msg::IfcExtracting { path: path.clone() });
+            });
             let _ = tx.send(Msg::IfcLoaded { path, result });
         });
     if let Err(err) = spawned {
@@ -260,7 +263,7 @@ fn spawn_murb_load(path: String, tx: Sender<Msg>) {
         .spawn(move || {
             let path = task::expand_tilde(&path, home_dir().as_deref());
             let results = app::load_murb_results(Path::new(&path));
-            let _ = tx.send(Msg::MurbLoaded(results));
+            let _ = tx.send(Msg::MurbLoaded(results.map(Box::new)));
         });
     if spawned.is_err() {
         let _ = tx_spawn_err.send(Msg::MurbLoaded(None));
@@ -268,27 +271,50 @@ fn spawn_murb_load(path: String, tx: Sender<Msg>) {
 }
 
 /// Find the JSON extraction for an IFC (or JSON) selection and analyse it.
-pub fn load_ifc(path: &Path) -> Result<IfcOutcome, String> {
+/// An IFC file with no extraction, or a stale one, is extracted first;
+/// `on_extract` is called right before the extractor runs.
+pub fn load_ifc(path: &Path, on_extract: &dyn Fn()) -> Result<IfcOutcome, String> {
     let has_ext = |ext: &str| {
         path.extension()
             .is_some_and(|e| e.eq_ignore_ascii_case(ext))
     };
-    let json_path = if has_ext("ifc") {
-        building_model::find_json_for_ifc(path)
+    let (json, extracted, note) = if has_ext("ifc") {
+        let found = building_model::find_json_for_ifc(path);
+        let missing = found.is_none();
+        let stale = found
+            .as_deref()
+            .is_some_and(|json| ifc::is_stale(path, json));
+        if missing || stale {
+            on_extract();
+        }
+        match ifc::resolve(path, found, stale, || ifc::extract(path, None, None)) {
+            Ok(resolved) => (resolved.json, resolved.extracted, resolved.note),
+            // Nothing to show: no extraction exists and none could be made.
+            Err(err) if missing => {
+                return Ok(IfcOutcome::NeedsExtraction {
+                    reason: err.to_string(),
+                });
+            }
+            Err(err) => return Err(err.to_string()),
+        }
     } else if has_ext("json") {
-        Some(path.to_path_buf())
+        (path.to_path_buf(), false, None)
     } else {
-        None
+        return Ok(IfcOutcome::NeedsExtraction {
+            reason: format!("{} is not an .ifc or .json file", path.display()),
+        });
     };
-    match json_path {
-        Some(json) => building_model::load_model(&json)
-            .map(|model| IfcOutcome::Analysis {
-                analysis: building_model::analyze_wwr(&model),
-                json: json.to_string_lossy().into_owned(),
-            })
-            .map_err(|e| e.to_string()),
-        None => Ok(IfcOutcome::NeedsExtraction),
-    }
+    let model = building_model::load_model(&json).map_err(|e| e.to_string())?;
+    let analysis = building_model::analyze_wwr(&model);
+    let envelope = building_model::envelope(&model, 0.0);
+    Ok(IfcOutcome::Analysis {
+        analysis,
+        envelope,
+        model,
+        json: json.to_string_lossy().into_owned(),
+        extracted,
+        note,
+    })
 }
 
 #[cfg(test)]
@@ -347,24 +373,59 @@ mod tests {
 
     #[test]
     fn example_ifc_resolves_to_its_json_extraction() {
-        match load_ifc(&example("Building-Architecture.ifc")) {
-            Ok(IfcOutcome::Analysis { analysis, json }) => {
+        let fresh = || panic!("a fresh extraction must not be redone");
+        match load_ifc(&example("Building-Architecture.ifc"), &fresh) {
+            Ok(IfcOutcome::Analysis {
+                analysis,
+                envelope,
+                model,
+                json,
+                extracted,
+                note,
+            }) => {
                 assert!(analysis.wall_count > 0);
+                assert_eq!(model.walls.len(), 4);
                 assert!(json.ends_with(".json"), "{json}");
+                assert!(!extracted && note.is_none());
+                assert_eq!((envelope.gfa * 10.0).round() / 10.0, 25.8);
             }
             other => panic!("expected analysis, got {other:?}"),
         }
     }
 
     #[test]
-    fn ifc_without_extraction_needs_extraction() {
+    fn a_json_selection_never_extracts() {
+        let outcome = load_ifc(&example("building-model.json"), &|| {
+            panic!("a json selection must not extract")
+        });
+        assert!(
+            matches!(
+                outcome,
+                Ok(IfcOutcome::Analysis {
+                    extracted: false,
+                    ..
+                })
+            ),
+            "{outcome:?}"
+        );
+    }
+
+    #[test]
+    fn ifc_without_extraction_tries_to_extract_and_explains() {
         let dir = std::env::temp_dir().join(format!("makit-tui-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let ifc = dir.join("lonely.ifc");
         std::fs::write(&ifc, "ISO-10303-21;").unwrap();
-        let outcome = load_ifc(&ifc);
+        let calls = std::cell::Cell::new(0);
+        let outcome = load_ifc(&ifc, &|| calls.set(calls.get() + 1));
         std::fs::remove_dir_all(&dir).ok();
-        assert!(matches!(outcome, Ok(IfcOutcome::NeedsExtraction)));
+        // whether or not a Python with IfcOpenShell exists, the extractor
+        // was asked for and the bogus file yields a reason, not a panic
+        assert_eq!(calls.get(), 1);
+        match outcome {
+            Ok(IfcOutcome::NeedsExtraction { reason }) => assert!(!reason.is_empty()),
+            other => panic!("expected a reason, got {other:?}"),
+        }
     }
 
     #[test]
@@ -373,7 +434,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let json = dir.join("broken.json");
         std::fs::write(&json, "{ not json").unwrap();
-        let outcome = load_ifc(&json);
+        let outcome = load_ifc(&json, &|| {});
         std::fs::remove_dir_all(&dir).ok();
         assert!(outcome.is_err());
     }
@@ -519,6 +580,12 @@ mod tests {
             ghgi_kg_m2: 5.0,
             gfa: 100.0,
             weather_file: "x.epw".into(),
+            breakdown: None,
+            input: None,
+            envelope: None,
+            model: None,
+            even_glass: None,
+            command: None,
         };
         let dir = std::env::temp_dir().join(format!("makit-tui-murb-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();

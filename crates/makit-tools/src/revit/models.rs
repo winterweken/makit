@@ -14,8 +14,10 @@ pub struct WallData {
     #[serde(default)]
     pub level: String,
     pub area_sqm: f64,
+    /// Length along the wall, metres.
     #[serde(default)]
     pub length_m: f64,
+    /// Height, metres.
     #[serde(default)]
     pub height_m: f64,
     /// Start point [x, y, z] in Revit internal coordinates.

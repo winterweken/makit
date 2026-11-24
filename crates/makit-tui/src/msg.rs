@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use makit_tools::building_model::WwrAnalysis;
+use makit_tools::building_model::{BuildingModel, Envelope, WwrAnalysis};
 use makit_tools::murb::MurbResults;
 
 use crate::node::NodeId;
@@ -18,16 +18,27 @@ pub enum Pane {
 }
 
 /// Result of loading an IFC selection on a worker thread.
+// Built once per load; boxing the analysis would only move the allocation.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum IfcOutcome {
-    /// The JSON extraction was found and analysed.
+    /// The JSON extraction was found (or made) and analysed.
     Analysis {
         analysis: WwrAnalysis,
+        /// The MURB envelope at grade 0.
+        envelope: Envelope,
+        /// The model itself, for the isometric preview.
+        model: BuildingModel,
         /// Path of the JSON extraction the analysis came from.
         json: String,
+        /// The extractor ran for this load.
+        extracted: bool,
+        /// Why a stale extraction had to do, when it did.
+        note: Option<String>,
     },
-    /// No JSON extraction exists next to the IFC file yet.
-    NeedsExtraction,
+    /// No JSON extraction exists next to the IFC file and none could be
+    /// made; `reason` says why.
+    NeedsExtraction { reason: String },
 }
 
 /// A key press while the option editor is open.
@@ -49,6 +60,10 @@ pub enum EditKey {
 }
 
 /// Everything that can happen to the app.
+// The two worker results (an IFC analysis with its envelope, a boxed MURB
+// result) dwarf the key and tick messages; they arrive a handful of times per
+// session, so boxing them too would only move the allocation.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum Msg {
     // Navigation within the focused pane.
@@ -99,12 +114,17 @@ pub enum Msg {
         id: u64,
         result: Result<String, String>,
     },
+    /// The IFC worker is about to run the extractor on `path`.
+    IfcExtracting {
+        path: String,
+    },
     IfcLoaded {
         path: String,
         result: Result<IfcOutcome, String>,
     },
-    /// Simulation results re-read from disk (`None` if unreadable).
-    MurbLoaded(Option<MurbResults>),
+    /// Simulation results re-read from disk (`None` if unreadable), boxed:
+    /// they carry the run's whole context and would dwarf every other message.
+    MurbLoaded(Option<Box<MurbResults>>),
 }
 
 /// Side effects `update` asks the runtime to perform.

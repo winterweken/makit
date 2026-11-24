@@ -6,8 +6,11 @@ pub mod analysis;
 pub mod architect;
 pub mod blender;
 pub mod building_model;
+pub mod energy;
 pub mod ifc;
 pub mod murb;
+pub mod murb_report;
+pub mod python;
 pub mod revit;
 pub mod rhino;
 

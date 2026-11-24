@@ -9,24 +9,26 @@
         "z": 0.0
       },
       "startPoint": {
-        "x": 7100.000000000076,
-        "y": 4799.999999999934,
-        "z": -8.135714324453147e-12
+        "x": 7.100000000000077,
+        "y": 4.799999999999934,
+        "z": -8.135714324453147e-15
       },
       "endPoint": {
-        "x": 7100.000000000122,
-        "y": 2999.9999999999627,
-        "z": -2.225064577032626e-12
+        "x": 7.100000000000122,
+        "y": 2.9999999999999627,
+        "z": -2.225064577032626e-15
       },
       "area": 6.3,
       "height": 0.0,
-      "length": 1799.9999999999711,
-      "width": 0.0,
+      "length": 1.7999999999999714,
+      "width": 0.2000000000000007,
       "type": "solidwall",
       "workset": "",
       "isCurtainWall": false,
       "isExternal": true,
       "level": "00 groundfloor",
+      "bottom": -0.25000000000000816,
+      "top": 3.37573593128808,
       "windows": [],
       "properties": {
         "ifcType": "IfcWall",
@@ -42,24 +44,26 @@
         "z": 0.0
       },
       "startPoint": {
-        "x": 8500.000000000087,
-        "y": 8999.999999999978,
-        "z": -2.961257905553794e-11
+        "x": 8.500000000000087,
+        "y": 8.999999999999979,
+        "z": -2.9612579055537937e-14
       },
       "endPoint": {
-        "x": 8500.000000000082,
-        "y": 4799.999999999911,
-        "z": -2.961257905553794e-11
+        "x": 8.500000000000082,
+        "y": 4.799999999999911,
+        "z": -2.9612579055537937e-14
       },
       "area": 8.9,
       "height": 0.0,
-      "length": 4200.000000000067,
-      "width": 0.0,
+      "length": 4.200000000000068,
+      "width": 0.20000000000017903,
       "type": "solidwall",
       "workset": "",
       "isCurtainWall": false,
       "isExternal": true,
       "level": "00 groundfloor",
+      "bottom": -0.2500000000000296,
+      "top": 1.9757359312880889,
       "windows": [],
       "properties": {
         "ifcType": "IfcWall",
@@ -75,24 +79,26 @@
         "z": 0.0
       },
       "startPoint": {
-        "x": 3100.0000000000164,
-        "y": 3000.000000000014,
-        "z": -3.623767952376511e-12
+        "x": 3.1000000000000165,
+        "y": 3.000000000000014,
+        "z": -3.623767952376511e-15
       },
       "endPoint": {
-        "x": 3100.0000000000246,
-        "y": 9000.000000000051,
-        "z": -3.623767952376511e-12
+        "x": 3.1000000000000245,
+        "y": 9.000000000000052,
+        "z": -3.623767952376511e-15
       },
       "area": 21.2,
       "height": 0.0,
-      "length": 6000.000000000036,
-      "width": 0.0,
+      "length": 6.000000000000037,
+      "width": 0.20000000000000975,
       "type": "solidwall",
       "workset": "",
       "isCurtainWall": false,
       "isExternal": true,
       "level": "00 groundfloor",
+      "bottom": -0.2500000000000049,
+      "top": 3.3757359312880824,
       "windows": [],
       "properties": {
         "ifcType": "IfcWall",
@@ -108,24 +114,26 @@
         "z": 0.0
       },
       "startPoint": {
-        "x": 8400.000000000096,
-        "y": 8800.000000000093,
-        "z": 4.979767709301086e-11
+        "x": 8.400000000000096,
+        "y": 8.800000000000093,
+        "z": 4.979767709301086e-14
       },
       "endPoint": {
-        "x": 8400.000000000091,
-        "y": 5000.000000000007,
-        "z": 4.979767709301086e-11
+        "x": 8.400000000000091,
+        "y": 5.000000000000007,
+        "z": 4.979767709301086e-14
       },
       "area": 6.9,
       "height": 0.0,
-      "length": 3800.000000000086,
-      "width": 0.0,
+      "length": 3.800000000000086,
+      "width": 0.024000000000082615,
       "type": "plumbingwall",
       "workset": "",
       "isCurtainWall": false,
       "isExternal": false,
       "level": "00 groundfloor",
+      "bottom": 4.811410392029152e-14,
+      "top": 2.22573593128809,
       "windows": [],
       "properties": {
         "ifcType": "IfcWall",
@@ -134,11 +142,53 @@
     }
   ],
   "windows": [],
+  "storeys": [
+    {
+      "id": "1Ano2ZUxnEIvVQ_beukl8b",
+      "name": "00 groundfloor",
+      "elevation": -1.8189894035458565e-15,
+      "floorArea": 25.75,
+      "slabIds": [
+        "3zR0BOEcLADRKln4HYporH"
+      ]
+    }
+  ],
+  "slabs": [
+    {
+      "id": "3zR0BOEcLADRKln4HYporH",
+      "name": "floor",
+      "kind": "floor",
+      "area": 25.75,
+      "top": 6.100675520315235e-14,
+      "bottom": -0.2500000000000338,
+      "storey": "00 groundfloor",
+      "type": "slab on grade",
+      "isExternal": true,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "2iPwJwpPDCSgMheXwk9cBT",
+      "name": "house - roof",
+      "kind": "roof",
+      "area": 53.61,
+      "top": 5.700000000000018,
+      "bottom": 1.4757359312879053,
+      "storey": null,
+      "type": "gable_roof",
+      "isExternal": true,
+      "properties": {
+        "ifcType": "IfcRoof"
+      }
+    }
+  ],
   "projectNorth": -0.0,
   "units": "m",
   "metadata": {
     "sourceFile": "Building-Architecture.ifc",
     "projectName": "ifc silly sample scene - project",
-    "description": "Demystifying IFC with a playful scene using diverse building elements and compositions."
+    "description": "Demystifying IFC with a playful scene using diverse building elements and compositions.",
+    "formatVersion": 3
   }
 }

@@ -3,9 +3,11 @@
 //! Drawings are expressed against [`Plotter`] in dot units (y up), recorded,
 //! and then scaled by [`fit_bounds`] to fill whatever space the pane has.
 
-use makit_geometry::drawing::{draw_arrow, draw_isometric_box, draw_rect, fill_rect};
+use makit_geometry::drawing::{
+    draw_arrow, draw_isometric_box, draw_rect, fill_rect, isometric_z_up,
+};
 use makit_geometry::{Plotter, Recording, Rectangle};
-use makit_tools::building_model::WwrAnalysis;
+use makit_tools::building_model::{BuildingModel, GenericWall, Vec3, WwrAnalysis};
 use makit_tools::murb::MurbResults;
 
 use crate::logo;
@@ -37,6 +39,16 @@ pub struct PreviewData<'a> {
     /// Wall analysis of the loaded IFC file, when the focused node is about
     /// that file.
     pub wwr: Option<&'a WwrAnalysis>,
+    /// The loaded IFC model, when the focused node is about that file.
+    pub model: Option<&'a BuildingModel>,
+}
+
+impl<'a> PreviewData<'a> {
+    /// The loaded model when it can be drawn: a format 3 extraction with
+    /// wall axes.
+    pub fn building(&self) -> Option<&'a BuildingModel> {
+        self.model.filter(|m| m.has_axes())
+    }
 }
 
 /// Logo geometry (centre and radius in dot units).
@@ -46,15 +58,121 @@ const LOGO_RADIUS: f64 = logo::RADIUS;
 /// Largest sub-dot expansion per axis when scaling filled shapes up.
 const MAX_FILL_EXPANSION: usize = 8;
 
-/// Record the preview for `kind`.
-pub fn record(kind: PreviewKind, angle: f64, data: PreviewData) -> Recording {
-    let mut rec = Recording::new();
-    draw_preview(kind, &mut rec, angle, data);
-    rec
+/// A preview drawing in two tones: `main` in the accent colour, drawn over
+/// `faint` in the dim colour (a building's interior walls under its
+/// exterior ones).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Scene {
+    pub main: Recording,
+    pub faint: Recording,
+}
+
+impl Scene {
+    /// True when neither layer has anything in it.
+    pub fn is_empty(&self) -> bool {
+        self.main.is_empty() && self.faint.is_empty()
+    }
+
+    /// Bounds of both layers together.
+    pub fn bounds(&self) -> Option<Rectangle> {
+        match (self.main.bounds(), self.faint.bounds()) {
+            (Some(a), Some(b)) => Some(a.union(&b)),
+            (a, b) => a.or(b),
+        }
+    }
+}
+
+/// Record the preview for `kind`: the loaded building for a drawable
+/// model, otherwise whatever [`draw_preview`] draws, in the main layer.
+pub fn record(kind: PreviewKind, angle: f64, data: PreviewData) -> Scene {
+    let mut scene = Scene::default();
+    match (kind, data.building()) {
+        (PreviewKind::Building, Some(model)) => {
+            draw_building(&mut scene.main, &mut scene.faint, model)
+        }
+        _ => draw_preview(kind, &mut scene.main, angle, data),
+    }
+    scene
+}
+
+/// A wall the isometric can draw: the ends of its axis, its bottom and its
+/// top. The drawing and the caption agree through this one function.
+fn panel(wall: &GenericWall) -> Option<(Vec3, Vec3, f64, f64)> {
+    let (start, end) = wall.axis()?;
+    Some((start, end, wall.bottom?, wall.top?))
+}
+
+/// The loaded model's walls as standing panels in a 30° isometric: each
+/// axis lifted from the wall's bottom to its top, four edges per wall.
+/// Exterior walls go into `main`, interior ones (`isExternal: false`) into
+/// `faint`, so the envelope reads over the partitions.
+fn draw_building<P: Plotter + ?Sized>(main: &mut P, faint: &mut P, model: &BuildingModel) {
+    for wall in &model.walls {
+        let Some((start, end, bottom, top)) = panel(wall) else {
+            continue;
+        };
+        let corners = [
+            isometric_z_up(start.x, start.y, bottom),
+            isometric_z_up(end.x, end.y, bottom),
+            isometric_z_up(end.x, end.y, top),
+            isometric_z_up(start.x, start.y, top),
+        ];
+        let layer: &mut P = if wall.is_external == Some(false) {
+            &mut *faint
+        } else {
+            &mut *main
+        };
+        for k in 0..4 {
+            layer.line(corners[k], corners[(k + 1) % 4]);
+        }
+    }
+}
+
+/// What the building drawing covers, for its caption.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct BuildingSummary {
+    /// Walls drawn: with an axis and both elevations.
+    pub drawn: usize,
+    /// Walls left out for want of an axis or an elevation.
+    pub skipped: usize,
+    /// Extent of the drawn axes along x, metres.
+    pub width: f64,
+    /// Extent of the drawn axes along y, metres.
+    pub depth: f64,
+    /// Highest top above the lowest bottom, metres.
+    pub height: f64,
+}
+
+/// Count and measure the walls [`draw_building`] draws.
+pub fn building_summary(model: &BuildingModel) -> BuildingSummary {
+    let mut summary = BuildingSummary::default();
+    let mut x = (f64::INFINITY, f64::NEG_INFINITY);
+    let mut y = x;
+    let mut z = x;
+    for wall in &model.walls {
+        match panel(wall) {
+            Some((start, end, bottom, top)) => {
+                summary.drawn += 1;
+                for p in [start, end] {
+                    x = (x.0.min(p.x), x.1.max(p.x));
+                    y = (y.0.min(p.y), y.1.max(p.y));
+                }
+                z = (z.0.min(bottom), z.1.max(top));
+            }
+            None => summary.skipped += 1,
+        }
+    }
+    if summary.drawn > 0 {
+        summary.width = x.1 - x.0;
+        summary.depth = y.1 - y.0;
+        summary.height = z.1 - z.0;
+    }
+    summary
 }
 
 /// Draw the preview for `kind` onto any plotter: from `data` where there
-/// is some, otherwise a fixed illustration (or an empty chart).
+/// is some, otherwise a fixed illustration (or an empty chart). The
+/// building drawing needs two layers and lives in [`record`].
 pub fn draw_preview<P: Plotter + ?Sized>(
     kind: PreviewKind,
     p: &mut P,
@@ -79,6 +197,7 @@ pub fn title(kind: PreviewKind, data: PreviewData) -> &'static str {
         PreviewKind::Energy => "heating demand · no results",
         PreviewKind::Walls if data.wwr.is_some() => "wall area by orientation",
         PreviewKind::Walls => "wall orientation · illustration",
+        PreviewKind::Building if data.building().is_some() => "isometric",
         PreviewKind::Building => "isometric · illustration",
         PreviewKind::FloorPlan => "floor plan · illustration",
         PreviewKind::Logo => "makit",
@@ -87,20 +206,41 @@ pub fn title(kind: PreviewKind, data: PreviewData) -> &'static str {
 
 /// Text lines shown under the preview.
 pub fn caption(kind: PreviewKind, data: PreviewData) -> Vec<String> {
-    match (kind, data.murb) {
-        (PreviewKind::Energy, Some(r)) => vec![
+    match (kind, data.murb, data.building()) {
+        (PreviewKind::Energy, Some(r), _) => vec![
             format!("TEDI  {:.1} kWh/m²", r.tedi_kwh_m2),
             format!("TEUI  {:.1} kWh/m²", r.teui_kwh_m2),
             format!("GHGI  {:.1} kgCO₂/m²", r.ghgi_kg_m2),
         ],
-        (PreviewKind::Energy, None) => vec!["No results — run murb-simulate".to_string()],
+        (PreviewKind::Energy, None, _) => vec!["No results — run murb-simulate".to_string()],
+        (PreviewKind::Building, _, Some(model)) => building_caption(&building_summary(model)),
         _ => Vec::new(),
     }
 }
 
-/// Bounds to fit for a recording. The logo uses fixed bounds so it does not
+/// The two caption lines under a drawn building: what was drawn (and what
+/// could not be), and how big it is.
+fn building_caption(s: &BuildingSummary) -> Vec<String> {
+    let walls = if s.skipped > 0 {
+        format!(
+            "Walls {} drawn · {} without axis or height",
+            s.drawn, s.skipped
+        )
+    } else {
+        format!("Walls {} drawn", s.drawn)
+    };
+    vec![
+        walls,
+        format!(
+            "{:.1} × {:.1} m footprint · {:.1} m high",
+            s.width, s.depth, s.height
+        ),
+    ]
+}
+
+/// Bounds to fit for a scene. The logo uses fixed bounds so it does not
 /// "breathe" as its block hovers.
-pub fn content_bounds(kind: PreviewKind, rec: &Recording) -> Option<Rectangle> {
+pub fn content_bounds(kind: PreviewKind, scene: &Scene) -> Option<Rectangle> {
     match kind {
         PreviewKind::Logo => Some(Rectangle::new(
             LOGO_CENTER.0 - LOGO_RADIUS,
@@ -108,7 +248,7 @@ pub fn content_bounds(kind: PreviewKind, rec: &Recording) -> Option<Rectangle> {
             2.0 * LOGO_RADIUS,
             2.0 * LOGO_RADIUS,
         )),
-        _ => rec.bounds(),
+        _ => scene.bounds(),
     }
 }
 
@@ -284,6 +424,12 @@ mod tests {
             ghgi_kg_m2: 3.21,
             gfa: 1000.0,
             weather_file: String::new(),
+            breakdown: None,
+            input: None,
+            envelope: None,
+            model: None,
+            even_glass: None,
+            command: None,
         }
     }
 
@@ -331,6 +477,117 @@ mod tests {
         PreviewKind::Logo,
     ];
 
+    /// A test wall: start xy, end xy, bottom, top, exterior.
+    type TestWall = ((f64, f64), (f64, f64), Option<f64>, Option<f64>, bool);
+
+    /// A format 3 model of `walls`; `None` for a wall with no axis.
+    fn model(walls: &[Option<TestWall>]) -> BuildingModel {
+        let walls: Vec<serde_json::Value> = walls
+            .iter()
+            .map(|w| match w {
+                Some(((x0, y0), (x1, y1), bottom, top, exterior)) => serde_json::json!({
+                    "startPoint": {"x": x0, "y": y0, "z": 0.0}, "endPoint": {"x": x1, "y": y1, "z": 0.0},
+                    "bottom": bottom, "top": top, "isExternal": exterior
+                }),
+                None => serde_json::json!({}),
+            })
+            .collect();
+        serde_json::from_value(
+            serde_json::json!({ "walls": walls, "metadata": { "formatVersion": 3 } }),
+        )
+        .unwrap()
+    }
+
+    fn with_model(model: &BuildingModel) -> PreviewData<'_> {
+        PreviewData {
+            model: Some(model),
+            ..PreviewData::default()
+        }
+    }
+
+    #[test]
+    fn a_model_with_axes_is_drawn_as_standing_panels() {
+        let m = model(&[
+            Some(((0.0, 0.0), (10.0, 0.0), Some(0.0), Some(3.0), true)),
+            Some(((5.0, 0.0), (5.0, 8.0), Some(0.0), Some(3.0), false)),
+        ]);
+        let scene = record(PreviewKind::Building, 0.0, with_model(&m));
+        assert_eq!(
+            (scene.main.segments.len(), scene.faint.segments.len()),
+            (4, 4)
+        );
+        // The exterior wall's bottom edge runs east: right and up on screen.
+        let (a, b) = scene.main.segments[0];
+        assert_eq!(a, (0.0, 0.0));
+        assert!((b.0 - 8.660_254_038).abs() < 1e-9 && (b.1 - 5.0).abs() < 1e-9);
+        assert!(scene.main.points.is_empty());
+        let s = building_summary(&m);
+        assert_eq!((s.drawn, s.skipped), (2, 0));
+        assert_eq!((s.width, s.depth, s.height), (10.0, 8.0, 3.0));
+        assert_eq!(title(PreviewKind::Building, with_model(&m)), "isometric");
+        assert_eq!(
+            caption(PreviewKind::Building, with_model(&m)),
+            vec!["Walls 2 drawn", "10.0 × 8.0 m footprint · 3.0 m high"]
+        );
+    }
+
+    #[test]
+    fn walls_without_an_axis_or_height_are_counted_not_drawn() {
+        let m = model(&[
+            Some(((0.0, 0.0), (4.0, 0.0), Some(0.0), Some(2.5), true)),
+            Some(((0.0, 0.0), (0.0, 4.0), None, Some(2.5), true)),
+            None,
+        ]);
+        let scene = record(PreviewKind::Building, 0.0, with_model(&m));
+        assert_eq!(scene.main.segments.len(), 4);
+        assert_eq!(building_summary(&m).skipped, 2);
+        assert_eq!(
+            caption(PreviewKind::Building, with_model(&m))[0],
+            "Walls 1 drawn · 2 without axis or height"
+        );
+    }
+
+    #[test]
+    fn an_all_interior_model_still_fills_the_pane() {
+        let m = model(&[Some(((0.0, 0.0), (6.0, 0.0), Some(0.0), Some(3.0), false))]);
+        let scene = record(PreviewKind::Building, 0.0, with_model(&m));
+        assert!(scene.main.is_empty() && !scene.faint.is_empty());
+        let bounds = content_bounds(PreviewKind::Building, &scene).unwrap();
+        assert!(bounds.width > 0.0 && bounds.height > 0.0);
+    }
+
+    #[test]
+    fn a_model_without_axes_is_the_illustration() {
+        let two: BuildingModel = serde_json::from_str(
+            r#"{ "walls": [{ "startPoint": {"x": 0.0, "y": 0.0, "z": 0.0}, "endPoint": {"x": 4.0, "y": 0.0, "z": 0.0} }],
+                 "metadata": { "formatVersion": 2 } }"#,
+        )
+        .unwrap();
+        let real = record(PreviewKind::Building, 0.0, with_model(&two));
+        assert_eq!(
+            real,
+            record(PreviewKind::Building, 0.0, PreviewData::default())
+        );
+        assert_eq!(
+            title(PreviewKind::Building, with_model(&two)),
+            "isometric · illustration"
+        );
+        assert!(caption(PreviewKind::Building, with_model(&two)).is_empty());
+    }
+
+    #[test]
+    fn the_sample_house_draws_every_wall() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../examples/IFC/Ifc4_ARC.json"
+        );
+        let m = makit_tools::building_model::load_model(std::path::Path::new(path)).unwrap();
+        let s = building_summary(&m);
+        assert_eq!(s.drawn + s.skipped, m.walls.len());
+        assert!(s.drawn >= 47, "{s:?}");
+        assert!(s.height > 9.0 && s.height < 12.0, "{s:?}");
+    }
+
     #[test]
     fn every_preview_draws_something() {
         for kind in ALL {
@@ -359,7 +616,8 @@ mod tests {
         let results = murb(heating);
         let rec = record(PreviewKind::Energy, 0.0, with_murb(&results));
         let max_y_at = |x: f64| {
-            rec.points
+            rec.main
+                .points
                 .iter()
                 .filter(|p| p.0 == x)
                 .map(|p| p.1)
@@ -367,7 +625,7 @@ mod tests {
         };
         assert_eq!(max_y_at(2.0), 28.0); // January: full height
         assert_eq!(max_y_at(20.0), 14.0); // July: half height
-        assert_eq!(rec.labels.len(), 12);
+        assert_eq!(rec.main.labels.len(), 12);
     }
 
     #[test]
@@ -431,9 +689,13 @@ mod tests {
     fn energy_without_results_draws_the_axes_and_no_bars() {
         let rec = record(PreviewKind::Energy, 0.0, PreviewData::default());
         // Bars are filled dots; an empty chart has none to mistake for data.
-        assert!(rec.points.is_empty(), "{} dots drawn", rec.points.len());
-        assert_eq!(rec.segments.len(), 2);
-        assert_eq!(rec.labels.len(), 12);
+        assert!(
+            rec.main.points.is_empty(),
+            "{} dots drawn",
+            rec.main.points.len()
+        );
+        assert_eq!(rec.main.segments.len(), 2);
+        assert_eq!(rec.main.labels.len(), 12);
     }
 
     #[test]
@@ -457,7 +719,7 @@ mod tests {
         let real = record(PreviewKind::Walls, 0.0, with_wwr(&analysis));
         let illustration = record(PreviewKind::Walls, 0.0, PreviewData::default());
         assert_ne!(real, illustration);
-        let labels: Vec<&str> = real.labels.iter().map(|l| l.2.as_str()).collect();
+        let labels: Vec<&str> = real.main.labels.iter().map(|l| l.2.as_str()).collect();
         assert_eq!(labels, vec!["N", "E", "S", "W"]);
         // Different data, different drawing.
         let other = wwr(&[("North", 10.0), ("West", 90.0)]);

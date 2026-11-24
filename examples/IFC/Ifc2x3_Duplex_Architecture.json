@@ -1,0 +1,2998 @@
+{
+  "walls": [
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FKau",
+      "name": "Basic Wall:Party Wall - CMU Residential Unit Dimising Wall:143239",
+      "orientation": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 4.4,
+        "y": -0.4170000000000139,
+        "z": 3.100000000000378
+      },
+      "endPoint": {
+        "x": 4.4,
+        "y": -17.38299999999998,
+        "z": 3.100000000000378
+      },
+      "area": 49.2,
+      "height": 0.0,
+      "length": 16.96599999999997,
+      "width": 0.0,
+      "type": "Basic Wall:Party Wall - CMU Residential Unit Dimising Wall:128555",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 2",
+      "bottom": 3.100000000000378,
+      "top": 6.000000000000391,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWall"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FNtn",
+      "name": "Basic Wall:Exterior - Brick on Block:138062",
+      "orientation": {
+        "x": -0.0,
+        "y": 1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 0.0,
+        "y": -0.2085000000000001,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": 8.800000000000002,
+        "y": -0.2085000000000001,
+        "z": 0.0
+      },
+      "area": 13.6,
+      "height": 0.0,
+      "length": 8.800000000000002,
+      "width": 0.0,
+      "type": "Basic Wall:Exterior - Brick on Block:130892",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 3.100000000000196,
+      "windows": [
+        {
+          "id": "1hOSvn6df7F8_7GcBWlR72",
+          "name": "M_Fixed:4835mm x 2420mm:4835mm x 2420mm:145788",
+          "area": 11.7,
+          "height": 2.419999999999998,
+          "width": 4.834999999999996,
+          "position": {
+            "x": 3.548000000000002,
+            "y": -0.4170000000000038,
+            "z": 0.1000000000000006
+          },
+          "hostId": "2O2Fr$t4X7Zf8NOew3FNtn",
+          "level": "Level 1",
+          "properties": {}
+        }
+      ],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FNqI",
+      "name": "Basic Wall:Exterior - Brick on Block:138157",
+      "orientation": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 8.5915,
+        "y": -0.4170000000000275,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": 8.5915,
+        "y": -17.799999999999997,
+        "z": 0.0
+      },
+      "area": 49.7,
+      "height": 0.0,
+      "length": 17.38299999999997,
+      "width": 0.0,
+      "type": "Basic Wall:Exterior - Brick on Block:130892",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 3.100000000000196,
+      "windows": [
+        {
+          "id": "1hOSvn6df7F8_7GcBWlRLx",
+          "name": "M_Fixed:750mm x 2200mm:750mm x 2200mm:146885",
+          "area": 1.6,
+          "height": 2.199999999999996,
+          "width": 0.7499999999999996,
+          "position": {
+            "x": 8.382999999999994,
+            "y": -5.195000000000001,
+            "z": 0.1000000000000006
+          },
+          "hostId": "2O2Fr$t4X7Zf8NOew3FNqI",
+          "level": "Level 1",
+          "properties": {}
+        }
+      ],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FNr2",
+      "name": "Basic Wall:Exterior - Brick on Block:138237",
+      "orientation": {
+        "x": -0.0,
+        "y": -1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 8.382999999999972,
+        "y": -17.5915,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": -1.7763568394002505e-15,
+        "y": -17.5915,
+        "z": 0.0
+      },
+      "area": 12.3,
+      "height": 0.0,
+      "length": 8.382999999999974,
+      "width": 0.0,
+      "type": "Basic Wall:Exterior - Brick on Block:130892",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 3.100000000000196,
+      "windows": [
+        {
+          "id": "1hOSvn6df7F8_7GcBWlRBU",
+          "name": "M_Fixed:4835mm x 2420mm:4835mm x 2420mm:146016",
+          "area": 11.7,
+          "height": 2.419999999999998,
+          "width": 4.834999999999997,
+          "position": {
+            "x": 5.251999999999997,
+            "y": -17.382999999999996,
+            "z": 0.1000000000000006
+          },
+          "hostId": "2O2Fr$t4X7Zf8NOew3FNr2",
+          "level": "Level 1",
+          "properties": {}
+        }
+      ],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FNhv",
+      "name": "Basic Wall:Exterior - Brick on Block:138310",
+      "orientation": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 0.208499999999999,
+        "y": -17.38299999999997,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": 0.208499999999999,
+        "y": -0.4170000000000016,
+        "z": 0.0
+      },
+      "area": 48.4,
+      "height": 0.0,
+      "length": 16.96599999999997,
+      "width": 0.0,
+      "type": "Basic Wall:Exterior - Brick on Block:130892",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 3.100000000000196,
+      "windows": [
+        {
+          "id": "1hOSvn6df7F8_7GcBWlRRL",
+          "name": "M_Fixed:750mm x 2200mm:750mm x 2200mm:147051",
+          "area": 1.6,
+          "height": 2.199999999999996,
+          "width": 0.7499999999999984,
+          "position": {
+            "x": 0.4169999999999982,
+            "y": -12.605,
+            "z": 0.1000000000000006
+          },
+          "hostId": "2O2Fr$t4X7Zf8NOew3FNhv",
+          "level": "Level 1",
+          "properties": {}
+        }
+      ],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FNld",
+      "name": "Basic Wall:Interior - Partition (92mm Stud):138584",
+      "orientation": {
+        "x": -1.0,
+        "y": -0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 2.538,
+        "y": -0.4170000000000082,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": 2.538,
+        "y": -4.000000000000005,
+        "z": 0.0
+      },
+      "area": 10.0,
+      "height": 0.0,
+      "length": 3.582999999999997,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 2.795000000000196,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FNau",
+      "name": "Basic Wall:Interior - Partition (92mm Stud):139143",
+      "orientation": {
+        "x": -1.0,
+        "y": -0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 2.512000000000002,
+        "y": -6.804999999999967,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": 2.512000000000002,
+        "y": -9.725000000000009,
+        "z": 0.0
+      },
+      "area": 6.6,
+      "height": 0.0,
+      "length": 2.9200000000000417,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 2.795000000000196,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FNbT",
+      "name": "Basic Wall:Party Wall - CMU Residential Unit Dimising Wall:139234",
+      "orientation": {
+        "x": 0.0,
+        "y": 1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 8.382999999999988,
+        "y": -7.800000000000002,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": 4.182000000000003,
+        "y": -7.800000000000002,
+        "z": 0.0
+      },
+      "area": 11.7,
+      "height": 0.0,
+      "length": 4.200999999999985,
+      "width": 0.0,
+      "type": "Basic Wall:Party Wall - CMU Residential Unit Dimising Wall:128555",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 2.795000000000196,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FKRi",
+      "name": "Basic Wall:Party Wall - CMU Residential Unit Dimising Wall:139347",
+      "orientation": {
+        "x": 0.0,
+        "y": -1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 0.4169999999999985,
+        "y": -10.0,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": 4.618,
+        "y": -10.0,
+        "z": 0.0
+      },
+      "area": 11.7,
+      "height": 0.0,
+      "length": 4.201000000000002,
+      "width": 0.0,
+      "type": "Basic Wall:Party Wall - CMU Residential Unit Dimising Wall:128555",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 2.795000000000196,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FKRH",
+      "name": "Basic Wall:Party Wall - CMU Residential Unit Dimising Wall:139374",
+      "orientation": {
+        "x": 1.0,
+        "y": -0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 4.4,
+        "y": -10.0,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": 4.4,
+        "y": -7.799999999999973,
+        "z": 0.0
+      },
+      "area": 6.1,
+      "height": 0.0,
+      "length": 2.200000000000027,
+      "width": 0.0,
+      "type": "Basic Wall:Party Wall - CMU Residential Unit Dimising Wall:128555",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 2.795000000000196,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FKST",
+      "name": "Basic Wall:Interior - Partition (92mm Stud):139682",
+      "orientation": {
+        "x": 1.0,
+        "y": -0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 6.287999999999999,
+        "y": -10.99500000000004,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": 6.287999999999999,
+        "y": -8.075,
+        "z": 0.0
+      },
+      "area": 6.6,
+      "height": 0.0,
+      "length": 2.920000000000041,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 2.795000000000196,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FKIu",
+      "name": "Basic Wall:Interior - Partition (92mm Stud):139783",
+      "orientation": {
+        "x": 0.0,
+        "y": -1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 4.769999999999999,
+        "y": -10.30800000000003,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": 6.226,
+        "y": -10.30800000000003,
+        "z": 0.0
+      },
+      "area": 4.1,
+      "height": 0.0,
+      "length": 1.4560000000000013,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 2.795000000000196,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FKGS",
+      "name": "Basic Wall:Interior - Partition (92mm Stud):139939",
+      "orientation": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 6.262000000000001,
+        "y": -13.8,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": 6.262000000000001,
+        "y": -17.382999999999992,
+        "z": 0.0
+      },
+      "area": 10.0,
+      "height": 0.0,
+      "length": 3.5829999999999913,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 2.795000000000196,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FK80",
+      "name": "Basic Wall:Foundation - Concrete (417mm):140479",
+      "orientation": {
+        "x": -0.0,
+        "y": 1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 0.0,
+        "y": -0.2084999999999981,
+        "z": -1.25
+      },
+      "endPoint": {
+        "x": 8.800000000000004,
+        "y": -0.2084999999999981,
+        "z": -1.25
+      },
+      "area": 11.0,
+      "height": 0.0,
+      "length": 8.800000000000004,
+      "width": 0.0,
+      "type": "Basic Wall:Foundation - Concrete (417mm):128676",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "T/FDN",
+      "bottom": -1.25,
+      "top": 0.0,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FK9N",
+      "name": "Basic Wall:Foundation - Concrete (417mm):140520",
+      "orientation": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 8.591500000000003,
+        "y": -0.4170000000000255,
+        "z": -1.25
+      },
+      "endPoint": {
+        "x": 8.591500000000003,
+        "y": -17.800000000000015,
+        "z": -1.25
+      },
+      "area": 21.7,
+      "height": 0.0,
+      "length": 17.38299999999999,
+      "width": 0.0,
+      "type": "Basic Wall:Foundation - Concrete (417mm):128676",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "T/FDN",
+      "bottom": -1.25,
+      "top": 0.0,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FKEr",
+      "name": "Basic Wall:Foundation - Concrete (417mm):140554",
+      "orientation": {
+        "x": -0.0,
+        "y": -1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 8.382999999999976,
+        "y": -17.59150000000001,
+        "z": -1.25
+      },
+      "endPoint": {
+        "x": 0.0,
+        "y": -17.59150000000001,
+        "z": -1.25
+      },
+      "area": 10.5,
+      "height": 0.0,
+      "length": 8.382999999999976,
+      "width": 0.0,
+      "type": "Basic Wall:Foundation - Concrete (417mm):128676",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "T/FDN",
+      "bottom": -1.25,
+      "top": 0.0,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FKE5",
+      "name": "Basic Wall:Foundation - Concrete (417mm):140602",
+      "orientation": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 0.2085000000000006,
+        "y": -17.38299999999999,
+        "z": -1.25
+      },
+      "endPoint": {
+        "x": 0.2085000000000006,
+        "y": -0.41699999999999804,
+        "z": -1.25
+      },
+      "area": 21.2,
+      "height": 0.0,
+      "length": 16.96599999999999,
+      "width": 0.0,
+      "type": "Basic Wall:Foundation - Concrete (417mm):128676",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "T/FDN",
+      "bottom": -1.25,
+      "top": 0.0,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FK3E",
+      "name": "Basic Wall:Foundation - Concrete (435mm):140913",
+      "orientation": {
+        "x": 0.0,
+        "y": 1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 8.382999999999992,
+        "y": -7.800000000000001,
+        "z": -1.25
+      },
+      "endPoint": {
+        "x": 4.182499999999996,
+        "y": -7.800000000000001,
+        "z": -1.25
+      },
+      "area": 5.3,
+      "height": 0.0,
+      "length": 4.200499999999996,
+      "width": 0.0,
+      "type": "Basic Wall:Foundation - Concrete (435mm):207146",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "T/FDN",
+      "bottom": -1.25,
+      "top": 0.0,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FK04",
+      "name": "Basic Wall:Foundation - Concrete (435mm):140987",
+      "orientation": {
+        "x": 0.0,
+        "y": -1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 0.4170000000000004,
+        "y": -10.0,
+        "z": -1.25
+      },
+      "endPoint": {
+        "x": 4.6174999999999935,
+        "y": -10.0,
+        "z": -1.25
+      },
+      "area": 5.3,
+      "height": 0.0,
+      "length": 4.200499999999993,
+      "width": 0.0,
+      "type": "Basic Wall:Foundation - Concrete (435mm):207146",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "T/FDN",
+      "bottom": -1.25,
+      "top": 0.0,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FK1b",
+      "name": "Basic Wall:Foundation - Concrete (435mm):141018",
+      "orientation": {
+        "x": 1.0,
+        "y": -0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 4.399999999999994,
+        "y": -9.782500000000015,
+        "z": -1.25
+      },
+      "endPoint": {
+        "x": 4.399999999999994,
+        "y": -8.017499999999986,
+        "z": -1.25
+      },
+      "area": 2.0,
+      "height": 0.0,
+      "length": 1.765000000000029,
+      "width": 0.0,
+      "type": "Basic Wall:Foundation - Concrete (435mm):207146",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "T/FDN",
+      "bottom": -1.25,
+      "top": -0.127,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FLQD",
+      "name": "Basic Wall:Exterior - Brick on Block:143410",
+      "orientation": {
+        "x": -0.0,
+        "y": 1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 0.0,
+        "y": -0.2085000000000001,
+        "z": 3.100000000000378
+      },
+      "endPoint": {
+        "x": 8.8,
+        "y": -0.2085000000000001,
+        "z": 3.100000000000378
+      },
+      "area": 15.7,
+      "height": 0.0,
+      "length": 8.8,
+      "width": 0.0,
+      "type": "Basic Wall:Exterior - Brick on Block:130892",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 2",
+      "bottom": 3.100000000000378,
+      "top": 6.00000000000039,
+      "windows": [
+        {
+          "id": "1hOSvn6df7F8_7GcBWlSXO",
+          "name": "M_Fixed:2800mm x 2410mm:2800mm x 2410mm:147686",
+          "area": 6.7,
+          "height": 2.409999999999996,
+          "width": 2.8,
+          "position": {
+            "x": 1.325,
+            "y": -0.41700000000000004,
+            "z": 3.2000000000001965
+          },
+          "hostId": "2O2Fr$t4X7Zf8NOew3FLQD",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "1hOSvn6df7F8_7GcBWlSga",
+          "name": "M_Fixed:819mm x 759mm:819mm x 759mm:147994",
+          "area": 0.6,
+          "height": 0.758999999999998,
+          "width": 0.8189999999999998,
+          "position": {
+            "x": 0.4170000000000003,
+            "y": -0.4170000000000002,
+            "z": 3.2000000000002014
+          },
+          "hostId": "2O2Fr$t4X7Zf8NOew3FLQD",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "1hOSvn6df7F8_7GcBWlSp1",
+          "name": "M_Casement:819mm x 759mm:819mm x 759mm:148607",
+          "area": 0.6,
+          "height": 0.7590000000000007,
+          "width": 0.819,
+          "position": {
+            "x": 0.417000000000015,
+            "y": -0.4170000000000015,
+            "z": 4.0255000000001955
+          },
+          "hostId": "2O2Fr$t4X7Zf8NOew3FLQD",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "1hOSvn6df7F8_7GcBWlSnC",
+          "name": "M_Fixed:819mm x 759mm:819mm x 759mm:148722",
+          "area": 0.6,
+          "height": 0.7589999999999986,
+          "width": 0.8189999999999995,
+          "position": {
+            "x": 0.4170000000000002,
+            "y": -0.4170000000000002,
+            "z": 4.8510000000001945
+          },
+          "hostId": "2O2Fr$t4X7Zf8NOew3FLQD",
+          "level": "Level 2",
+          "properties": {}
+        }
+      ],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FLR9",
+      "name": "Basic Wall:Exterior - Brick on Block:143478",
+      "orientation": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 8.5915,
+        "y": 0.0,
+        "z": 3.100000000000378
+      },
+      "endPoint": {
+        "x": 8.5915,
+        "y": -17.79999999999997,
+        "z": 3.100000000000378
+      },
+      "area": 40.1,
+      "height": 0.0,
+      "length": 17.79999999999997,
+      "width": 0.0,
+      "type": "Basic Wall:Exterior - Brick on Block:130892",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 2",
+      "bottom": 3.100000000000378,
+      "top": 6.00000000000039,
+      "windows": [
+        {
+          "id": "1l0GAJtRTFv8$zmKJOH4pU",
+          "name": "M_Fixed:2800mm x 2410mm:2800mm x 2410mm:181096",
+          "area": 6.7,
+          "height": 2.409999999999996,
+          "width": 2.8,
+          "position": {
+            "x": 8.383000000000004,
+            "y": -0.4170000000000265,
+            "z": 3.2000000000001965
+          },
+          "hostId": "2O2Fr$t4X7Zf8NOew3FLR9",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "1l0GAJtRTFv8$zmKJOH4kJ",
+          "name": "M_Fixed:819mm x 759mm:819mm x 759mm:181285",
+          "area": 0.6,
+          "height": 0.758999999999998,
+          "width": 0.8189999999999995,
+          "position": {
+            "x": 8.382999999999996,
+            "y": -3.317000000000027,
+            "z": 4.851000000000197
+          },
+          "hostId": "2O2Fr$t4X7Zf8NOew3FLR9",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "1l0GAJtRTFv8$zmKJOH4gQ",
+          "name": "M_Casement:819mm x 759mm:819mm x 759mm:181548",
+          "area": 0.6,
+          "height": 0.7590000000000007,
+          "width": 0.8190000000000001,
+          "position": {
+            "x": 8.382999999999994,
+            "y": -3.317000000000042,
+            "z": 4.025500000000196
+          },
+          "hostId": "2O2Fr$t4X7Zf8NOew3FLR9",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "1l0GAJtRTFv8$zmKJOH4hv",
+          "name": "M_Fixed:819mm x 759mm:819mm x 759mm:181583",
+          "area": 0.6,
+          "height": 0.7589999999999986,
+          "width": 0.8189999999999995,
+          "position": {
+            "x": 8.382999999999996,
+            "y": -3.317000000000027,
+            "z": 3.2000000000001965
+          },
+          "hostId": "2O2Fr$t4X7Zf8NOew3FLR9",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "1l0GAJtRTFv8$zmKJOH4aS",
+          "name": "M_Fixed:750mm x 2200mm:750mm x 2200mm:181930",
+          "area": 1.6,
+          "height": 2.199999999999997,
+          "width": 0.7499999999999984,
+          "position": {
+            "x": 8.382999999999983,
+            "y": -11.774,
+            "z": 3.2000000000001965
+          },
+          "hostId": "2O2Fr$t4X7Zf8NOew3FLR9",
+          "level": "Level 2",
+          "properties": {}
+        }
+      ],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FLOH",
+      "name": "Basic Wall:Exterior - Brick on Block:143534",
+      "orientation": {
+        "x": -0.0,
+        "y": -1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 8.799999999999974,
+        "y": -17.5915,
+        "z": 3.100000000000378
+      },
+      "endPoint": {
+        "x": 0.0,
+        "y": -17.5915,
+        "z": 3.100000000000378
+      },
+      "area": 15.7,
+      "height": 0.0,
+      "length": 8.799999999999974,
+      "width": 0.0,
+      "type": "Basic Wall:Exterior - Brick on Block:130892",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 2",
+      "bottom": 3.100000000000378,
+      "top": 6.00000000000039,
+      "windows": [
+        {
+          "id": "1hOSvn6df7F8_7GcBWlS_W",
+          "name": "M_Fixed:2800mm x 2410mm:2800mm x 2410mm:149278",
+          "area": 6.7,
+          "height": 2.409999999999996,
+          "width": 2.8,
+          "position": {
+            "x": 7.474999999999973,
+            "y": -17.383000000000003,
+            "z": 3.200000000000201
+          },
+          "hostId": "2O2Fr$t4X7Zf8NOew3FLOH",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "1hOSvn6df7F8_7GcBWlS2V",
+          "name": "M_Fixed:819mm x 759mm:819mm x 759mm:149537",
+          "area": 0.6,
+          "height": 0.758999999999998,
+          "width": 0.8190000000000001,
+          "position": {
+            "x": 8.382999999999974,
+            "y": -17.383,
+            "z": 3.2000000000002014
+          },
+          "hostId": "2O2Fr$t4X7Zf8NOew3FLOH",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "1hOSvn6df7F8_7GcBWlS1M",
+          "name": "M_Casement:819mm x 759mm:819mm x 759mm:149736",
+          "area": 0.6,
+          "height": 0.7590000000000007,
+          "width": 0.8190000000000001,
+          "position": {
+            "x": 8.382999999999956,
+            "y": -17.383,
+            "z": 4.025500000000196
+          },
+          "hostId": "2O2Fr$t4X7Zf8NOew3FLOH",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "1hOSvn6df7F8_7GcBWlS4Q",
+          "name": "M_Fixed:819mm x 759mm:819mm x 759mm:149924",
+          "area": 0.6,
+          "height": 0.758999999999998,
+          "width": 0.8190000000000001,
+          "position": {
+            "x": 8.382999999999974,
+            "y": -17.383,
+            "z": 4.851000000000197
+          },
+          "hostId": "2O2Fr$t4X7Zf8NOew3FLOH",
+          "level": "Level 2",
+          "properties": {}
+        }
+      ],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FLPP",
+      "name": "Basic Wall:Exterior - Brick on Block:143590",
+      "orientation": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 0.208499999999999,
+        "y": -17.79999999999997,
+        "z": 3.100000000000378
+      },
+      "endPoint": {
+        "x": 0.208499999999999,
+        "y": 1.0658141036401503e-14,
+        "z": 3.100000000000378
+      },
+      "area": 40.1,
+      "height": 0.0,
+      "length": 17.79999999999998,
+      "width": 0.0,
+      "type": "Basic Wall:Exterior - Brick on Block:130892",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Level 2",
+      "bottom": 3.100000000000378,
+      "top": 6.000000000000391,
+      "windows": [
+        {
+          "id": "1l0GAJtRTFv8$zmKJOH4$e",
+          "name": "M_Fixed:2800mm x 2410mm:2800mm x 2410mm:180318",
+          "area": 6.7,
+          "height": 2.409999999999996,
+          "width": 2.8,
+          "position": {
+            "x": 0.4169999999999946,
+            "y": -17.38299999999997,
+            "z": 3.2000000000001965
+          },
+          "hostId": "2O2Fr$t4X7Zf8NOew3FLPP",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "1l0GAJtRTFv8$zmKJOH4u1",
+          "name": "M_Fixed:819mm x 759mm:819mm x 759mm:180663",
+          "area": 0.6,
+          "height": 0.758999999999998,
+          "width": 0.8190000000000001,
+          "position": {
+            "x": 0.416999999999998,
+            "y": -14.482999999999969,
+            "z": 4.851000000000197
+          },
+          "hostId": "2O2Fr$t4X7Zf8NOew3FLPP",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "1l0GAJtRTFv8$zmKJOH4qs",
+          "name": "M_Fixed:819mm x 759mm:819mm x 759mm:180864",
+          "area": 0.6,
+          "height": 0.7589999999999986,
+          "width": 0.8190000000000001,
+          "position": {
+            "x": 0.416999999999998,
+            "y": -14.482999999999969,
+            "z": 3.2000000000001965
+          },
+          "hostId": "2O2Fr$t4X7Zf8NOew3FLPP",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "1l0GAJtRTFv8$zmKJOH4oq",
+          "name": "M_Casement:819mm x 759mm:819mm x 759mm:180994",
+          "area": 0.6,
+          "height": 0.7590000000000007,
+          "width": 0.8190000000000001,
+          "position": {
+            "x": 0.41699999999999926,
+            "y": -14.482999999999954,
+            "z": 4.025500000000196
+          },
+          "hostId": "2O2Fr$t4X7Zf8NOew3FLPP",
+          "level": "Level 2",
+          "properties": {}
+        },
+        {
+          "id": "1l0GAJtRTFv8$zmKJOH4ZZ",
+          "name": "M_Fixed:750mm x 2200mm:750mm x 2200mm:182101",
+          "area": 1.6,
+          "height": 2.199999999999997,
+          "width": 0.7499999999999996,
+          "position": {
+            "x": 0.4169999999999986,
+            "y": -6.025999999999998,
+            "z": 3.2000000000001965
+          },
+          "hostId": "2O2Fr$t4X7Zf8NOew3FLPP",
+          "level": "Level 2",
+          "properties": {}
+        }
+      ],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FLTF",
+      "name": "Basic Wall:Interior - Partition (92mm Stud):143856",
+      "orientation": {
+        "x": -0.0,
+        "y": 1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 0.4169999999999995,
+        "y": -6.188000000000002,
+        "z": 2.612
+      },
+      "endPoint": {
+        "x": 2.5059999999999993,
+        "y": -6.188000000000002,
+        "z": 2.612
+      },
+      "area": 5.3,
+      "height": 0.0,
+      "length": 2.089,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 1",
+      "bottom": 2.612,
+      "top": 6.000000000000207,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FLIE",
+      "name": "Basic Wall:Interior - Partition (92mm Stud):143921",
+      "orientation": {
+        "x": -1.0,
+        "y": -0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 2.444,
+        "y": -6.250000000000009,
+        "z": 3.100000000000378
+      },
+      "endPoint": {
+        "x": 2.444,
+        "y": -11.674000000000003,
+        "z": 3.100000000000378
+      },
+      "area": 14.0,
+      "height": 0.0,
+      "length": 5.423999999999994,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.100000000000378,
+      "top": 6.00000000000039,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FLJd",
+      "name": "Basic Wall:Interior - Partition (92mm Stud):143960",
+      "orientation": {
+        "x": -0.0,
+        "y": -1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 2.381999999999991,
+        "y": -11.612,
+        "z": 3.100000000000378
+      },
+      "endPoint": {
+        "x": 0.4169999999999987,
+        "y": -11.612,
+        "z": 3.100000000000378
+      },
+      "area": 3.9,
+      "height": 0.0,
+      "length": 1.964999999999992,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.100000000000378,
+      "top": 6.00000000000039,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FLMr",
+      "name": "Basic Wall:Interior - Plumbing (152mm Stud):144138",
+      "orientation": {
+        "x": -0.0,
+        "y": 1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 2.505999999999999,
+        "y": -6.758000000000003,
+        "z": 3.100000000000378
+      },
+      "endPoint": {
+        "x": 4.124999999999989,
+        "y": -6.758000000000003,
+        "z": 3.100000000000378
+      },
+      "area": 4.7,
+      "height": 0.0,
+      "length": 1.6189999999999904,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Plumbing (152mm Stud):128382",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.100000000000378,
+      "top": 6.00000000000039,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FLKI",
+      "name": "Basic Wall:Interior - Partition (92mm Stud):144301",
+      "orientation": {
+        "x": -0.0,
+        "y": -1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 4.124999999999983,
+        "y": -11.072,
+        "z": 3.100000000000378
+      },
+      "endPoint": {
+        "x": 2.505999999999993,
+        "y": -11.072,
+        "z": 3.100000000000378
+      },
+      "area": 4.7,
+      "height": 0.0,
+      "length": 1.61899999999999,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.100000000000378,
+      "top": 6.00000000000039,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FL8v",
+      "name": "Basic Wall:Interior - Partition (92mm Stud):144518",
+      "orientation": {
+        "x": -0.0,
+        "y": -1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 8.382999999999981,
+        "y": -11.612,
+        "z": 2.612000000000196
+      },
+      "endPoint": {
+        "x": 6.2940000000000005,
+        "y": -11.612,
+        "z": 2.612000000000196
+      },
+      "area": 5.3,
+      "height": 0.0,
+      "length": 2.088999999999981,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 1",
+      "bottom": 2.612000000000196,
+      "top": 6.000000000000207,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FL9r",
+      "name": "Basic Wall:Interior - Partition (92mm Stud):144586",
+      "orientation": {
+        "x": 1.0,
+        "y": -0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 6.356,
+        "y": -11.55,
+        "z": 3.100000000000378
+      },
+      "endPoint": {
+        "x": 6.356,
+        "y": -6.126000000000006,
+        "z": 3.100000000000378
+      },
+      "area": 14.0,
+      "height": 0.0,
+      "length": 5.423999999999995,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.100000000000378,
+      "top": 6.00000000000039,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FL96",
+      "name": "Basic Wall:Interior - Partition (92mm Stud):144633",
+      "orientation": {
+        "x": -0.0,
+        "y": 1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 6.418000000000008,
+        "y": -6.188000000000002,
+        "z": 3.100000000000378
+      },
+      "endPoint": {
+        "x": 8.38299999999999,
+        "y": -6.188000000000002,
+        "z": 3.100000000000378
+      },
+      "area": 3.9,
+      "height": 0.0,
+      "length": 1.964999999999982,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.100000000000378,
+      "top": 6.00000000000039,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FLEJ",
+      "name": "Basic Wall:Interior - Partition (92mm Stud):144684",
+      "orientation": {
+        "x": -0.0,
+        "y": 1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 4.674999999999989,
+        "y": -6.728000000000002,
+        "z": 3.100000000000378
+      },
+      "endPoint": {
+        "x": 6.294000000000008,
+        "y": -6.728000000000002,
+        "z": 3.100000000000378
+      },
+      "area": 4.7,
+      "height": 0.0,
+      "length": 1.6190000000000184,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.100000000000378,
+      "top": 6.00000000000039,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FLCm",
+      "name": "Basic Wall:Interior - Plumbing (152mm Stud):144783",
+      "orientation": {
+        "x": -0.0,
+        "y": -1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 6.294000000000001,
+        "y": -11.04200000000001,
+        "z": 3.100000000000378
+      },
+      "endPoint": {
+        "x": 4.674999999999982,
+        "y": -11.04200000000001,
+        "z": 3.100000000000378
+      },
+      "area": 4.7,
+      "height": 0.0,
+      "length": 1.6190000000000193,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Plumbing (152mm Stud):128382",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.100000000000378,
+      "top": 6.00000000000039,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "0jf0rYHfX3RAB3bSIRjmmy",
+      "name": "Basic Wall:Exterior - Brick on Block:184944",
+      "orientation": {
+        "x": -0.0,
+        "y": 1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 0.0,
+        "y": -0.2085000000000001,
+        "z": 6.0
+      },
+      "endPoint": {
+        "x": 8.800000000000002,
+        "y": -0.2085000000000001,
+        "z": 6.0
+      },
+      "area": 5.4,
+      "height": 0.0,
+      "length": 8.800000000000002,
+      "width": 0.0,
+      "type": "Basic Wall:Exterior - Brick on Block:130892",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Roof",
+      "bottom": 6.0,
+      "top": 6.609,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "0jf0rYHfX3RAB3bSIRjmpw",
+      "name": "Basic Wall:Exterior - Brick on Block:185014",
+      "orientation": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 8.5915,
+        "y": -0.4170000000000275,
+        "z": 6.0
+      },
+      "endPoint": {
+        "x": 8.5915,
+        "y": -17.799999999999997,
+        "z": 6.0
+      },
+      "area": 10.6,
+      "height": 0.0,
+      "length": 17.38299999999997,
+      "width": 0.0,
+      "type": "Basic Wall:Exterior - Brick on Block:130892",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Roof",
+      "bottom": 6.0,
+      "top": 6.609,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "0jf0rYHfX3RAB3bSIRjmoa",
+      "name": "Basic Wall:Exterior - Brick on Block:185064",
+      "orientation": {
+        "x": -0.0,
+        "y": -1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 8.382999999999972,
+        "y": -17.5915,
+        "z": 6.0
+      },
+      "endPoint": {
+        "x": -1.7763568394002505e-15,
+        "y": -17.5915,
+        "z": 6.0
+      },
+      "area": 5.1,
+      "height": 0.0,
+      "length": 8.382999999999974,
+      "width": 0.0,
+      "type": "Basic Wall:Exterior - Brick on Block:130892",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Roof",
+      "bottom": 6.0,
+      "top": 6.609,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "0jf0rYHfX3RAB3bSIRjmr1",
+      "name": "Basic Wall:Exterior - Brick on Block:185101",
+      "orientation": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 0.208499999999999,
+        "y": -17.38299999999997,
+        "z": 6.0
+      },
+      "endPoint": {
+        "x": 0.208499999999999,
+        "y": -0.4170000000000016,
+        "z": 6.0
+      },
+      "area": 10.3,
+      "height": 0.0,
+      "length": 16.96599999999997,
+      "width": 0.0,
+      "type": "Basic Wall:Exterior - Brick on Block:130892",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": true,
+      "level": "Roof",
+      "bottom": 6.0,
+      "top": 6.609,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "0iEHWY1$XA8eQeeULq4jZ1",
+      "name": "Basic Wall:Interior - Furring (152 mm Stud):189074",
+      "orientation": {
+        "x": 0.0,
+        "y": 1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 8.382999999999988,
+        "y": -7.506000000000003,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": 4.030000000000002,
+        "y": -7.506000000000003,
+        "z": 0.0
+      },
+      "area": 12.2,
+      "height": 0.0,
+      "length": 4.352999999999986,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Furring (152 mm Stud):187795",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 2.795000000000196,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "0iEHWY1$XA8eQeeULq4j_U",
+      "name": "Basic Wall:Interior - Furring (152 mm Stud):189901",
+      "orientation": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 4.105999999999999,
+        "y": -9.725000000000014,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": 4.105999999999999,
+        "y": -7.581999999999972,
+        "z": 0.0
+      },
+      "area": 6.6,
+      "height": 0.0,
+      "length": 2.1430000000000415,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Furring (152 mm Stud):187795",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 3.100000000000196,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "0iEHWY1$XA8eQeeULq4jpl",
+      "name": "Basic Wall:Interior - Partition (92mm Stud):190140",
+      "orientation": {
+        "x": 0.0,
+        "y": 1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 4.030000000000003,
+        "y": -7.491999999999973,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": 2.5740000000000007,
+        "y": -7.491999999999973,
+        "z": 0.0
+      },
+      "area": 4.1,
+      "height": 0.0,
+      "length": 1.4560000000000022,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 2.795000000000196,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "0iEHWY1$XA8eQeeULq4jDb",
+      "name": "Basic Wall:Interior - Furring (152 mm Stud):190774",
+      "orientation": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 4.694000000000003,
+        "y": -8.07499999999999,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": 4.694000000000003,
+        "y": -10.370000000000017,
+        "z": 0.0
+      },
+      "area": 6.4,
+      "height": 0.0,
+      "length": 2.2950000000000266,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Furring (152 mm Stud):187795",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 2.795000000000196,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "0iEHWY1$XA8eQeeULq4jE6",
+      "name": "Basic Wall:Interior - Furring (152 mm Stud):190933",
+      "orientation": {
+        "x": 0.0,
+        "y": -1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 0.4169999999999992,
+        "y": -10.294,
+        "z": 0.0
+      },
+      "endPoint": {
+        "x": 4.6179999999999986,
+        "y": -10.294,
+        "z": 0.0
+      },
+      "area": 11.7,
+      "height": 0.0,
+      "length": 4.201,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Furring (152 mm Stud):187795",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 1",
+      "bottom": 0.0,
+      "top": 2.795000000000196,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "0dxE1Sy6nDqfpDb5vIMNiA",
+      "name": "Basic Wall:Interior - Furring (152 mm Stud):193247",
+      "orientation": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 4.693999999999989,
+        "y": -6.790000000000003,
+        "z": 3.100000000000378
+      },
+      "endPoint": {
+        "x": 4.693999999999989,
+        "y": -10.95000000000001,
+        "z": 3.100000000000378
+      },
+      "area": 10.8,
+      "height": 0.0,
+      "length": 4.160000000000007,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Furring (152 mm Stud):187795",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.100000000000378,
+      "top": 5.69500000000039,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "0dxE1Sy6nDqfpDb5vIMN_Z",
+      "name": "Basic Wall:Interior - Furring (152 mm Stud):194166",
+      "orientation": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 4.105999999999982,
+        "y": -11.01,
+        "z": 3.100000000000378
+      },
+      "endPoint": {
+        "x": 4.105999999999982,
+        "y": -6.850000000000004,
+        "z": 3.100000000000378
+      },
+      "area": 10.8,
+      "height": 0.0,
+      "length": 4.159999999999996,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Furring (152 mm Stud):187795",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.100000000000378,
+      "top": 5.69500000000039,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "1aj$VJZFn2TxepZUBcKpvt",
+      "name": "Basic Wall:Interior - Partition (92mm Stud):203347",
+      "orientation": {
+        "x": -0.0,
+        "y": -1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 4.029999999999983,
+        "y": -10.03205117851059,
+        "z": 3.100000000000378
+      },
+      "endPoint": {
+        "x": 2.5059999999999922,
+        "y": -10.03205117851059,
+        "z": 3.100000000000378
+      },
+      "area": 2.9,
+      "height": 0.0,
+      "length": 1.5239999999999911,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.100000000000378,
+      "top": 6.00000000000039,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "1aj$VJZFn2TxepZUBcKpZw",
+      "name": "Basic Wall:Interior - Partition (92mm Stud):203998",
+      "orientation": {
+        "x": -0.0,
+        "y": 1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 4.769999999999988,
+        "y": -7.783384235071523,
+        "z": 3.100000000000378
+      },
+      "endPoint": {
+        "x": 6.294000000000007,
+        "y": -7.783384235071523,
+        "z": 3.100000000000378
+      },
+      "area": 2.9,
+      "height": 0.0,
+      "length": 1.5240000000000187,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 3.100000000000378,
+      "top": 6.00000000000039,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "1aj$VJZFn2TxepZUBcKpee",
+      "name": "Basic Wall:Interior - Partition (92mm Stud):204300",
+      "orientation": {
+        "x": -1.0,
+        "y": -0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 1.493400000000008,
+        "y": -6.250000000000005,
+        "z": 2.612
+      },
+      "endPoint": {
+        "x": 1.493400000000008,
+        "y": -9.725000000000007,
+        "z": 2.612
+      },
+      "area": 1.7,
+      "height": 0.0,
+      "length": 3.4750000000000014,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 1",
+      "bottom": 2.612,
+      "top": 3.1000000000001955,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "1aj$VJZFn2TxepZUBcKphf",
+      "name": "Basic Wall:Interior - Partition (92mm Stud):204493",
+      "orientation": {
+        "x": 1.0,
+        "y": -0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 7.306599999999956,
+        "y": -11.55,
+        "z": 2.612
+      },
+      "endPoint": {
+        "x": 7.306599999999956,
+        "y": -8.075,
+        "z": 2.612
+      },
+      "area": 1.7,
+      "height": 0.0,
+      "length": 3.4750000000000014,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Partition (92mm Stud):128360",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 1",
+      "bottom": 2.612,
+      "top": 3.1000000000001955,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "3Y4YRln2r91vflHcHE5IVS",
+      "name": "Basic Wall:Interior - Furring (38 mm Stud):217414",
+      "orientation": {
+        "x": -0.0,
+        "y": 1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 6.84045000000003,
+        "y": -6.567450000000052,
+        "z": 5.712000000000378
+      },
+      "endPoint": {
+        "x": 7.923550000000031,
+        "y": -6.567450000000052,
+        "z": 5.712000000000378
+      },
+      "area": 0.3,
+      "height": 0.0,
+      "length": 1.0831000000000008,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Furring (38 mm Stud):128404",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 5.712000000000378,
+      "top": 6.000000000000391,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "3Y4YRln2r91vflHcHE5IVT",
+      "name": "Basic Wall:Interior - Furring (38 mm Stud):217415",
+      "orientation": {
+        "x": 1.0,
+        "y": -0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 6.867450000000031,
+        "y": -7.729550000000008,
+        "z": 5.712000000000378
+      },
+      "endPoint": {
+        "x": 6.867450000000031,
+        "y": -6.594450000000051,
+        "z": 5.712000000000378
+      },
+      "area": 0.3,
+      "height": 0.0,
+      "length": 1.135099999999957,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Furring (38 mm Stud):128404",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 5.712000000000378,
+      "top": 6.000000000000391,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "3Y4YRln2r91vflHcHE5IVI",
+      "name": "Basic Wall:Interior - Furring (38 mm Stud):217416",
+      "orientation": {
+        "x": 0.0,
+        "y": 1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 7.977550000000031,
+        "y": -7.702550000000009,
+        "z": 5.712000000000378
+      },
+      "endPoint": {
+        "x": 6.89445000000003,
+        "y": -7.702550000000009,
+        "z": 5.712000000000378
+      },
+      "area": 0.3,
+      "height": 0.0,
+      "length": 1.0831000000000008,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Furring (38 mm Stud):128404",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 5.712000000000378,
+      "top": 6.000000000000391,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "3Y4YRln2r91vflHcHE5IVJ",
+      "name": "Basic Wall:Interior - Furring (38 mm Stud):217417",
+      "orientation": {
+        "x": 1.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 7.95055000000003,
+        "y": -6.540450000000051,
+        "z": 5.712000000000378
+      },
+      "endPoint": {
+        "x": 7.95055000000003,
+        "y": -7.675550000000012,
+        "z": 5.712000000000378
+      },
+      "area": 0.3,
+      "height": 0.0,
+      "length": 1.1350999999999605,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Furring (38 mm Stud):128404",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 5.712000000000378,
+      "top": 6.000000000000391,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "3Y4YRln2r91vflHcHE5ITp",
+      "name": "Basic Wall:Interior - Furring (38 mm Stud):217577",
+      "orientation": {
+        "x": 0.0,
+        "y": -1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 0.8074500000000259,
+        "y": -10.09745000000004,
+        "z": 5.712000000000378
+      },
+      "endPoint": {
+        "x": 1.890550000000026,
+        "y": -10.09745000000004,
+        "z": 5.712000000000378
+      },
+      "area": 0.3,
+      "height": 0.0,
+      "length": 1.0831,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Furring (38 mm Stud):128404",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 5.712000000000378,
+      "top": 6.000000000000391,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "3Y4YRln2r91vflHcHE5ITm",
+      "name": "Basic Wall:Interior - Furring (38 mm Stud):217578",
+      "orientation": {
+        "x": -1.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 0.8344500000000258,
+        "y": -11.25955,
+        "z": 5.712000000000378
+      },
+      "endPoint": {
+        "x": 0.8344500000000258,
+        "y": -10.124450000000044,
+        "z": 5.712000000000378
+      },
+      "area": 0.3,
+      "height": 0.0,
+      "length": 1.135099999999957,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Furring (38 mm Stud):128404",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 5.712000000000378,
+      "top": 6.000000000000391,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "3Y4YRln2r91vflHcHE5ITn",
+      "name": "Basic Wall:Interior - Furring (38 mm Stud):217579",
+      "orientation": {
+        "x": -0.0,
+        "y": -1.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 1.944550000000026,
+        "y": -11.23255,
+        "z": 5.712000000000378
+      },
+      "endPoint": {
+        "x": 0.861450000000026,
+        "y": -11.23255,
+        "z": 5.712000000000378
+      },
+      "area": 0.3,
+      "height": 0.0,
+      "length": 1.0831,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Furring (38 mm Stud):128404",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 5.712000000000378,
+      "top": 6.000000000000391,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    },
+    {
+      "id": "3Y4YRln2r91vflHcHE5ITs",
+      "name": "Basic Wall:Interior - Furring (38 mm Stud):217580",
+      "orientation": {
+        "x": -1.0,
+        "y": -0.0,
+        "z": 0.0
+      },
+      "startPoint": {
+        "x": 1.917550000000025,
+        "y": -10.07045000000004,
+        "z": 5.712000000000378
+      },
+      "endPoint": {
+        "x": 1.917550000000025,
+        "y": -11.205549999999999,
+        "z": 5.712000000000378
+      },
+      "area": 0.3,
+      "height": 0.0,
+      "length": 1.1350999999999587,
+      "width": 0.0,
+      "type": "Basic Wall:Interior - Furring (38 mm Stud):128404",
+      "workset": "",
+      "isCurtainWall": false,
+      "isExternal": false,
+      "level": "Level 2",
+      "bottom": 5.712000000000378,
+      "top": 6.000000000000391,
+      "windows": [],
+      "properties": {
+        "ifcType": "IfcWallStandardCase"
+      }
+    }
+  ],
+  "windows": [
+    {
+      "id": "1hOSvn6df7F8_7GcBWlR72",
+      "name": "M_Fixed:4835mm x 2420mm:4835mm x 2420mm:145788",
+      "area": 11.7,
+      "height": 2.419999999999998,
+      "width": 4.834999999999996,
+      "position": {
+        "x": 3.548000000000002,
+        "y": -0.4170000000000038,
+        "z": 0.1000000000000006
+      },
+      "hostId": "2O2Fr$t4X7Zf8NOew3FNtn",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "1hOSvn6df7F8_7GcBWlRBU",
+      "name": "M_Fixed:4835mm x 2420mm:4835mm x 2420mm:146016",
+      "area": 11.7,
+      "height": 2.419999999999998,
+      "width": 4.834999999999997,
+      "position": {
+        "x": 5.251999999999997,
+        "y": -17.382999999999996,
+        "z": 0.1000000000000006
+      },
+      "hostId": "2O2Fr$t4X7Zf8NOew3FNr2",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "1hOSvn6df7F8_7GcBWlRLx",
+      "name": "M_Fixed:750mm x 2200mm:750mm x 2200mm:146885",
+      "area": 1.6,
+      "height": 2.199999999999996,
+      "width": 0.7499999999999996,
+      "position": {
+        "x": 8.382999999999994,
+        "y": -5.195000000000001,
+        "z": 0.1000000000000006
+      },
+      "hostId": "2O2Fr$t4X7Zf8NOew3FNqI",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "1hOSvn6df7F8_7GcBWlRRL",
+      "name": "M_Fixed:750mm x 2200mm:750mm x 2200mm:147051",
+      "area": 1.6,
+      "height": 2.199999999999996,
+      "width": 0.7499999999999984,
+      "position": {
+        "x": 0.4169999999999982,
+        "y": -12.605,
+        "z": 0.1000000000000006
+      },
+      "hostId": "2O2Fr$t4X7Zf8NOew3FNhv",
+      "level": "Level 1",
+      "properties": {}
+    },
+    {
+      "id": "1hOSvn6df7F8_7GcBWlSXO",
+      "name": "M_Fixed:2800mm x 2410mm:2800mm x 2410mm:147686",
+      "area": 6.7,
+      "height": 2.409999999999996,
+      "width": 2.8,
+      "position": {
+        "x": 1.325,
+        "y": -0.41700000000000004,
+        "z": 3.2000000000001965
+      },
+      "hostId": "2O2Fr$t4X7Zf8NOew3FLQD",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1hOSvn6df7F8_7GcBWlSga",
+      "name": "M_Fixed:819mm x 759mm:819mm x 759mm:147994",
+      "area": 0.6,
+      "height": 0.758999999999998,
+      "width": 0.8189999999999998,
+      "position": {
+        "x": 0.4170000000000003,
+        "y": -0.4170000000000002,
+        "z": 3.2000000000002014
+      },
+      "hostId": "2O2Fr$t4X7Zf8NOew3FLQD",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1hOSvn6df7F8_7GcBWlSp1",
+      "name": "M_Casement:819mm x 759mm:819mm x 759mm:148607",
+      "area": 0.6,
+      "height": 0.7590000000000007,
+      "width": 0.819,
+      "position": {
+        "x": 0.417000000000015,
+        "y": -0.4170000000000015,
+        "z": 4.0255000000001955
+      },
+      "hostId": "2O2Fr$t4X7Zf8NOew3FLQD",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1hOSvn6df7F8_7GcBWlSnC",
+      "name": "M_Fixed:819mm x 759mm:819mm x 759mm:148722",
+      "area": 0.6,
+      "height": 0.7589999999999986,
+      "width": 0.8189999999999995,
+      "position": {
+        "x": 0.4170000000000002,
+        "y": -0.4170000000000002,
+        "z": 4.8510000000001945
+      },
+      "hostId": "2O2Fr$t4X7Zf8NOew3FLQD",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1hOSvn6df7F8_7GcBWlS_W",
+      "name": "M_Fixed:2800mm x 2410mm:2800mm x 2410mm:149278",
+      "area": 6.7,
+      "height": 2.409999999999996,
+      "width": 2.8,
+      "position": {
+        "x": 7.474999999999973,
+        "y": -17.383000000000003,
+        "z": 3.200000000000201
+      },
+      "hostId": "2O2Fr$t4X7Zf8NOew3FLOH",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1hOSvn6df7F8_7GcBWlS2V",
+      "name": "M_Fixed:819mm x 759mm:819mm x 759mm:149537",
+      "area": 0.6,
+      "height": 0.758999999999998,
+      "width": 0.8190000000000001,
+      "position": {
+        "x": 8.382999999999974,
+        "y": -17.383,
+        "z": 3.2000000000002014
+      },
+      "hostId": "2O2Fr$t4X7Zf8NOew3FLOH",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1hOSvn6df7F8_7GcBWlS1M",
+      "name": "M_Casement:819mm x 759mm:819mm x 759mm:149736",
+      "area": 0.6,
+      "height": 0.7590000000000007,
+      "width": 0.8190000000000001,
+      "position": {
+        "x": 8.382999999999956,
+        "y": -17.383,
+        "z": 4.025500000000196
+      },
+      "hostId": "2O2Fr$t4X7Zf8NOew3FLOH",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1hOSvn6df7F8_7GcBWlS4Q",
+      "name": "M_Fixed:819mm x 759mm:819mm x 759mm:149924",
+      "area": 0.6,
+      "height": 0.758999999999998,
+      "width": 0.8190000000000001,
+      "position": {
+        "x": 8.382999999999974,
+        "y": -17.383,
+        "z": 4.851000000000197
+      },
+      "hostId": "2O2Fr$t4X7Zf8NOew3FLOH",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1l0GAJtRTFv8$zmKJOH4$e",
+      "name": "M_Fixed:2800mm x 2410mm:2800mm x 2410mm:180318",
+      "area": 6.7,
+      "height": 2.409999999999996,
+      "width": 2.8,
+      "position": {
+        "x": 0.4169999999999946,
+        "y": -17.38299999999997,
+        "z": 3.2000000000001965
+      },
+      "hostId": "2O2Fr$t4X7Zf8NOew3FLPP",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1l0GAJtRTFv8$zmKJOH4u1",
+      "name": "M_Fixed:819mm x 759mm:819mm x 759mm:180663",
+      "area": 0.6,
+      "height": 0.758999999999998,
+      "width": 0.8190000000000001,
+      "position": {
+        "x": 0.416999999999998,
+        "y": -14.482999999999969,
+        "z": 4.851000000000197
+      },
+      "hostId": "2O2Fr$t4X7Zf8NOew3FLPP",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1l0GAJtRTFv8$zmKJOH4qs",
+      "name": "M_Fixed:819mm x 759mm:819mm x 759mm:180864",
+      "area": 0.6,
+      "height": 0.7589999999999986,
+      "width": 0.8190000000000001,
+      "position": {
+        "x": 0.416999999999998,
+        "y": -14.482999999999969,
+        "z": 3.2000000000001965
+      },
+      "hostId": "2O2Fr$t4X7Zf8NOew3FLPP",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1l0GAJtRTFv8$zmKJOH4oq",
+      "name": "M_Casement:819mm x 759mm:819mm x 759mm:180994",
+      "area": 0.6,
+      "height": 0.7590000000000007,
+      "width": 0.8190000000000001,
+      "position": {
+        "x": 0.41699999999999926,
+        "y": -14.482999999999954,
+        "z": 4.025500000000196
+      },
+      "hostId": "2O2Fr$t4X7Zf8NOew3FLPP",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1l0GAJtRTFv8$zmKJOH4pU",
+      "name": "M_Fixed:2800mm x 2410mm:2800mm x 2410mm:181096",
+      "area": 6.7,
+      "height": 2.409999999999996,
+      "width": 2.8,
+      "position": {
+        "x": 8.383000000000004,
+        "y": -0.4170000000000265,
+        "z": 3.2000000000001965
+      },
+      "hostId": "2O2Fr$t4X7Zf8NOew3FLR9",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1l0GAJtRTFv8$zmKJOH4kJ",
+      "name": "M_Fixed:819mm x 759mm:819mm x 759mm:181285",
+      "area": 0.6,
+      "height": 0.758999999999998,
+      "width": 0.8189999999999995,
+      "position": {
+        "x": 8.382999999999996,
+        "y": -3.317000000000027,
+        "z": 4.851000000000197
+      },
+      "hostId": "2O2Fr$t4X7Zf8NOew3FLR9",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1l0GAJtRTFv8$zmKJOH4gQ",
+      "name": "M_Casement:819mm x 759mm:819mm x 759mm:181548",
+      "area": 0.6,
+      "height": 0.7590000000000007,
+      "width": 0.8190000000000001,
+      "position": {
+        "x": 8.382999999999994,
+        "y": -3.317000000000042,
+        "z": 4.025500000000196
+      },
+      "hostId": "2O2Fr$t4X7Zf8NOew3FLR9",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1l0GAJtRTFv8$zmKJOH4hv",
+      "name": "M_Fixed:819mm x 759mm:819mm x 759mm:181583",
+      "area": 0.6,
+      "height": 0.7589999999999986,
+      "width": 0.8189999999999995,
+      "position": {
+        "x": 8.382999999999996,
+        "y": -3.317000000000027,
+        "z": 3.2000000000001965
+      },
+      "hostId": "2O2Fr$t4X7Zf8NOew3FLR9",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1l0GAJtRTFv8$zmKJOH4aS",
+      "name": "M_Fixed:750mm x 2200mm:750mm x 2200mm:181930",
+      "area": 1.6,
+      "height": 2.199999999999997,
+      "width": 0.7499999999999984,
+      "position": {
+        "x": 8.382999999999983,
+        "y": -11.774,
+        "z": 3.2000000000001965
+      },
+      "hostId": "2O2Fr$t4X7Zf8NOew3FLR9",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1l0GAJtRTFv8$zmKJOH4ZZ",
+      "name": "M_Fixed:750mm x 2200mm:750mm x 2200mm:182101",
+      "area": 1.6,
+      "height": 2.199999999999997,
+      "width": 0.7499999999999996,
+      "position": {
+        "x": 0.4169999999999986,
+        "y": -6.025999999999998,
+        "z": 3.2000000000001965
+      },
+      "hostId": "2O2Fr$t4X7Zf8NOew3FLPP",
+      "level": "Level 2",
+      "properties": {}
+    },
+    {
+      "id": "1Eo2$BaHX42AEkDvQQDocD",
+      "name": "M_Skylight:1180 x 1170mm:1180 x 1170mm:185337",
+      "area": 0.7,
+      "height": 0.6348000000000008,
+      "width": 1.172537682966587,
+      "position": {
+        "x": 1.655159926972273,
+        "y": -10.47550409881197,
+        "z": 2.342399999999817
+      },
+      "hostId": null,
+      "level": "Roof",
+      "properties": {}
+    },
+    {
+      "id": "1Eo2$BaHX42AEkDvQQDoy2",
+      "name": "M_Skylight:1180 x 1170mm:1180 x 1170mm:185718",
+      "area": 0.7,
+      "height": 0.6348000000000008,
+      "width": 1.172537682966587,
+      "position": {
+        "x": 7.688159926972278,
+        "y": -6.945504098811979,
+        "z": 2.342399999999817
+      },
+      "hostId": null,
+      "level": "Roof",
+      "properties": {}
+    }
+  ],
+  "storeys": [
+    {
+      "id": "1xS3BCk291UvhgP2dvNsgp",
+      "name": "T/FDN",
+      "elevation": -1.25,
+      "floorArea": 0,
+      "slabIds": []
+    },
+    {
+      "id": "1xS3BCk291UvhgP2dvNMKI",
+      "name": "Level 1",
+      "elevation": 0.0,
+      "floorArea": 180.53,
+      "slabIds": [
+        "2O2Fr$t4X7Zf8NOew3FK4F",
+        "2O2Fr$t4X7Zf8NOew3FKcz",
+        "2OBrcmyk58NupXoVOHUtxr",
+        "2OBrcmyk58NupXoVOHUtoa",
+        "2OBrcmyk58NupXoVOHUtjR",
+        "2OBrcmyk58NupXoVOHUtju",
+        "2OBrcmyk58NupXoVOHUtgP",
+        "2OBrcmyk58NupXoVOHUten",
+        "1CZILmCaHETO8tf3SgGEWh",
+        "1CZILmCaHETO8tf3SgGEXu"
+      ]
+    },
+    {
+      "id": "1xS3BCk291UvhgP2dvNMQJ",
+      "name": "Level 2",
+      "elevation": 3.100000000000378,
+      "floorArea": 118.74,
+      "slabIds": [
+        "1hOSvn6df7F8_7GcBWlRqU",
+        "1hOSvn6df7F8_7GcBWlRrM",
+        "2OBrcmyk58NupXoVOHUtC0",
+        "2OBrcmyk58NupXoVOHUtDX",
+        "2OBrcmyk58NupXoVOHUtBP",
+        "2OBrcmyk58NupXoVOHUt8F",
+        "2OBrcmyk58NupXoVOHUt8s",
+        "2OBrcmyk58NupXoVOHUt5W",
+        "2OBrcmyk58NupXoVOHUt2f",
+        "2OBrcmyk58NupXoVOHUt0F"
+      ]
+    },
+    {
+      "id": "1xS3BCk291UvhgP2dvNtSE",
+      "name": "Roof",
+      "elevation": 6.0,
+      "floorArea": 0,
+      "slabIds": []
+    }
+  ],
+  "slabs": [
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FK4F",
+      "name": "Floor:127mm Slab on Grade:141232",
+      "kind": "floor",
+      "area": 64.78,
+      "top": 0.0,
+      "bottom": -0.127,
+      "storey": "Level 1",
+      "type": "Floor:127mm Slab on Grade",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "2O2Fr$t4X7Zf8NOew3FKcz",
+      "name": "Floor:127mm Slab on Grade:143106",
+      "kind": "floor",
+      "area": 64.91,
+      "top": 0.0,
+      "bottom": -0.127,
+      "storey": "Level 1",
+      "type": "Floor:127mm Slab on Grade",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1hOSvn6df7F8_7GcBWlRqU",
+      "name": "Floor:Residential - Wood Joist with Subflooring:144800",
+      "kind": "floor",
+      "area": 59.23,
+      "top": 3.1000000000001964,
+      "bottom": 2.795000000000196,
+      "storey": "Level 2",
+      "type": "Floor:Residential - Wood Joist with Subflooring",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1hOSvn6df7F8_7GcBWlRrM",
+      "name": "Floor:Residential - Wood Joist with Subflooring:144872",
+      "kind": "floor",
+      "area": 59.33,
+      "top": 3.1000000000001964,
+      "bottom": 2.795000000000196,
+      "storey": "Level 2",
+      "type": "Floor:Residential - Wood Joist with Subflooring",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "2OBrcmyk58NupXoVOHUtC0",
+      "name": "Floor:Finish Floor - Wood:169093",
+      "kind": "floor",
+      "area": 22.04,
+      "top": 3.119000000000378,
+      "bottom": 3.100000000000378,
+      "storey": "Level 2",
+      "type": "Floor:Finish Floor - Wood",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "2OBrcmyk58NupXoVOHUtDX",
+      "name": "Floor:Finish Floor - Wood:169188",
+      "kind": "floor",
+      "area": 22.04,
+      "top": 3.119000000000378,
+      "bottom": 3.100000000000378,
+      "storey": "Level 2",
+      "type": "Floor:Finish Floor - Wood",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "2OBrcmyk58NupXoVOHUtBP",
+      "name": "Floor:Finish Floor - Wood:169308",
+      "kind": "floor",
+      "area": 22.07,
+      "top": 3.119000000000378,
+      "bottom": 3.100000000000378,
+      "storey": "Level 2",
+      "type": "Floor:Finish Floor - Wood",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "2OBrcmyk58NupXoVOHUt8F",
+      "name": "Floor:Finish Floor - Wood:169354",
+      "kind": "floor",
+      "area": 22.04,
+      "top": 3.119000000000378,
+      "bottom": 3.100000000000378,
+      "storey": "Level 2",
+      "type": "Floor:Finish Floor - Wood",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "2OBrcmyk58NupXoVOHUt8s",
+      "name": "Floor:Finish Floor - Wood:169395",
+      "kind": "floor",
+      "area": 7.21,
+      "top": 3.119000000000378,
+      "bottom": 3.100000000000378,
+      "storey": "Level 2",
+      "type": "Floor:Finish Floor - Wood",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "2OBrcmyk58NupXoVOHUt5W",
+      "name": "Floor:Finish Floor - Wood:169701",
+      "kind": "floor",
+      "area": 7.21,
+      "top": 3.119000000000378,
+      "bottom": 3.100000000000378,
+      "storey": "Level 2",
+      "type": "Floor:Finish Floor - Wood",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "2OBrcmyk58NupXoVOHUt2f",
+      "name": "Floor:Finish Floor - Ceramic Tile:169772",
+      "kind": "floor",
+      "area": 6.34,
+      "top": 3.113000000000378,
+      "bottom": 3.100000000000378,
+      "storey": "Level 2",
+      "type": "Floor:Finish Floor - Ceramic Tile",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "2OBrcmyk58NupXoVOHUt0F",
+      "name": "Floor:Finish Floor - Ceramic Tile:169866",
+      "kind": "floor",
+      "area": 6.34,
+      "top": 3.113000000000378,
+      "bottom": 3.100000000000378,
+      "storey": "Level 2",
+      "type": "Floor:Finish Floor - Ceramic Tile",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "2OBrcmyk58NupXoVOHUtxr",
+      "name": "Floor:Finish Floor - Wood:170352",
+      "kind": "floor",
+      "area": 47.15,
+      "top": 0.019,
+      "bottom": 0.0,
+      "storey": "Level 1",
+      "type": "Floor:Finish Floor - Wood",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "2OBrcmyk58NupXoVOHUtoa",
+      "name": "Floor:Finish Floor - Ceramic Tile:170785",
+      "kind": "floor",
+      "area": 12.95,
+      "top": 0.013,
+      "bottom": 0.0,
+      "storey": "Level 1",
+      "type": "Floor:Finish Floor - Ceramic Tile",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "2OBrcmyk58NupXoVOHUtjR",
+      "name": "Floor:Finish Floor - Ceramic Tile:171230",
+      "kind": "floor",
+      "area": 3.16,
+      "top": 0.013,
+      "bottom": 0.0,
+      "storey": "Level 1",
+      "type": "Floor:Finish Floor - Ceramic Tile",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "2OBrcmyk58NupXoVOHUtju",
+      "name": "Floor:Finish Floor - Ceramic Tile:171261",
+      "kind": "floor",
+      "area": 3.16,
+      "top": 0.013,
+      "bottom": 0.0,
+      "storey": "Level 1",
+      "type": "Floor:Finish Floor - Ceramic Tile",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "2OBrcmyk58NupXoVOHUtgP",
+      "name": "Floor:Finish Floor - Wood:171292",
+      "kind": "floor",
+      "area": 47.15,
+      "top": 0.019,
+      "bottom": 0.0,
+      "storey": "Level 1",
+      "type": "Floor:Finish Floor - Wood",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "2OBrcmyk58NupXoVOHUten",
+      "name": "Floor:Finish Floor - Ceramic Tile:171444",
+      "kind": "floor",
+      "area": 12.95,
+      "top": 0.013,
+      "bottom": 0.0,
+      "storey": "Level 1",
+      "type": "Floor:Finish Floor - Ceramic Tile",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1CZILmCaHETO8tf3SgGEWh",
+      "name": "Floor:150mm Exterior Slab on Grade:216507",
+      "kind": "floor",
+      "area": 25.42,
+      "top": 0.012999999999999984,
+      "bottom": -0.137,
+      "storey": "Level 1",
+      "type": "Floor:150mm Exterior Slab on Grade",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "1CZILmCaHETO8tf3SgGEXu",
+      "name": "Floor:150mm Exterior Slab on Grade:216552",
+      "kind": "floor",
+      "area": 25.42,
+      "top": 0.012999999999999984,
+      "bottom": -0.137,
+      "storey": "Level 1",
+      "type": "Floor:150mm Exterior Slab on Grade",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcSlab"
+      }
+    },
+    {
+      "id": "0jf0rYHfX3RAB3bSIRjmxl",
+      "name": "Basic Roof:Live Roof over Wood Joist Flat Roof:184483",
+      "kind": "roof",
+      "area": 132.93,
+      "top": 6.457,
+      "bottom": 6.0,
+      "storey": "Roof",
+      "type": "Basic Roof:Live Roof over Wood Joist Flat Roof",
+      "isExternal": false,
+      "properties": {
+        "ifcType": "IfcRoof"
+      }
+    }
+  ],
+  "projectNorth": -0.0,
+  "units": "m",
+  "metadata": {
+    "sourceFile": "Ifc2x3_Duplex_Architecture.ifc",
+    "projectName": "0001",
+    "description": "",
+    "formatVersion": 3
+  }
+}

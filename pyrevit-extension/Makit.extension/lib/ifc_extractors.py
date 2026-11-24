@@ -15,11 +15,14 @@ except ImportError:
 import math
 import os
 from geometry_models import (
-    GeometricVector, GenericWall, GenericWindow, BuildingModel
+    GeometricVector, GenericWall, GenericWindow, GenericStorey, GenericSlab, BuildingModel
 )
 
 # Constants
 SQM_TO_SQF = 10.7639  # Square meters to square feet conversion
+# A floor plate belongs to the storey whose elevation is within this many
+# metres of its top face (finish floors sit a few centimetres above a level)
+PLATE_STOREY_TOLERANCE = 0.3
 
 
 def get_ifc_property_value(element, pset_name, prop_name):
@@ -130,68 +133,152 @@ def get_ifc_wall_orientation(wall, centre=None):
             nx, ny = -nx, -ny
     return GeometricVector(nx, ny, 0.0)
 
-def get_ifc_wall_geometry(wall):
+def get_axis_points(wall):
     """
-    Extract wall geometry (start/end points)
-    
-    Args:
-        wall: IFC wall element
-        
-    Returns:
-        tuple (start_point, end_point) as GeometricVector or (None, None)
+    The first and last point of the wall's Axis representation, in the
+    wall's local coordinates (x, y, z): an IfcPolyline or IfcIndexedPolyCurve
+    of two or more points (2D points get z 0). None when the wall has no
+    such axis.
+    """
+    representation = getattr(wall, 'Representation', None)
+    if not representation:
+        return None
+    for rep in representation.Representations:
+        if rep.RepresentationIdentifier != 'Axis' or not rep.Items:
+            continue
+        item = rep.Items[0]
+        if item.is_a('IfcPolyline'):
+            points = [p.Coordinates for p in item.Points]
+        elif item.is_a('IfcIndexedPolyCurve'):
+            # The point list is a pool; with Segments, the curve runs from
+            # the first segment's first index to the last segment's last
+            # (1-based). Without them the list is the traversal.
+            pool = list(item.Points.CoordList)
+            segments = getattr(item, 'Segments', None)
+            points = pool
+            if segments:
+                try:
+                    first = segments[0].wrappedValue[0]
+                    last = segments[-1].wrappedValue[-1]
+                    points = [pool[first - 1], pool[last - 1]]
+                except (AttributeError, IndexError, TypeError):
+                    points = pool
+        else:
+            return None
+        if len(points) < 2:
+            return None
+        ends = []
+        for p in (points[0], points[-1]):
+            ends.append((p[0], p[1], p[2] if len(p) > 2 else 0.0))
+        return ends
+    return None
+
+def to_project(matrix, point, length_scale):
+    """A local (x, y, z) through a 4x4 placement matrix, scaled to metres."""
+    x, y, z = point
+    return tuple(
+        float(matrix[i][0] * x + matrix[i][1] * y + matrix[i][2] * z + matrix[i][3]) * length_scale
+        for i in range(3))
+
+def axis_from_faces(faces, direction, z=None):
+    """
+    A wall's axis measured from its triangles (metres, project coordinates):
+    its ends are the least and greatest extent of the vertices along the
+    plan `direction` (dx, dy), on the line through their mean across it, at
+    `z` (the lowest vertex when None). None without vertices or direction.
+    """
+    vertices = [v for _, _, triangle in faces for v in triangle]
+    if not vertices:
+        return None
+    dx, dy = direction
+    length = math.hypot(dx, dy)
+    if length == 0:
+        return None
+    dx, dy = dx / length, dy / length
+    along = [v[0] * dx + v[1] * dy for v in vertices]
+    across = sum(-v[0] * dy + v[1] * dx for v in vertices) / len(vertices)
+    if z is None:
+        z = min(v[2] for v in vertices)
+
+    def point(a):
+        return (a * dx - across * dy, a * dy + across * dx, z)
+
+    return point(min(along)), point(max(along))
+
+def facade_normal(faces):
+    """
+    The horizontal unit normal carrying the most face area among a wall's
+    triangles (its sign folded so x > 0, or y > 0 when x is 0): the way its
+    sides look. None when no face is near-vertical.
+    """
+    weights = {}
+    for n, area, _ in faces:
+        if abs(n[2]) > 0.1:
+            continue
+        key = (round(n[0], 2), round(n[1], 2))
+        if key[0] < 0 or (key[0] == 0 and key[1] < 0):
+            key = (-key[0], -key[1])
+        weights[key] = weights.get(key, 0.0) + area
+    if not weights:
+        return None
+    nx, ny = max(weights, key=weights.get)
+    length = math.hypot(nx, ny)
+    if length == 0:
+        return None
+    return nx / length, ny / length
+
+def get_ifc_wall_geometry(wall, ifc_file):
+    """
+    A wall's axis as (start, end) GeometricVectors in metres, project
+    coordinates: the ends of its Axis representation, else its placement
+    origin and X direction run out to its Length quantity, else measured
+    from its geometry along the placement's X axis. (None, None) when the
+    wall offers none of these.
     """
     if not IFC_AVAILABLE:
         return None, None
-        
     try:
-        # Use ifcopenshell.util.placement to get absolute position
+        length_scale, _ = get_unit_scales(ifc_file)
+        if not getattr(wall, 'ObjectPlacement', None):
+            return None, None
         matrix = ifcopenshell.util.placement.get_local_placement(wall.ObjectPlacement)
-        
-        # Origin (Start point)
-        start_x = matrix[0][3]
-        start_y = matrix[1][3]
-        start_z = matrix[2][3]
-        
-        # Direction X
-        dir_x = matrix[0][0]
-        dir_y = matrix[1][0]
-        dir_z = matrix[2][0]
-        
-        # Get length to calculate end point
-        length = 0
-        for rel in wall.IsDefinedBy:
-            if rel.is_a('IfcRelDefinesByProperties'):
-                prop = rel.RelatingPropertyDefinition
-                if prop.is_a('IfcElementQuantity'):
-                    for q in prop.Quantities:
-                        if q.is_a('IfcQuantityLength') and ('Length' in q.Name or 'Width' in q.Name):
-                            if q.LengthValue > length:
-                                length = q.LengthValue
-                                
-        # If length not found properties, try geometry
-        if length == 0:
-            settings = ifcopenshell.geom.settings()
-            try:
-                shape = ifcopenshell.geom.create_shape(settings, wall)
-                # Bounds
-                verts = shape.geometry.verts
-                # Simple approximation if no explicit length
-                # This is complex without proper BRep analysis, but for 2D start/end:
-                length = 1.0 # Fallback
-            except:
-                pass
-                
-        # Calculate End point based on direction and length
-        end_x = start_x + dir_x * length
-        end_y = start_y + dir_y * length
-        end_z = start_z + dir_z * length
-        
-        return (
-            GeometricVector(start_x, start_y, start_z),
-            GeometricVector(end_x, end_y, end_z)
-        )
-    except:
-        return None, None
+
+        points = get_axis_points(wall)
+        if points:
+            start, end = [to_project(matrix, p, length_scale) for p in points]
+            return GeometricVector(*start), GeometricVector(*end)
+
+        length = 0.0
+        for quantity in get_element_quantities(wall):
+            if quantity.is_a('IfcQuantityLength') and quantity.Name == 'Length':
+                length = quantity.LengthValue
+        if length > 0:
+            start = to_project(matrix, (0.0, 0.0, 0.0), length_scale)
+            end = to_project(matrix, (length, 0.0, 0.0), length_scale)
+            return GeometricVector(*start), GeometricVector(*end)
+
+        try:
+            faces = get_faces(wall)
+        except Exception:
+            faces = []
+        # Along the wall is across its facade; the placement's X axis only
+        # when the geometry has no vertical face to tell. The axis runs the
+        # placement's way, so start and end mean the same whichever source
+        # gave them.
+        px, py = matrix[0][0], matrix[1][0]
+        normal = facade_normal(faces)
+        if normal:
+            direction = (-normal[1], normal[0])
+            if direction[0] * px + direction[1] * py < 0:
+                direction = (-direction[0], -direction[1])
+        else:
+            direction = (px, py)
+        axis = axis_from_faces(faces, direction)
+        if axis:
+            return GeometricVector(*axis[0]), GeometricVector(*axis[1])
+    except Exception as e:
+        print("Warning: no axis for wall {}: {}".format(wall.GlobalId, str(e)))
+    return None, None
 
 def get_unit_scales(ifc_file):
     """
@@ -336,7 +423,7 @@ def extract_ifc_wall_to_generic(wall, ifc_file, area_unit='sqm', centre=None):
         generic_wall.orientation = orientation
         
     # Get Geometry Points
-    start, end = get_ifc_wall_geometry(wall)
+    start, end = get_ifc_wall_geometry(wall, ifc_file)
     if start:
         generic_wall.start_point = start
     if end:
@@ -369,28 +456,31 @@ def extract_ifc_wall_to_generic(wall, ifc_file, area_unit='sqm', centre=None):
     except:
         pass
 
-    # Get dimensions from quantities
+    # Dimensions from quantities, in metres; the axis is the better length
     try:
-        for rel in wall.IsDefinedBy:
-            if rel.is_a('IfcRelDefinesByProperties'):
-                prop_def = rel.RelatingPropertyDefinition
-                if prop_def.is_a('IfcElementQuantity'):
-                    for quantity in prop_def.Quantities:
-                        if quantity.is_a('IfcQuantityLength'):
-                            if 'Height' in quantity.Name:
-                                generic_wall.height = quantity.LengthValue
-                            elif 'Length' in quantity.Name or 'Width' in quantity.Name:
-                                generic_wall.length = quantity.LengthValue
-                        elif quantity.is_a('IfcQuantityLength') and 'Width' in quantity.Name:
-                            generic_wall.width = quantity.LengthValue
-    except:
-        pass
+        length_scale, _ = get_unit_scales(ifc_file)
+        for quantity in get_element_quantities(wall):
+            if not quantity.is_a('IfcQuantityLength'):
+                continue
+            if 'Height' in quantity.Name:
+                generic_wall.height = quantity.LengthValue * length_scale
+            elif 'Width' in quantity.Name:
+                generic_wall.width = quantity.LengthValue * length_scale
+            elif 'Length' in quantity.Name:
+                generic_wall.length = quantity.LengthValue * length_scale
+    except Exception as e:
+        print("Warning: no dimensions for wall {}: {}".format(wall.GlobalId, str(e)))
+    if start and end:
+        generic_wall.length = math.hypot(end.x - start.x, end.y - start.y)
 
     # Check if curtain wall
     generic_wall.is_curtain_wall = 'CURTAIN' in (wall.ObjectType or '').upper()
 
     # Exterior or interior, as the file flags it (None if it does not)
     generic_wall.is_external = get_is_external(wall)
+
+    # Where the wall stands, for the split above and below grade
+    generic_wall.bottom, generic_wall.top = get_wall_elevations(wall, ifc_file)
 
     # Store IFC-specific properties
     generic_wall.properties['ifcType'] = wall.is_a()
@@ -410,11 +500,26 @@ def get_storey_name(element):
         pass
     return None
 
-def get_triangles(element):
+# Faces by entity id, kept only while extract_building_model_from_ifc runs:
+# a wall's area, elevations and axis all need them, and tessellation is the
+# slow part. Entity ids repeat across files, so the cache never outlives one
+# extraction.
+_FACES_CACHE = None
+
+def get_faces(element):
     """
     An element's surface as triangles in world coordinates, in metres:
-    a list of (unit normal, area, centroid)
+    a list of (unit normal, area, (a, b, c) vertices)
     """
+    if _FACES_CACHE is not None and element.id() in _FACES_CACHE:
+        return _FACES_CACHE[element.id()]
+    faces = tessellate(element)
+    if _FACES_CACHE is not None:
+        _FACES_CACHE[element.id()] = faces
+    return faces
+
+def tessellate(element):
+    """get_faces without the cache"""
     settings = ifcopenshell.geom.settings()
     settings.set('use-world-coords', True)
     shape = ifcopenshell.geom.create_shape(settings, element)
@@ -429,9 +534,283 @@ def get_triangles(element):
         length = math.sqrt(sum(x * x for x in n))
         if length == 0:
             continue
-        centroid = [(a[j] + b[j] + c[j]) / 3.0 for j in range(3)]
-        triangles.append(([x / length for x in n], length / 2.0, centroid))
+        triangles.append(([x / length for x in n], length / 2.0, (a, b, c)))
     return triangles
+
+def get_triangles(element):
+    """
+    An element's surface as triangles in world coordinates, in metres:
+    a list of (unit normal, area, centroid)
+    """
+    return [
+        (n, area, [(a[j] + b[j] + c[j]) / 3.0 for j in range(3)])
+        for n, area, (a, b, c) in get_faces(element)
+    ]
+
+def get_element_faces(element):
+    """
+    Faces of an element's own geometry, or of its parts when it has none
+    itself (an IfcRoof made of slabs, say), and so on down: a part with
+    geometry stands for its own parts. Never both. Only parts count, not a
+    part's openings or what fills them (a skylight is a window, not roof).
+    """
+    if getattr(element, 'Representation', None):
+        return get_faces(element)
+    faces = []
+    for part in ifcopenshell.util.element.get_parts(element):
+        faces.extend(get_element_faces(part))
+    return faces
+
+def get_footprint(faces):
+    """
+    The plan footprint of the up-facing faces (normal z > 0.5) as a shapely
+    geometry, or None without shapely or without up-facing faces
+    """
+    try:
+        from shapely.geometry import Polygon
+        from shapely.ops import unary_union
+    except ImportError:
+        return None
+    polygons = []
+    for n, _, (a, b, c) in faces:
+        if n[2] <= 0.5:
+            continue
+        polygon = Polygon([(a[0], a[1]), (b[0], b[1]), (c[0], c[1])])
+        if polygon.is_valid and polygon.area > 0:
+            polygons.append(polygon)
+    if not polygons:
+        return None
+    return unary_union(polygons)
+
+def get_up_facing_area(faces):
+    """Surface area of the faces that look up (normal z > 0.5): a roof's slopes"""
+    return sum(area for n, area, _ in faces if n[2] > 0.5)
+
+def get_z_range(faces):
+    """(bottom, top) of the faces' vertices in metres, or (None, None)"""
+    zs = [point[2] for _, _, triangle in faces for point in triangle]
+    if not zs:
+        return None, None
+    return min(zs), max(zs)
+
+def get_wall_elevations(wall, ifc_file):
+    """
+    (bottom, top) of a wall in metres, project z: from its geometry (its
+    parts' for a curtain wall), else from its placement and Height quantity,
+    else (None, None)
+    """
+    try:
+        faces = get_element_faces(wall)
+    except Exception:
+        faces = []
+    if faces:
+        return get_z_range(faces)
+    length_scale, _ = get_unit_scales(ifc_file)
+    try:
+        matrix = ifcopenshell.util.placement.get_local_placement(wall.ObjectPlacement)
+    except Exception:
+        return None, None
+    height = None
+    for quantity in get_element_quantities(wall):
+        if quantity.is_a('IfcQuantityLength') and 'Height' in quantity.Name:
+            height = quantity.LengthValue
+    if height is None:
+        return None, None
+    bottom = matrix[2][3] * length_scale
+    return bottom, bottom + height * length_scale
+
+def get_storey_elevation(storey, ifc_file):
+    """
+    A storey's elevation in metres, project z: its placement's z, the frame
+    the plates' geometry is matched in, else its Elevation attribute
+    """
+    length_scale, _ = get_unit_scales(ifc_file)
+    placement = getattr(storey, 'ObjectPlacement', None)
+    if placement is not None:
+        try:
+            matrix = ifcopenshell.util.placement.get_local_placement(placement)
+            return matrix[2][3] * length_scale
+        except Exception:
+            pass
+    elevation = getattr(storey, 'Elevation', None)
+    return elevation * length_scale if elevation is not None else 0.0
+
+def has_ancestor(element, *ifc_classes):
+    """
+    Whether the element is part, at any depth, of an aggregate of one of the
+    classes (an IfcRoof -> IfcElementAssembly -> IfcSlab chain, say)
+    """
+    parent = ifcopenshell.util.element.get_aggregate(element)
+    while parent is not None:
+        if any(parent.is_a(ifc_class) for ifc_class in ifc_classes):
+            return True
+        parent = ifcopenshell.util.element.get_aggregate(parent)
+    return False
+
+def slab_kind(slab):
+    """
+    'roof' for a ROOF slab or one anywhere under an IfcRoof, 'landing' for a
+    LANDING or a part of a stair or ramp, 'other' for a part of anything else,
+    else 'floor'
+    """
+    predefined = getattr(slab, 'PredefinedType', None)
+    if predefined == 'ROOF' or has_ancestor(slab, 'IfcRoof'):
+        return 'roof'
+    if predefined == 'LANDING' or has_ancestor(slab, 'IfcStair', 'IfcRamp'):
+        return 'landing'
+    if ifcopenshell.util.element.get_aggregate(slab) is not None:
+        return 'other'
+    return 'floor'
+
+def has_shapely():
+    """Whether shapely, which comes with IfcOpenShell, can be imported"""
+    try:
+        import shapely  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+def nearest_storey(top, storeys):
+    """The storey whose elevation is nearest `top`, within PLATE_STOREY_TOLERANCE, or None"""
+    best = None
+    for storey in storeys:
+        distance = abs(storey.elevation - top)
+        if distance <= PLATE_STOREY_TOLERANCE and (best is None or distance < best[0]):
+            best = (distance, storey)
+    return best[1] if best else None
+
+def slab_from_faces(slab, faces, storeys, to_unit=1.0):
+    """
+    A GenericSlab from an IfcSlab's faces: a floor plate's area is its plan
+    footprint and it joins the storey nearest its top face (which records the
+    plate in its slabIds); a roof slab's area is its up-facing surface. Areas
+    are multiplied by `to_unit` (square feet per square metre for 'sqf').
+    """
+    generic = GenericSlab(id=slab.GlobalId, name=slab.Name or "")
+    generic.kind = slab_kind(slab)
+    generic.bottom, generic.top = get_z_range(faces)
+    generic.slab_type = getattr(slab, 'ObjectType', None) or ""
+    generic.is_external = get_is_external(slab)
+    generic.properties['ifcType'] = slab.is_a()
+    footprint = get_footprint(faces) if generic.kind != 'roof' else None
+    if footprint is not None:
+        generic.area = round(footprint.area * to_unit, 2)
+    else:
+        generic.area = round(get_up_facing_area(faces) * to_unit, 2)
+    if generic.kind == 'floor' and generic.top is not None:
+        storey = nearest_storey(generic.top, storeys)
+        if storey is not None:
+            generic.storey = storey.name
+            storey.slab_ids.append(generic.id)
+    elif generic.kind != 'floor':
+        generic.storey = get_storey_name(slab)
+    return generic
+
+def extract_ifc_slab_to_generic(slab, ifc_file, storeys, area_unit='sqm'):
+    """
+    An IfcSlab as a GenericSlab (see slab_from_faces), or None without geometry
+    """
+    try:
+        faces = get_faces(slab)
+    except Exception as e:
+        print("Warning: no geometry for slab {}: {}".format(slab.GlobalId, str(e)))
+        return None
+    if not faces:
+        return None
+    return slab_from_faces(slab, faces, storeys, 1.0 if area_unit == 'sqm' else SQM_TO_SQF)
+
+def extract_ifc_roof_to_generic(roof, ifc_file, area_unit='sqm'):
+    """
+    An IfcRoof as a GenericSlab of kind 'roof' whose area is the up-facing
+    surface of its own geometry, or of its parts when it has none. None when
+    nothing has geometry.
+    """
+    try:
+        faces = get_element_faces(roof)
+    except Exception as e:
+        print("Warning: no geometry for roof {}: {}".format(roof.GlobalId, str(e)))
+        return None
+    if not faces:
+        return None
+    generic = GenericSlab(id=roof.GlobalId, name=roof.Name or "")
+    generic.kind = 'roof'
+    to_unit = 1.0 if area_unit == 'sqm' else SQM_TO_SQF
+    generic.area = round(get_up_facing_area(faces) * to_unit, 2)
+    generic.bottom, generic.top = get_z_range(faces)
+    generic.storey = get_storey_name(roof)
+    generic.slab_type = getattr(roof, 'ObjectType', None) or ""
+    generic.is_external = get_is_external(roof)
+    generic.properties['ifcType'] = roof.is_a()
+    return generic
+
+def extract_storeys_and_slabs(ifc_file, building_model, storey_filter=None, area_unit='sqm'):
+    """
+    Fill a building model's storeys and slabs.
+
+    Storeys carry their elevation in metres. Floor plates (IfcSlab, not a roof,
+    landing or part of something) join the storey nearest their top face; a
+    storey's floorArea is the footprint union of its plates, so finish floors
+    over structural floors count once (their sum, with a warning, when shapely
+    is missing). Roofs are IfcRoof elements (own geometry, else their parts)
+    and ROOF slabs outside any IfcRoof, each counted once. With a storey
+    filter, only that storey and its slabs are kept. Areas follow
+    `area_unit` ('sqm' or 'sqf'), like the walls' and windows'.
+    """
+    to_unit = 1.0 if area_unit == 'sqm' else SQM_TO_SQF
+    if not has_shapely():
+        print("Warning: shapely not available: floor plates measure their surface, "
+              "not their footprint, and storey floor areas are sums, not unions")
+
+    storeys = []
+    for ifc_storey in ifc_file.by_type('IfcBuildingStorey'):
+        if storey_filter and ifc_storey.Name != storey_filter:
+            continue
+        storey = GenericStorey(id=ifc_storey.GlobalId, name=ifc_storey.Name or "")
+        storey.elevation = get_storey_elevation(ifc_storey, ifc_file)
+        storeys.append(storey)
+    storeys.sort(key=lambda s: s.elevation)
+
+    slabs = []
+    footprints = {}
+    for slab in ifc_file.by_type('IfcSlab'):
+        if has_ancestor(slab, 'IfcRoof'):
+            continue  # measured with its roof, however deep it sits
+        try:
+            faces = get_faces(slab)
+        except Exception as e:
+            print("Warning: no geometry for slab {}: {}".format(slab.GlobalId, str(e)))
+            continue
+        if not faces:
+            continue
+        generic = slab_from_faces(slab, faces, storeys, to_unit)
+        slabs.append(generic)
+        if generic.kind == 'floor':
+            footprints[generic.id] = get_footprint(faces)
+
+    for roof in ifc_file.by_type('IfcRoof'):
+        if has_ancestor(roof, 'IfcRoof'):
+            continue  # part of a roof already measured
+        generic = extract_ifc_roof_to_generic(roof, ifc_file, area_unit)
+        if generic is not None:
+            slabs.append(generic)
+
+    if storey_filter:
+        slabs = [s for s in slabs if s.storey == storey_filter]
+
+    try:
+        from shapely.ops import unary_union
+    except ImportError:
+        unary_union = None
+    for storey in storeys:
+        shapes = [footprints.get(i) for i in storey.slab_ids]
+        if unary_union is not None and shapes and all(shape is not None for shape in shapes):
+            storey.floor_area = round(unary_union(shapes).area * to_unit, 2)
+        else:
+            ids = set(storey.slab_ids)
+            storey.floor_area = round(sum(s.area for s in slabs if s.id in ids), 2)
+
+    building_model.storeys = storeys
+    building_model.slabs = slabs
 
 def is_glazing(part):
     """
@@ -466,32 +845,21 @@ def extract_ifc_curtain_wall_to_generic(curtain_wall, ifc_file, area_unit='sqm',
         if not getattr(part, 'Representation', None) or part.is_a('IfcCurtainWall'):
             continue
         try:
-            meshes.append((part, get_triangles(part)))
+            meshes.append((part, get_faces(part)))
         except Exception as e:
             print("Warning: no geometry for {}: {}".format(part.GlobalId, str(e)))
     if not meshes:
         return None
 
     # The facade faces along the horizontal normal that carries most area
-    weights = {}
-    total = 0.0
-    sx = sy = 0.0
-    for part, triangles in meshes:
-        for n, area, centroid in triangles:
-            total += area
-            sx += centroid[0] * area
-            sy += centroid[1] * area
-            if abs(n[2]) > 0.1:
-                continue
-            key = (round(n[0], 2), round(n[1], 2))
-            if key[0] < 0 or (key[0] == 0 and key[1] < 0):
-                key = (-key[0], -key[1])
-            weights[key] = weights.get(key, 0.0) + area
-    if not weights:
+    faces = [face for _, triangles in meshes for face in triangles]
+    normal = facade_normal(faces)
+    if normal is None:
         return None
-    nx, ny = max(weights, key=weights.get)
-    length = math.hypot(nx, ny)
-    nx, ny = nx / length, ny / length
+    nx, ny = normal
+    total = sum(area for _, area, _ in faces)
+    sx = sum((a[0] + b[0] + c[0]) / 3.0 * area for _, area, (a, b, c) in faces)
+    sy = sum((a[1] + b[1] + c[1]) / 3.0 * area for _, area, (a, b, c) in faces)
     if centre is not None and total > 0:
         mx = sx / total - centre[0] * length_scale
         my = sy / total - centre[1] * length_scale
@@ -507,6 +875,12 @@ def extract_ifc_curtain_wall_to_generic(curtain_wall, ifc_file, area_unit='sqm',
     generic_wall.level = level
     generic_wall.wall_type = curtain_wall.ObjectType or ""
     generic_wall.properties['ifcType'] = curtain_wall.is_a()
+    generic_wall.bottom, generic_wall.top = get_z_range(faces)
+    axis = axis_from_faces(faces, (-ny, nx))
+    if axis:
+        generic_wall.start_point = GeometricVector(*axis[0])
+        generic_wall.end_point = GeometricVector(*axis[1])
+        generic_wall.length = math.hypot(axis[1][0] - axis[0][0], axis[1][1] - axis[0][1])
 
     opaque = 0.0
     for part, triangles in meshes:
@@ -539,7 +913,8 @@ def extract_ifc_window_to_generic(window, ifc_file, area_unit='sqm'):
     # Get Position
     pos = get_element_position(window)
     if pos:
-        generic_window.position = pos
+        generic_window.position = GeometricVector(
+            pos.x * length_scale, pos.y * length_scale, pos.z * length_scale)
 
     # Try to find host wall
     try:
@@ -562,9 +937,9 @@ def extract_ifc_window_to_generic(window, ifc_file, area_unit='sqm'):
                     for quantity in prop_def.Quantities:
                         if quantity.is_a('IfcQuantityLength'):
                             if 'Height' in quantity.Name:
-                                generic_window.height = quantity.LengthValue
+                                generic_window.height = quantity.LengthValue * length_scale
                             elif 'Width' in quantity.Name:
-                                generic_window.width = quantity.LengthValue
+                                generic_window.width = quantity.LengthValue * length_scale
                         elif quantity.is_a('IfcQuantityArea'):
                             area_sqm = quantity.AreaValue * area_scale
                             if area_unit == 'sqm':
@@ -574,13 +949,28 @@ def extract_ifc_window_to_generic(window, ifc_file, area_unit='sqm'):
     except:
         pass
 
+    # The window's overall size when the quantities gave none
+    if generic_window.height == 0 and getattr(window, 'OverallHeight', None):
+        generic_window.height = window.OverallHeight * length_scale
+    if generic_window.width == 0 and getattr(window, 'OverallWidth', None):
+        generic_window.width = window.OverallWidth * length_scale
+
     # Calculate area if not found
     if generic_window.area == 0 and generic_window.height > 0 and generic_window.width > 0:
-        area_sqm = generic_window.height * generic_window.width * length_scale ** 2
+        area_sqm = generic_window.height * generic_window.width
         if area_unit == 'sqm':
             generic_window.area = round(area_sqm, 1)
         else:
             generic_window.area = round(area_sqm * SQM_TO_SQF, 1)
+
+    # Last resort: measure one side of the window's geometry
+    if generic_window.area == 0:
+        measured = get_side_area_from_geometry(window)
+        if measured:
+            if area_unit == 'sqm':
+                generic_window.area = round(measured, 1)
+            else:
+                generic_window.area = round(measured * SQM_TO_SQF, 1)
 
     # Get level
     try:
@@ -597,6 +987,20 @@ def extract_ifc_window_to_generic(window, ifc_file, area_unit='sqm'):
 
 
 def extract_building_model_from_ifc(ifc_path, options=None):
+    """
+    Extract a complete building model from IFC in generic format (see
+    build_building_model). Faces are tessellated once per element while
+    this runs.
+    """
+    global _FACES_CACHE
+    _FACES_CACHE = {}
+    try:
+        return build_building_model(ifc_path, options)
+    finally:
+        _FACES_CACHE = None
+
+
+def build_building_model(ifc_path, options=None):
     """
     Extract a complete building model from IFC in generic format
 
@@ -724,6 +1128,9 @@ def extract_building_model_from_ifc(ifc_path, options=None):
 
             except Exception as e:
                 print("Error extracting window {}: {}".format(window.GlobalId, str(e)))
+
+    # Storeys, floor plates and roofs
+    extract_storeys_and_slabs(ifc_file, building_model, storey_filter, area_unit)
 
     return building_model
 

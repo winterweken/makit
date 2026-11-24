@@ -184,7 +184,8 @@ pub enum PreviewKind {
     Energy,
     /// Building envelope with wall orientation arrows.
     Walls,
-    /// Isometric wireframe building.
+    /// Isometric wireframe: the picked IFC model's walls on IFC nodes, else
+    /// an illustration.
     Building,
     /// Floor plan with rooms.
     FloorPlan,

@@ -457,6 +457,33 @@ fn render_ifc_details(frame: &mut Frame, state: &AppState, area: Rect) {
                     ..area
                 },
             );
+            y += 1;
+        }
+        if let Some(env) = state.ifc.envelope.as_ref().filter(|_| y < bottom) {
+            let line = Line::from(format!(
+                "GFA {:.0} m² · walls {:.0} / {:.0} m² · windows {:.0} m² · roof {:.0} m²",
+                env.gfa, env.walls_ag, env.walls_bg, env.windows, env.roof
+            ))
+            .fg(THEME.text);
+            frame.render_widget(
+                Paragraph::new(line),
+                Rect {
+                    y,
+                    height: 1,
+                    ..area
+                },
+            );
+            y += 1;
+        }
+        if let Some(note) = state.ifc.note.as_ref().filter(|_| y < bottom) {
+            frame.render_widget(
+                Paragraph::new(Line::from(note.clone()).fg(THEME.dim)),
+                Rect {
+                    y,
+                    height: 1,
+                    ..area
+                },
+            );
         }
     } else if let Some(loading) = &state.ifc.loading {
         let line = Line::from(format!(
@@ -475,13 +502,15 @@ fn render_ifc_details(frame: &mut Frame, state: &AppState, area: Rect) {
             ],
             None => {
                 let json = building_model::extraction_path(Path::new(loaded));
-                vec![
-                    Line::from(vec![Span::styled("◆ ", Style::new().fg(THEME.dim)), name]),
-                    Line::from(format!(
+                let why = state.ifc.note.clone().unwrap_or_else(|| {
+                    format!(
                         "Not extracted yet: no {} beside it",
                         file_name(&json.to_string_lossy())
-                    ))
-                    .fg(THEME.dim),
+                    )
+                });
+                vec![
+                    Line::from(vec![Span::styled("◆ ", Style::new().fg(THEME.dim)), name]),
+                    Line::from(why).fg(THEME.dim),
                 ]
             }
         };
@@ -493,12 +522,12 @@ fn render_preview(frame: &mut Frame, state: &AppState, kind: PreviewKind, area: 
     if area.width == 0 || area.height == 0 {
         return;
     }
-    let rec = preview::record(kind, state.logo_angle, state.preview_data());
-    let Some(bounds) = preview::content_bounds(kind, &rec) else {
+    let scene = preview::record(kind, state.logo_angle, state.preview_data());
+    let Some(bounds) = preview::content_bounds(kind, &scene) else {
         return;
     };
     let fit = preview::fit_bounds(bounds, area.width, area.height);
-    let points = preview::expand_points(&rec.points, fit.scale);
+    let points = preview::expand_points(&scene.main.points, fit.scale);
     // The logo is drawn in colour: the kit in slate, the lifted block in the
     // theme's three colours. Other previews are one colour.
     let toned = (kind == PreviewKind::Logo).then(|| logo::segments(state.logo_angle));
@@ -507,6 +536,12 @@ fn render_preview(frame: &mut Frame, state: &AppState, kind: PreviewKind, area: 
         .x_bounds(fit.x_bounds)
         .y_bounds(fit.y_bounds)
         .paint(|ctx| {
+            // The faint layer goes under everything else, so the main
+            // drawing's edges win where they meet.
+            for &((x1, y1), (x2, y2)) in &scene.faint.segments {
+                ctx.draw(&CanvasLine::new(x1, y1, x2, y2, THEME.dim));
+            }
+            ctx.layer();
             if let Some(toned) = &toned {
                 // Kit first, so the hero block's edges win where they meet.
                 for &(((x1, y1), (x2, y2)), tone) in
@@ -521,7 +556,7 @@ fn render_preview(frame: &mut Frame, state: &AppState, kind: PreviewKind, area: 
                     ctx.draw(&CanvasLine::new(x1, y1, x2, y2, tone.color()));
                 }
             } else {
-                for &((x1, y1), (x2, y2)) in &rec.segments {
+                for &((x1, y1), (x2, y2)) in &scene.main.segments {
                     ctx.draw(&CanvasLine::new(x1, y1, x2, y2, THEME.accent));
                 }
             }
@@ -530,7 +565,7 @@ fn render_preview(frame: &mut Frame, state: &AppState, kind: PreviewKind, area: 
                 color: THEME.accent,
             });
             ctx.layer();
-            for (x, y, text) in &rec.labels {
+            for (x, y, text) in &scene.main.labels {
                 ctx.print(
                     *x,
                     *y,
@@ -1310,6 +1345,48 @@ mod tests {
             .any(|l| l.contains("Not extracted yet: no Building-Architecture.json")));
     }
 
+    #[test]
+    fn a_missing_extraction_shows_its_reason() {
+        let mut s = state(120, 40);
+        s.tree.select(1);
+        s.ifc.loaded = Some(s.ifc.files[0].clone());
+        s.ifc.note = Some("no Python with ifcopenshell: set MAKIT_PYTHON".into());
+        let lines = text(&render(&s));
+        assert!(lines
+            .iter()
+            .any(|l| l.contains("no Python with ifcopenshell")));
+        assert!(!lines.iter().any(|l| l.contains("Not extracted yet")));
+    }
+
+    fn sample_model() -> building_model::BuildingModel {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../examples/IFC/building-model.json"
+        );
+        building_model::load_model(Path::new(path)).expect("example model")
+    }
+
+    #[test]
+    fn the_detail_shows_the_envelope_line_and_a_note() {
+        let mut s = state(120, 40);
+        s.tree.select(1);
+        s.ifc.loaded = Some(s.ifc.files[0].clone());
+        let model = sample_model();
+        s.ifc.analysis = Some(building_model::analyze_wwr(&model));
+        s.ifc.envelope = Some(building_model::envelope(&model, 0.0));
+        s.ifc.note = Some("using stale building-model.json: no python".into());
+        let lines = text(&render(&s));
+        assert!(
+            lines
+                .iter()
+                .any(|l| l.contains("GFA 26 m²") && l.contains("roof 54 m²")),
+            "{lines:#?}"
+        );
+        assert!(lines
+            .iter()
+            .any(|l| l.contains("using stale building-model.json")));
+    }
+
     // ─── Honest previews ────────────────────────────────────────────────
 
     #[test]
@@ -1338,6 +1415,29 @@ mod tests {
         assert!(lines
             .iter()
             .any(|l| l.contains("Preview · wall area by orientation")));
+        assert!(has_braille(&lines));
+    }
+
+    #[test]
+    fn a_loaded_model_is_drawn_in_isometric() {
+        let mut s = state(120, 40);
+        s.tree.select(1); // source:ifc
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../examples/IFC/Ifc4_ARC.json"
+        );
+        let model = building_model::load_model(Path::new(path)).unwrap();
+        s.ifc.loaded = Some(s.ifc.files[0].clone());
+        s.ifc.analysis = Some(building_model::analyze_wwr(&model));
+        s.ifc.model = Some(model);
+        let lines = text(&render(&s));
+        assert!(lines
+            .iter()
+            .any(|l| l.contains("Preview · isometric") && !l.contains("illustration")));
+        assert!(lines
+            .iter()
+            .any(|l| l.contains("Walls ") && l.contains(" drawn")));
+        assert!(lines.iter().any(|l| l.contains("m footprint")));
         assert!(has_braille(&lines));
     }
 }

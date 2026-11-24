@@ -31,13 +31,27 @@ enum Commands {
         #[arg(short, long, value_parser = parse_option)]
         option: Vec<(String, String)>,
     },
-    /// Analyze an IFC or geometry file
+    /// Analyze an IFC file (extracted on demand) or its extraction
     Analyze {
         /// Input file path
         file: String,
-        /// Analysis type
+        /// Analysis type: summary, wwr or envelope
         #[arg(short = 't', long, default_value = "summary")]
         analysis_type: String,
+        /// Grade elevation [m, project z]: wall area below it is below-grade
+        #[arg(long, default_value_t = 0.0, allow_negative_numbers = true)]
+        grade: f64,
+    },
+    /// Extract an IFC file to JSON beside it (needs Python with IfcOpenShell)
+    Extract {
+        /// IFC file path
+        file: String,
+        /// Where to write the extraction (default: <name>.json beside the IFC)
+        #[arg(short, long)]
+        output: Option<String>,
+        /// Extract even when a fresh extraction exists
+        #[arg(long)]
+        force: bool,
     },
     /// Launch the interactive TUI
     Tui,
@@ -73,7 +87,13 @@ fn main() -> Result<()> {
         Some(Commands::Analyze {
             file,
             analysis_type,
-        }) => commands::analyze::run(&file, &analysis_type),
+            grade,
+        }) => commands::analyze::run(&file, &analysis_type, grade),
+        Some(Commands::Extract {
+            file,
+            output,
+            force,
+        }) => commands::extract::run(&file, output.as_deref(), force),
         Some(Commands::Tui) => commands::tui::run(),
         Some(Commands::Status) => {
             println!("makit status — checking connected tools...");
